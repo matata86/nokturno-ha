@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.18.0";
+const CARD_VERSION = "1.19.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -199,13 +199,14 @@ class NokturnoCard extends HTMLElement {
 
   /** Rozkoukané: Kodi dostane přímo plugin:// odkaz z doplňku (obnoví pozici). */
   async _playContinue(item) {
-    const entityId = this._state.player || this._players()[0];
+    // pokračuje se na tom Kodi, kde je titul rozkoukaný
+    const entityId = item.entity_id || this._state.player || this._players()[0];
     if (!entityId) { this._toast("Není nastavený žádný přehrávač."); return; }
     await this._guard(async () => {
       await this._hass.callService("media_player", "play_media", {
         entity_id: entityId, media_content_type: "video", media_content_id: item.file,
       });
-      this._toast(`Pokračuji: ${item.label}`);
+      this._toast(`Pokračuji na ${this._friendly(entityId)}: ${item.label}`);
     });
   }
 
@@ -323,6 +324,8 @@ class NokturnoCard extends HTMLElement {
         .section ha-icon { --mdc-icon-size:18px; }
         .cont { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:8px; }
         .cont .poster .thumb { aspect-ratio:16/9; }
+        .where { position:absolute; left:6px; bottom:6px; font-size:.68rem; font-weight:600; padding:2px 6px;
+                 border-radius:6px; background:rgba(0,0,0,.65); color:#fff; }
         .watch { margin-left:auto; }
         .legend { margin-top:8px; font-size:.75rem; color: var(--secondary-text-color); display:flex;
                   align-items:center; gap:4px; }
@@ -415,12 +418,14 @@ class NokturnoCard extends HTMLElement {
       : `<div class="muted" style="margin-top:10px">Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.</div>`;
     if (st.continueItems === null) this._loadContinue();
     const cont = st.continueItems || [];
+    const manyKodi = new Set(cont.map((c) => c.entity_id)).size > 1;
     if (cont.length) {
       html += `<div class="section"><ha-icon icon="mdi:play-circle-outline"></ha-icon> Pokračovat ve sledování</div>
         <div class="cont">${cont.map((c, i) => `
           <button class="poster" data-cont="${i}" title="${this._esc(c.plot)}">
             <span class="thumb"><ha-icon icon="mdi:filmstrip"></ha-icon>
               ${c.fanart || c.thumbnail ? `<img src="${this._esc(c.fanart || c.thumbnail)}" referrerpolicy="no-referrer" />` : ""}
+              ${manyKodi ? `<span class="where">${this._esc(c.player)}</span>` : ""}
             </span>
             <div class="t">${this._esc(c.label)}</div>
           </button>`).join("")}</div>`;
@@ -464,7 +469,7 @@ class NokturnoCard extends HTMLElement {
   async _loadContinue() {
     this._state.continueItems = [];
     try {
-      const res = await this._call("continue_watching", { entity_id: this._state.player || undefined });
+      const res = await this._call("continue_watching", {});
       this._state.continueItems = res.items || [];
       if (this._state.view === "search") this._paint();
     } catch (err) { /* Kodi vypnuté — sekce se prostě neukáže */ }

@@ -14,7 +14,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Stahování do `/media/nokturno`** s frontou a průběhem; hotové soubory jsou vidět v kartě, dají se přehrát nebo smazat.
 - **Odkazy použitelné mimo domácí síť** — pokud se ke streamu najde tentýž soubor přímo na WebShare, použije se odkaz z jejich CDN (v kartě ikona 🌐). Zbytek se přepíše na adresu z Tailscale/VPN, pokud ji vyplníš.
 - **Hlasovka a skripty jedním krokem** — službám stačí `query` místo ID: `nokturno.play` s `query: Matrix` najde první výsledek, vybere nejlepší stream podle tvých předvoleb a pustí ho.
-- **Pokračovat ve sledování** — karta ukáže rozkoukané tituly a další díly z Kodi (čte je z doplňku přes JSON-RPC), jedním klepnutím se pokračuje od uložené pozice.
+- **Pokračovat ve sledování** — karta ukáže rozkoukané tituly a další díly ze **všech Kodi v domácnosti** (čte je z doplňku přes JSON-RPC; vypnutá Kodi se přeskočí). Jedním klepnutím se pokračuje od uložené pozice na tom Kodi, kde jsi to rozkoukal — u víc zařízení je na dlaždici jeho jméno.
 - **Sledované seriály** — u seriálu klepneš na oko, integrace každých 6 hodin zkontroluje nové díly a pošle oznámení; `sensor.nokturno_nove_dily` hlásí, kolik seriálů má nový díl (pro automatizace i událost `nokturno_new_episode`).
 - **Titulky z WebShare** — ke streamům se dohledají `.srt` (české napřed) a pošlou do Kodi; při stažení se uloží vedle videa.
 - **Historie hledání** v kartě, **oznámení po dostažení** (událost `nokturno_download_done`) a **hlídání místa na disku** — stahování odmítne soubor, který by se nevešel.
@@ -72,7 +72,7 @@ downloads: sensor.nokturno_stahovani
 | `nokturno.episodes` | ano | sezóny a epizody seriálu |
 | `nokturno.resolve` | ano | přímé URL streamu pro cizí přehrávač |
 | `nokturno.play` | | přehrání na přehrávači (`id` nebo `query`) |
-| `nokturno.continue_watching` | ano | rozkoukané tituly a další díly z Kodi |
+| `nokturno.continue_watching` | ano | rozkoukané tituly a další díly ze všech Kodi (nebo z jednoho přes `entity_id`), u každé položky `entity_id` zdrojového Kodi |
 | `nokturno.watch_series` / `check_series` | ano | sledování seriálů a ruční kontrola nových dílů |
 | `nokturno.clear_history` | | smazání historie hledání |
 | `nokturno.download` | | stažení do složky HA |

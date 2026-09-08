@@ -185,53 +185,50 @@ async def async_phone_owners(hass: HomeAssistant) -> dict[str, str]:
     return owners
 
 
-def kodi_endpoint(hass: HomeAssistant, entity_id: str | None):
-    """HTTP JSON-RPC adresa Kodi z jeho config entry (host, port, případně přihlášení)."""
+def kodi_endpoints(hass: HomeAssistant, entity_id: str | None = None) -> list[dict]:
+    """Všechna Kodi v domácnosti: JSON-RPC adresa, přihlášení a jejich media_player entita.
+
+    Dvě config entries na stejný host (např. `coreelec` a `coreelec_2`) se berou jako jedno Kodi.
+    """
     registry = er.async_get(hass)
-    entry_id = None
-    if entity_id:
-        reg = registry.async_get(entity_id)
-        entry_id = reg.config_entry_id if reg else None
+    players = {}
+    for reg in registry.entities.values():
+        if reg.platform == "kodi" and reg.domain == "media_player" and reg.config_entry_id:
+            players.setdefault(reg.config_entry_id, reg.entity_id)
+    out, seen = [], set()
     for entry in hass.config_entries.async_entries("kodi"):
-        if entry_id and entry.entry_id != entry_id:
-            continue
         data = entry.data
-        auth = (data.get("username"), data.get("password")) if data.get("username") else None
+        host = f"{data.get('host')}:{data.get('port', 8080)}"
+        player = players.get(entry.entry_id)
+        if entity_id and player != entity_id:
+            continue
+        if host in seen:
+            continue
+        seen.add(host)
         scheme = "https" if data.get("ssl") else "http"
-        return f"{scheme}://{data.get('host')}:{data.get('port', 8080)}/jsonrpc", auth
-    return None, None
+        out.append({
+            "entity_id": player,
+            "name": entry.title,
+            "url": f"{scheme}://{host}/jsonrpc",
+            "auth": (data.get("username"), data.get("password")) if data.get("username") else None,
+        })
+    return out
 
 
-def kodi_image(value: str) -> str:
-    """Kodi obaluje obrázky do `image://<zakódované URL>/` — prohlížeč potřebuje holé URL.
-    Mrtvé náhledy Sosáče (movies.sosac.tv, 404) radši vynechat, karta ukáže podklad."""
-    if not value:
-        return ""
-    if value.startswith("image://"):
-        value = urllib.parse.unquote(value[len("image://"):].rstrip("/"))
-    if not value.startswith("http") or "movies.sosac.tv" in value:
-        return ""
-    return value
-
-
-async def kodi_continue(hass: HomeAssistant, entity_id: str | None) -> list[dict]:
-    """„Pokračovat ve sledování" z doplňku Nokturno v Kodi (výpis přes JSON-RPC)."""
-    url, auth = kodi_endpoint(hass, entity_id)
-    if not url:
-        raise HomeAssistantError("Kodi není v Home Assistantu nastavené.")
+async def _kodi_continue_one(hass: HomeAssistant, kodi: dict) -> list[dict]:
     session = async_get_clientsession(hass)
     payload = {"jsonrpc": "2.0", "id": 1, "method": "Files.GetDirectory", "params": {
         "directory": f"{KODI_PLUGIN}?action=continue", "media": "video",
         "properties": ["title", "thumbnail", "art", "year", "plot", "season", "episode", "showtitle"],
     }}
-    kwargs = {"json": payload, "timeout": 60}
-    if auth:
+    kwargs = {"json": payload, "timeout": 30}
+    if kodi["auth"]:
         import aiohttp
-        kwargs["auth"] = aiohttp.BasicAuth(*auth)
-    async with session.post(url, **kwargs) as resp:
+        kwargs["auth"] = aiohttp.BasicAuth(*kodi["auth"])
+    async with session.post(kodi["url"], **kwargs) as resp:
         data = await resp.json(content_type=None)
     if "error" in data:
-        raise HomeAssistantError(f"Kodi: {data['error'].get('message')}")
+        raise HomeAssistantError(f"{kodi['name']}: {data['error'].get('message')}")
     items = []
     for f in (data.get("result") or {}).get("files") or []:
         art = f.get("art") or {}
@@ -246,8 +243,40 @@ async def kodi_continue(hass: HomeAssistant, entity_id: str | None) -> list[dict
             "series": f.get("showtitle") or "",
             "season": f.get("season"),
             "episode": f.get("episode"),
+            # odkud to je — karta pustí pokračování na tomtéž Kodi
+            "entity_id": kodi["entity_id"],
+            "player": kodi["name"],
         })
     return items
+
+
+async def kodi_continue(hass: HomeAssistant, entity_id: str | None) -> list[dict]:
+    """„Pokračovat ve sledování" ze všech Kodi (nebo jen z jednoho), vypnutá se přeskočí."""
+    import asyncio
+
+    kodis = kodi_endpoints(hass, entity_id)
+    if not kodis:
+        raise HomeAssistantError("Kodi není v Home Assistantu nastavené.")
+    results = await asyncio.gather(*(_kodi_continue_one(hass, k) for k in kodis), return_exceptions=True)
+    items = []
+    for kodi, result in zip(kodis, results):
+        if isinstance(result, Exception):
+            _LOGGER.debug("rozkoukané z %s: %s", kodi["name"], result)
+            continue
+        items.extend(result)
+    return items
+
+
+def kodi_image(value: str) -> str:
+    """Kodi obaluje obrázky do `image://<zakódované URL>/` — prohlížeč potřebuje holé URL.
+    Mrtvé náhledy Sosáče (movies.sosac.tv, 404) radši vynechat, karta ukáže podklad."""
+    if not value:
+        return ""
+    if value.startswith("image://"):
+        value = urllib.parse.unquote(value[len("image://"):].rstrip("/"))
+    if not value.startswith("http") or "movies.sosac.tv" in value:
+        return ""
+    return value
 
 
 async def async_register_card(hass: HomeAssistant) -> None:
@@ -369,7 +398,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"count": len(data), "series": list(data.values())}
 
     async def handle_continue(call: ServiceCall):
-        items = await kodi_continue(hass, call.data.get(ATTR_ENTITY_ID) or options.get(CONF_KODI_ENTITY))
+        items = await kodi_continue(hass, call.data.get(ATTR_ENTITY_ID))
         return {"count": len(items), "items": items}
 
     async def handle_clear_history(call: ServiceCall):

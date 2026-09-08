@@ -28,7 +28,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 3. Najdi **Nokturno**, nainstaluj a restartuj Home Assistant
 4. **Nastavení → Zařízení a služby → Přidat integraci → Nokturno**
 
-Kartu do dashboardu integrace naservíruje sama, nemusíš nic přidávat do zdrojů Lovelace — a pokud jsi ji tam dřív přidal ručně (`/local/…`), odeber ji, jinak se načte dvakrát.
+Kartu do dashboardu integrace naservíruje sama a sama si ji zapíše i do zdrojů Lovelace (`/nokturno/nokturno-card.js?v=…`), nemusíš nic přidávat. Pokud jsi ji tam dřív přidal ručně z `/local/…`, ten záznam odeber. Po první instalaci nebo aktualizaci mobilní aplikaci úplně zavři a otevři znovu, ať si stáhne novou verzi karty.
 
 ### Ručně
 

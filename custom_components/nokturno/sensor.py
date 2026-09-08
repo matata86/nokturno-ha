@@ -48,15 +48,18 @@ class NokturnoDownloadsSensor(SensorEntity):
         self.async_on_remove(
             async_dispatcher_connect(self.hass, SIGNAL_WATCHLIST, self._updated)
         )
-        # mobile_app se registruje až po nás — stav přepíšeme, jakmile jeho notify služby naskočí
-        self.async_on_remove(
-            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, lambda _e: self._updated())
-        )
+        # mobile_app se registruje až po nás — stav přepíšeme, jakmile jeho notify služby naskočí.
+        # Posluchače musí být @callback, jinak je HA spustí ve vlákně a async_write_ha_state se pohorší.
+        @callback
+        def _started(_event) -> None:
+            self._updated()
 
         @callback
         def _service_added(event) -> None:
             if event.data.get("domain") == "notify":
                 self._updated()
+
+        self.async_on_remove(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _started))
 
         self.async_on_remove(self.hass.bus.async_listen(EVENT_SERVICE_REGISTERED, _service_added))
 

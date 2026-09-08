@@ -352,10 +352,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # --- sledované seriály ----------------------------------------------------
 
     def watchlist():
+        # soubor je po startu v paměti (viz předčtení níže), tady už se na disk nesahá
         return engine.store.load("watchlist", {})
 
-    def watchlist_save(data):
-        engine.store.save("watchlist", data)
+    async def watchlist_save(data):
+        await hass.async_add_executor_job(engine.store.save, "watchlist", data)
         async_dispatcher_send(hass, SIGNAL_WATCHLIST)
 
     def _latest_aired(episodes):
@@ -392,7 +393,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 item["checked"] = dt_util.now().isoformat()
                 changed = True
         if changed:
-            watchlist_save(data)
+            await watchlist_save(data)
         return data
 
     async def handle_watch(call: ServiceCall):
@@ -400,13 +401,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sid = call.data["id"]
         if call.data.get("remove") or (sid in data and not call.data.get("title")):
             data.pop(sid, None)
-            watchlist_save(data)
+            await watchlist_save(data)
             return {"watching": False, "count": len(data)}
         entry_item = data.get(sid) or {"id": sid}
         entry_item.update({k: call.data[k] for k in ("title", "alt", "poster") if call.data.get(k)})
         entry_item.setdefault("added", dt_util.now().isoformat())
         data[sid] = entry_item
-        watchlist_save(data)
+        await watchlist_save(data)
         hass.async_create_task(check_series())
         return {"watching": True, "count": len(data)}
 
@@ -611,6 +612,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, name, handler, schema=schema, supports_response=response)
 
     await downloader.async_refresh_files()
+    # sledované seriály a historie do paměti store hned — senzory je čtou z event loopu
+    await hass.async_add_executor_job(engine.store.load, "watchlist", {})
+    await hass.async_add_executor_job(engine.store.load, "history", [])
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True

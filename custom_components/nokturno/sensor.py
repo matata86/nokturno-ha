@@ -11,12 +11,15 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
-from .const import DOMAIN, SIGNAL_DOWNLOADS
+from .const import DOMAIN, SIGNAL_DOWNLOADS, SIGNAL_WATCHLIST
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
-    add_entities([NokturnoDownloadsSensor(entry, data["downloader"], data.get("owners") or {})])
+    add_entities([
+        NokturnoDownloadsSensor(entry, data["downloader"], data.get("owners") or {}, data["engine"]),
+        NokturnoEpisodesSensor(entry, data["engine"]),
+    ])
 
 
 class NokturnoDownloadsSensor(SensorEntity):
@@ -26,9 +29,10 @@ class NokturnoDownloadsSensor(SensorEntity):
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "souborů"
 
-    def __init__(self, entry: ConfigEntry, downloader, owners):
+    def __init__(self, entry: ConfigEntry, downloader, owners, engine):
         self._downloader = downloader
         self._owners = owners
+        self._engine = engine
         self._attr_unique_id = f"{entry.entry_id}_downloads"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
@@ -40,6 +44,9 @@ class NokturnoDownloadsSensor(SensorEntity):
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(
             async_dispatcher_connect(self.hass, SIGNAL_DOWNLOADS, self._updated)
+        )
+        self.async_on_remove(
+            async_dispatcher_connect(self.hass, SIGNAL_WATCHLIST, self._updated)
         )
         # mobile_app se registruje až po nás — stav přepíšeme, jakmile jeho notify služby naskočí
         self.async_on_remove(
@@ -91,6 +98,50 @@ class NokturnoDownloadsSensor(SensorEntity):
             "percent": running["percent"] if running else 0,
             "directory": self._downloader.directory,
             "files": self._downloader.files,
+            "free_gb": round(self._downloader.free_gb, 1),
+            "search_history": self._engine.history(),
             # karta z toho plní výběr mobilu (u koho který telefon je)
             "notify_targets": self.notify_targets,
+        }
+
+
+class NokturnoEpisodesSensor(SensorEntity):
+    """Sledované seriály — kolik jich má nový díl, v atributech seznam."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Nové díly"
+    _attr_icon = "mdi:television-play"
+    _attr_should_poll = False
+    _attr_native_unit_of_measurement = "seriálů"
+
+    def __init__(self, entry: ConfigEntry, engine):
+        self._engine = engine
+        self._attr_unique_id = f"{entry.entry_id}_new_episodes"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            async_dispatcher_connect(self.hass, SIGNAL_WATCHLIST, self._updated)
+        )
+
+    @callback
+    def _updated(self) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def _watchlist(self) -> dict:
+        return self._engine.store.load("watchlist", {})
+
+    @property
+    def native_value(self) -> int:
+        return sum(1 for item in self._watchlist.values() if item.get("new"))
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        items = sorted(self._watchlist.values(), key=lambda i: i.get("title") or "")
+        return {
+            "series": [
+                {k: item.get(k) for k in ("id", "title", "alt", "poster", "latest", "new", "checked")}
+                for item in items
+            ],
         }

@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import re
+import shutil
 import time
 import uuid
 
@@ -19,6 +20,11 @@ _LOGGER = logging.getLogger(__name__)
 
 CHUNK = 1024 * 512
 MAX_PARALLEL = 1
+
+
+def _write_bytes(path, data):
+    with open(path, "wb") as handle:
+        handle.write(data)
 
 
 def safe_name(name, url=""):
@@ -39,6 +45,8 @@ class Downloader:
         self.directory = directory
         self.jobs: dict[str, dict] = {}
         self.files: list[dict] = []
+        self.free_gb: float = 0.0
+        self.on_done = None  # callback(job) po dokončení – notifikace
         self._queue: asyncio.Queue = asyncio.Queue()
         self._worker: asyncio.Task | None = None
         self._current: asyncio.Task | None = None
@@ -59,8 +67,15 @@ class Downloader:
         out.sort(key=lambda f: f["modified"], reverse=True)
         return out
 
+    def _free(self):
+        try:
+            return shutil.disk_usage(self.directory).free / 1024 ** 3
+        except OSError:
+            return 0.0
+
     async def async_refresh_files(self):
         self.files = await self.hass.async_add_executor_job(self._scan)
+        self.free_gb = await self.hass.async_add_executor_job(self._free)
         self._notify()
         return self.files
 
@@ -78,7 +93,7 @@ class Downloader:
 
     # --- fronta -------------------------------------------------------------
 
-    def add(self, url, name, meta=None):
+    def add(self, url, name, meta=None, subtitles=None):
         job_id = uuid.uuid4().hex[:8]
         self.jobs[job_id] = {
             "id": job_id,
@@ -91,6 +106,7 @@ class Downloader:
             "path": os.path.join(self.directory, safe_name(name, url)),
             "started": time.time(),
             "error": "",
+            "subtitles": list(subtitles or []),
             **(meta or {}),
         }
         self._queue.put_nowait(job_id)
@@ -175,6 +191,26 @@ class Downloader:
                         last = time.time()
                         self._notify()
         await self.hass.async_add_executor_job(os.replace, tmp, job["path"])
+        for index, sub_url in enumerate(job.get("subtitles") or []):
+            await self._download_subtitle(job, sub_url, index)
         job.update(status="done", percent=100)
         await self.async_refresh_files()
         _LOGGER.info("staženo: %s", job["path"])
+        if self.on_done:
+            try:
+                await self.on_done(job)
+            except Exception as err:  # noqa: BLE001 – notifikace nesmí shodit frontu
+                _LOGGER.warning("oznámení o stažení: %s", err)
+
+    async def _download_subtitle(self, job, url, index):
+        """Titulky vedle videa — stejný název, přípona .srt (další jako .2.srt), ať je Kodi/VLC najde."""
+        stem = os.path.splitext(job["path"])[0]
+        dest = f"{stem}.srt" if index == 0 else f"{stem}.{index + 1}.srt"
+        session = async_get_clientsession(self.hass)
+        try:
+            async with session.get(url, timeout=60) as resp:
+                resp.raise_for_status()
+                data = await resp.read()
+            await self.hass.async_add_executor_job(_write_bytes, dest, data)
+        except Exception as err:  # noqa: BLE001 – titulky jsou bonus
+            _LOGGER.warning("titulky k %s: %s", job["name"], err)

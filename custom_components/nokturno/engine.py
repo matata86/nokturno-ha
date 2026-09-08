@@ -7,6 +7,8 @@ ale bez Kodi: volání jsou synchronní a HA je pouští v executoru.
 from __future__ import annotations
 
 import logging
+import re
+import unicodedata
 import urllib.parse
 
 from .const import LANGS, SORT_ORDERS
@@ -22,12 +24,19 @@ from .lib.webshare_api import WebshareApi, WebshareError, human_size
 WS_LIMIT = 25    # kolik souborů brát z fulltextu WebShare
 SOLO_LIMIT = 8   # kolik z nich nechat v seznamu, když k nim Luna nemá protějšek
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
+HISTORY_MAX = 12
+SUBS_MAX = 3
 
 _LOGGER = logging.getLogger(__name__)
 
 SOURCE_NAMES = {"main": "Luna", "search": "WebShare", "ws": "WebShare", "sosac": "Sosáč"}
 
 QUALITY_NAMES = {4: "4K", 3: "Full HD", 2: "HD", 1: "SD", 0: ""}
+
+
+def _fold(text):
+    """Bez diakritiky, malá písmena — pro porovnávání názvů souborů."""
+    return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode().lower()
 
 
 class NokturnoError(Exception):
@@ -192,6 +201,21 @@ class Engine:
         merged = self._merge(luna_metas, sosac_metas)[: int(limit or 20)]
         enrich([m for m, _alt in merged if is_sosac_id(m.get("id"))], self.luna, self.store, ctype)
         return [self._item(meta, ctype, alt) for meta, alt in merged]
+
+    # --- historie hledání -----------------------------------------------------
+
+    def history(self):
+        return list(self.store.load("history", []))
+
+    def add_history(self, query):
+        query = (query or "").strip()
+        if not query:
+            return
+        items = [q for q in self.history() if q.lower() != query.lower()]
+        self.store.save("history", ([query] + items)[:HISTORY_MAX])
+
+    def clear_history(self):
+        self.store.save("history", [])
 
     def search_webshare(self, query, limit=20):
         """Soubory přímo z WebShare (fulltext), bez metadat titulu."""
@@ -367,6 +391,37 @@ class Engine:
                 })
         return out
 
+    def _webshare_subtitles(self, meta, video=None):
+        """Titulky k titulu z WebShare (`.srt`), české napřed — `ws:<ident>` jako u streamů."""
+        if not self.ws:
+            return []
+        title = meta.get("_title") or meta.get("name") or ""
+        year = self._year(meta)
+        if video:
+            query = f"{title} S{int(video.get('season') or 0):02d}E{int(video.get('episode') or 0):02d} srt"
+        else:
+            query = f"{title} {year} srt" if year else f"{title} srt"
+        try:
+            root = self.ws._with_token("search", what=query, category="", sort="", limit=40, offset=0)
+        except WebshareError as err:
+            _LOGGER.debug("WebShare titulky: %s", err)
+            return []
+        words = [w for w in re.split(r"\W+", _fold(title)) if len(w) > 2]
+        found = []
+        for f in root.findall("file"):
+            name, kind = f.findtext("name") or "", (f.findtext("type") or "").lower()
+            if kind != "srt":
+                continue
+            folded = _fold(name)
+            if words and not all(w in folded for w in words):
+                continue
+            if year and not video and str(year) not in folded:
+                continue
+            czech = bool(re.search(r"(^|[^a-z])(cz|cze|czech|cs)([^a-z]|$)", folded))
+            found.append((0 if czech else 1, name, f.findtext("ident")))
+        found.sort()
+        return ["ws:" + ident for _rank, _name, ident in found[:SUBS_MAX]]
+
     @staticmethod
     def _merge_direct(streams):
         """Tentýž soubor přes Lunu i přímo z WebShare → jedna položka.
@@ -414,6 +469,12 @@ class Engine:
         for stream in found:
             parse_stream(stream)
         found = self._merge_direct(found)
+        # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
+        subs = self._webshare_subtitles(meta, video)
+        if subs:
+            for stream in found:
+                if not stream.get("subtitles"):
+                    stream["subtitles"] = list(subs)
         try:
             max_gb = float(str(self._opt("max_size_gb", 0)).replace(",", ".") or 0)
         except ValueError:
@@ -463,6 +524,13 @@ class Engine:
                 raise NokturnoError("Účet Streamuj není nastavený.")
             return sosac.resolve(url)
         return self.external_url(url) if prefer_external else url
+
+    def find_first(self, ctype, query):
+        """První výsledek hledání — pro „pusť X" jedním krokem (hlasovka, skripty)."""
+        results = self.search(ctype, query, limit=3)
+        if not results:
+            raise NokturnoError(f"„{query}“ jsem nenašel.")
+        return results[0]
 
     def best_stream(self, ctype, item_id, alt=None, series_id=None):
         streams = self.streams(ctype, item_id, alt, series_id)

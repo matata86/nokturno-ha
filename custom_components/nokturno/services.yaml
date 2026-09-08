@@ -65,11 +65,16 @@ streams:
 
 play:
   name: Přehrát
-  description: Pustí titul v Kodi (přes doplněk Nokturno) nebo v jiném přehrávači (přímý odkaz).
+  description: Pustí titul v Kodi (přes doplněk Nokturno) nebo v jiném přehrávači (přímý odkaz). Místo ID jde zadat dotaz — pustí se první nalezený titul.
   fields:
     id:
       name: ID titulu
-      required: true
+      selector:
+        text:
+    query:
+      name: Dotaz
+      description: Název filmu/seriálu; použije se, když chybí ID (hlasovka, skripty).
+      example: Matrix
       selector:
         text:
     entity_id:
@@ -321,3 +326,48 @@ delete_file:
       example: /media/nokturno/Matrix.mp4
       selector:
         text:
+
+continue_watching:
+  name: Pokračovat ve sledování
+  description: Rozkoukané tituly a další díly z doplňku Nokturno v Kodi.
+  fields:
+    entity_id:
+      name: Kodi
+      selector:
+        entity:
+          domain: media_player
+
+watch_series:
+  name: Sledovat seriál
+  description: Přidá seriál mezi sledované (nové díly se hlásí), s `remove` ho odebere.
+  fields:
+    id:
+      name: ID seriálu
+      required: true
+      selector:
+        text:
+    title:
+      name: Název
+      selector:
+        text:
+    alt:
+      name: Alternativní ID
+      selector:
+        text:
+    poster:
+      name: Plakát (URL)
+      selector:
+        text:
+    remove:
+      name: Odebrat
+      default: false
+      selector:
+        boolean:
+
+check_series:
+  name: Zkontrolovat nové díly
+  description: Hned projde sledované seriály (jinak se kontrolují každých 6 hodin).
+
+clear_history:
+  name: Smazat historii hledání
+  description: Vymaže poslední dotazy zobrazené v kartě.

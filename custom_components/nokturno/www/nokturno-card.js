@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.20.1";
+const CARD_VERSION = "1.21.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -802,11 +802,12 @@ class NokturnoCardEditor extends HTMLElement {
   }
 }
 
-customElements.define("nokturno-card-editor", NokturnoCardEditor);
+if (!customElements.get("nokturno-card-editor")) customElements.define("nokturno-card-editor", NokturnoCardEditor);
 
-customElements.define("nokturno-card", NokturnoCard);
+// modul může přijít dvakrát (extra_module_url z integrace + Lovelace resource) — definovat jen jednou
+if (!customElements.get("nokturno-card")) customElements.define("nokturno-card", NokturnoCard);
 window.customCards = window.customCards || [];
-window.customCards.push({
+if (!window.customCards.some((c) => c.type === "nokturno-card")) window.customCards.push({
   type: "nokturno-card",
   preview: true,
   documentationURL: "https://github.com/matata86/nokturno-ha",

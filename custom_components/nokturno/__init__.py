@@ -315,7 +315,31 @@ async def async_register_card(hass: HomeAssistant) -> None:
     except Exception as err:  # noqa: BLE001 – opakovaná registrace při reloadu
         _LOGGER.debug("statická cesta %s: %s", CARD_URL, err)
     # verze v dotazu shodí cache prohlížeče, jakmile se integrace aktualizuje
-    add_extra_js_url(hass, f"{CARD_URL}?v={version}")
+    url = f"{CARD_URL}?v={version}"
+    add_extra_js_url(hass, url)
+    # extra_module_url žije v index.html, který si mobilní aplikace drží v cache;
+    # Lovelace resources čte frontend živě — proto kartu zapíšeme i tam (stejná URL = modul se načte jednou)
+    try:
+        await async_register_resource(hass, url)
+    except Exception as err:  # noqa: BLE001 – YAML mód Lovelace nebo starší HA
+        _LOGGER.debug("Lovelace resource: %s", err)
+
+
+async def async_register_resource(hass: HomeAssistant, url: str) -> None:
+    lovelace = hass.data.get("lovelace")
+    resources = getattr(lovelace, "resources", None)
+    if resources is None and isinstance(lovelace, dict):
+        resources = lovelace.get("resources")
+    if resources is None:
+        return
+    if not getattr(resources, "loaded", True):
+        await resources.async_load()
+    for item in resources.async_items():
+        if str(item.get("url", "")).split("?")[0] == CARD_URL:
+            if item["url"] != url:
+                await resources.async_update_item(item["id"], {"url": url})
+            return
+    await resources.async_create_item({"res_type": "module", "url": url})
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

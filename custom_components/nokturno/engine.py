@@ -369,6 +369,23 @@ class Engine:
             queries = [f"{title} {year}" if year else title, title]
             if orig and orig != title:
                 queries.append(f"{orig} {year}" if year else orig)
+        # fulltext WebShare vrací i soubory, které mají společné jen část slov („Krev mé krve" u
+        # Hry o trůny i Cizinky) — bereme jen ty, co mají všechna slova názvu (nebo originálu)
+        # a u epizody i její číslo (S02E01 / 2x01 / 02x01)
+        def words(text):
+            return [w for w in re.split(r"[^a-z0-9]+", _fold(text)) if len(w) > 2]
+        wanted = [w for w in (words(title), words(orig)) if w]
+        episode_re = None
+        if video:
+            se, ep = int(video.get("season") or 0), int(video.get("episode") or 0)
+            episode_re = re.compile(rf"s{se:02d}e{ep:02d}|(?<!\d){se:02d}?x{ep:02d}(?!\d)|(?<!\d){se}x{ep:02d}(?!\d)")
+
+        def relevant(name):
+            folded = _fold(name)
+            if wanted and not any(all(w in folded for w in group) for group in wanted):
+                return False
+            return not episode_re or bool(episode_re.search(folded))
+
         out, seen = [], set()
         for query in dict.fromkeys(q.strip() for q in queries if q.strip()):
             try:
@@ -377,7 +394,7 @@ class Engine:
                 _LOGGER.debug("WebShare hledání „%s“: %s", query, err)
                 continue
             for f in files:
-                if f["ident"] in seen:
+                if f["ident"] in seen or not relevant(f.get("name") or ""):
                     continue
                 seen.add(f["ident"])
                 # velikost patří do `detail` — odtud ji `parse_stream` čte (v labelu ji nehledá).

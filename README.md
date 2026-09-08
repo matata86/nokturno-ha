@@ -125,6 +125,7 @@ Události pro automatizace: `nokturno_download_done` (název, cesta, velikost) a
 
 - Zdroje jsou rovnocenné, žádný není povinný — s vyplněným jen WebShare účtem funguje hledání i přehrávání, Luna přidává katalogy a metadata, Sosáč české tituly.
 - Knihovny v `custom_components/nokturno/lib/` jsou kopie z Kodi doplňku, aby se obě aplikace chovaly stejně.
+- Sosáč od září 2026 neposílá funkční náhledy; plakáty a fanart se k jeho titulům dohledávají z TMDB — podle IMDb id, a když chybí, podle názvu a roku. Totéž platí pro rozkoukané tituly z Kodi.
 
 ---
 

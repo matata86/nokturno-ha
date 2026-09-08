@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import urllib.parse
 from datetime import timedelta
 
@@ -234,11 +235,11 @@ async def _kodi_continue_one(hass: HomeAssistant, kodi: dict) -> list[dict]:
         art = f.get("art") or {}
         items.append({
             "label": f.get("label") or f.get("title") or "",
-            "title": f.get("title") or f.get("label") or "",
+            "title": re.sub(r"\s*\(\d{4}\)\s*$", "", f.get("title") or f.get("label") or ""),
             "file": f.get("file"),
             "thumbnail": kodi_image(art.get("thumb") or art.get("poster") or f.get("thumbnail") or ""),
             "fanart": kodi_image(art.get("landscape") or art.get("fanart") or ""),
-            "year": f.get("year") or None,
+            "year": f.get("year") or (re.search(r"\((\d{4})\)\s*$", f.get("label") or "") or [None, None])[1],
             "plot": (f.get("plot") or "")[:400],
             "series": f.get("showtitle") or "",
             "season": f.get("season"),
@@ -250,7 +251,21 @@ async def _kodi_continue_one(hass: HomeAssistant, kodi: dict) -> list[dict]:
     return items
 
 
-async def kodi_continue(hass: HomeAssistant, entity_id: str | None) -> list[dict]:
+def _art_by_title(engine: Engine, items: list[dict]) -> None:
+    """Obrázky k položkám bez nich (Sosáč) — podle názvu a roku z TMDB přes Lunu (v executoru)."""
+    from .lib.enrich import enrich_one
+
+    for item in items:
+        if item.get("fanart") or item.get("thumbnail"):
+            continue
+        is_episode = bool(item.get("series"))
+        meta = {"name": item["series"] if is_episode else item["title"], "year": "" if is_episode else (item.get("year") or "")}
+        enrich_one(meta, engine.luna, engine.store, "series" if is_episode else "movie")
+        item["fanart"] = meta.get("background") or ""
+        item["thumbnail"] = meta.get("poster") or ""
+
+
+async def kodi_continue(hass: HomeAssistant, entity_id: str | None, engine: Engine | None = None) -> list[dict]:
     """„Pokračovat ve sledování" ze všech Kodi (nebo jen z jednoho), vypnutá se přeskočí."""
     import asyncio
 
@@ -264,6 +279,8 @@ async def kodi_continue(hass: HomeAssistant, entity_id: str | None) -> list[dict
             _LOGGER.debug("rozkoukané z %s: %s", kodi["name"], result)
             continue
         items.extend(result)
+    if engine and any(not (i.get("fanart") or i.get("thumbnail")) for i in items):
+        await hass.async_add_executor_job(_art_by_title, engine, items)
     return items
 
 
@@ -398,7 +415,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"count": len(data), "series": list(data.values())}
 
     async def handle_continue(call: ServiceCall):
-        items = await kodi_continue(hass, call.data.get(ATTR_ENTITY_ID))
+        items = await kodi_continue(hass, call.data.get(ATTR_ENTITY_ID), engine)
         return {"count": len(items), "items": items}
 
     async def handle_clear_history(call: ServiceCall):

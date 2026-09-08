@@ -418,22 +418,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             known = item.get("available") or {}
             known_key = (known.get("season", 0), known.get("episode", 0))
             today = dt_util.now().date().isoformat()
-            candidates = sorted(
-                (e for e in episodes if e.get("season") and (e["season"], e["episode"]) > known_key
-                 and (not e.get("released") or e["released"][:10] <= today)),
-                key=lambda e: (e["season"], e["episode"]), reverse=True,
-            )[:3]
-            found = None
-            for ep in candidates:
+            aired = sorted((e for e in episodes if e.get("season") and (not e.get("released") or e["released"][:10] <= today)),
+                           key=lambda e: (e["season"], e["episode"]))
+            budget = [6]  # kolik dotazů na streamy si jedna kontrola seriálu může dovolit
+
+            async def has_stream(ep):
+                if budget[0] <= 0:
+                    return False
+                budget[0] -= 1
                 try:
-                    streams = await hass.async_add_executor_job(engine.streams, "series", ep["id"], item.get("alt"), sid)
+                    return bool(await hass.async_add_executor_job(engine.streams, "series", ep["id"], item.get("alt"), sid))
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.debug("streamy %s: %s", ep["id"], err)
-                    continue
-                if streams:
-                    found = {"season": ep["season"], "episode": ep["episode"], "title": ep.get("title") or "",
-                             "id": ep["id"], "released": (ep.get("released") or "")[:10], "streams": len(streams)}
+                    return False
+
+            def describe(ep):
+                return {"season": ep["season"], "episode": ep["episode"], "title": ep.get("title") or "",
+                        "id": ep["id"], "released": (ep.get("released") or "")[:10]}
+
+            found = None
+            if not known:
+                # poprvé: od nejnovější sezóny zpět, poslední díl sezóny — první sezóna se streamem vyhrává
+                last_per_season = {}
+                for ep in aired:
+                    last_per_season[ep["season"]] = ep
+                for season in sorted(last_per_season, reverse=True)[:3]:
+                    if await has_stream(last_per_season[season]):
+                        found = describe(last_per_season[season])
+                        known_key = (season, last_per_season[season]["episode"])
+                        break
+            # pak po dílech dopředu — díly přibývají postupně, první chybějící ukončí hledání
+            for ep in (e for e in aired if (e["season"], e["episode"]) > known_key):
+                if not await has_stream(ep):
                     break
+                found = describe(ep)
             if found:
                 first_check = "available" not in item and "checked" not in item
                 item["available"] = found

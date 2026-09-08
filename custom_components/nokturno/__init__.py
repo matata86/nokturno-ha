@@ -302,12 +302,14 @@ async def async_register_card(hass: HomeAssistant) -> None:
     path = os.path.join(base, CARD_FILE)
     if not os.path.exists(path):
         return
-    version = "0"
-    try:
-        with open(os.path.join(base, "manifest.json"), encoding="utf-8") as handle:
-            version = json.load(handle).get("version", "0")
-    except OSError:
-        pass
+    def _version():
+        try:
+            with open(os.path.join(base, "manifest.json"), encoding="utf-8") as handle:
+                return json.load(handle).get("version", "0")
+        except OSError:
+            return "0"
+
+    version = await hass.async_add_executor_job(_version)  # čtení souboru mimo event loop
     try:
         await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, path, True)])
     except Exception as err:  # noqa: BLE001 – opakovaná registrace při reloadu

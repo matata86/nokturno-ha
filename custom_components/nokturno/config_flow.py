@@ -11,6 +11,7 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_DOWNLOAD_DIR,
     CONF_EXTERNAL_HOST,
+    CONF_NOTIFY_TARGET,
     CONF_HIDE_SD,
     CONF_KODI_ENTITY,
     CONF_LUNA_TOKEN,
@@ -59,6 +60,7 @@ def preferences_schema(data: dict) -> vol.Schema:
             selector.SelectSelector(selector.SelectSelectorConfig(options=SORT_ORDERS)),
         vol.Optional(CONF_DOWNLOAD_DIR, default=data.get(CONF_DOWNLOAD_DIR, DEFAULT_DOWNLOAD_DIR)): str,
         vol.Optional(CONF_EXTERNAL_HOST, default=data.get(CONF_EXTERNAL_HOST, "")): str,
+        vol.Optional(CONF_NOTIFY_TARGET, default=data.get(CONF_NOTIFY_TARGET, "")): str,
     })
 
 

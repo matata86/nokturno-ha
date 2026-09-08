@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.17.0";
+const CARD_VERSION = "1.18.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -39,6 +39,7 @@ class NokturnoCard extends HTMLElement {
       view: "search", type: "movie", query: "", results: [], streams: [], episodes: [],
       seasons: [], season: null, item: null, title: "", busy: false, loading: null, error: "",
       player: config.player || (config.players || [])[0] || "", phone: config.phone || "",
+      continueItems: null,
     };
     this._started = false;
   }
@@ -196,6 +197,18 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
+  /** Rozkoukané: Kodi dostane přímo plugin:// odkaz z doplňku (obnoví pozici). */
+  async _playContinue(item) {
+    const entityId = this._state.player || this._players()[0];
+    if (!entityId) { this._toast("Není nastavený žádný přehrávač."); return; }
+    await this._guard(async () => {
+      await this._hass.callService("media_player", "play_media", {
+        entity_id: entityId, media_content_type: "video", media_content_id: item.file,
+      });
+      this._toast(`Pokračuji: ${item.label}`);
+    });
+  }
+
   _toast(message) {
     this.dispatchEvent(new CustomEvent("hass-notification", { detail: { message }, bubbles: true, composed: true }));
   }
@@ -302,6 +315,15 @@ class NokturnoCard extends HTMLElement {
                display:inline-flex; align-items:center; gap:3px; }
         /* zeměkoule = odkaz vede přímo z WebShare, takže hraje i mimo domácí síť */
         .tag .ext { --mdc-icon-size:13px; opacity:.9; }
+        .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .chip { background: var(--secondary-background-color); color: var(--primary-text-color); border:none;
+                border-radius:14px; padding:5px 11px; font:inherit; font-size:.8rem; cursor:pointer; }
+        .chip.x { color: var(--secondary-text-color); }
+        .section { margin-top:14px; font-weight:500; display:flex; align-items:center; gap:6px; }
+        .section ha-icon { --mdc-icon-size:18px; }
+        .cont { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:8px; }
+        .cont .poster .thumb { aspect-ratio:16/9; }
+        .watch { margin-left:auto; }
         .legend { margin-top:8px; font-size:.75rem; color: var(--secondary-text-color); display:flex;
                   align-items:center; gap:4px; }
         .legend ha-icon { --mdc-icon-size:14px; }
@@ -369,7 +391,7 @@ class NokturnoCard extends HTMLElement {
     if (st.view === "results") html = this._results();
     else if (st.view === "episodes") html = this._episodes();
     else if (st.view === "streams") html = this._streams();
-    else html = `<div class="muted" style="margin-top:10px">Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.</div>`;
+    else html = this._home();
     if (st.error) html += `<div class="err">${this._esc(st.error)}</div>`;
     body.innerHTML = html;
     body.querySelectorAll("select[data-pick]").forEach((el) => el.addEventListener("change", () => {
@@ -382,11 +404,78 @@ class NokturnoCard extends HTMLElement {
     this._renderDownloads();
   }
 
+  /** Úvodní obrazovka: poslední dotazy, rozkoukané z Kodi, sledované seriály. */
+  _home() {
+    const st = this._state;
+    const sensor = this._hass && this._hass.states[this._config.downloads];
+    const history = (sensor && sensor.attributes.search_history) || [];
+    let html = history.length
+      ? `<div class="chips">${history.map((q, i) => `<button class="chip" data-hist="${i}">${this._esc(q)}</button>`).join("")}
+         <button class="chip x" data-histclear="1" title="Smazat historii">×</button></div>`
+      : `<div class="muted" style="margin-top:10px">Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.</div>`;
+    if (st.continueItems === null) this._loadContinue();
+    const cont = st.continueItems || [];
+    if (cont.length) {
+      html += `<div class="section"><ha-icon icon="mdi:play-circle-outline"></ha-icon> Pokračovat ve sledování</div>
+        <div class="cont">${cont.map((c, i) => `
+          <button class="poster" data-cont="${i}" title="${this._esc(c.plot)}">
+            <span class="thumb"><ha-icon icon="mdi:filmstrip"></ha-icon>
+              ${c.fanart || c.thumbnail ? `<img src="${this._esc(c.fanart || c.thumbnail)}" referrerpolicy="no-referrer" />` : ""}
+            </span>
+            <div class="t">${this._esc(c.label)}</div>
+          </button>`).join("")}</div>`;
+    }
+    const series = this._watchlist();
+    if (series.length) {
+      html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> Sledované seriály</div>
+        <div>${series.map((w, i) => `
+          <div class="stream">
+            <span class="tag" style="background:${w.new ? "#2e8b57" : "#777"}">${w.new ? "nový díl" : "sleduji"}</span>
+            <span class="label">${this._esc(w.title)}${w.new ? ` — ${w.new.season}x${String(w.new.episode).padStart(2, "0")} ${this._esc(w.new.title)}`
+              : (w.latest ? ` <span class="muted">· naposledy ${w.latest.season}x${String(w.latest.episode).padStart(2, "0")}</span>` : "")}</span>
+            <span class="icons">
+              <ha-icon-button data-wopen="${i}" title="Otevřít"><ha-icon icon="mdi:folder-play-outline"></ha-icon></ha-icon-button>
+              <ha-icon-button data-wremove="${i}" title="Přestat sledovat"><ha-icon icon="mdi:eye-off-outline"></ha-icon></ha-icon-button>
+            </span>
+          </div>`).join("")}</div>`;
+    }
+    return html;
+  }
+
+  _isWatched(id) { return this._watchlist().some((w) => w.id === id); }
+
+  async _toggleWatch() {
+    const item = this._state.item;
+    const watching = this._isWatched(item.id);
+    await this._guard(async () => {
+      await this._call("watch_series", watching
+        ? { id: item.id, remove: true }
+        : { id: item.id, title: item.title, alt: item.alt || undefined, poster: item.poster || undefined }, false);
+      this._toast(watching ? "Seriál už nesleduji" : "Nové díly budu hlásit");
+    });
+  }
+
+  _watchlist() {
+    const sensor = this._hass && Object.values(this._hass.states).find((s) =>
+      s.entity_id.startsWith("sensor.") && s.attributes.series && s.entity_id.includes("nokturno"));
+    return (sensor && sensor.attributes.series) || [];
+  }
+
+  async _loadContinue() {
+    this._state.continueItems = [];
+    try {
+      const res = await this._call("continue_watching", { entity_id: this._state.player || undefined });
+      this._state.continueItems = res.items || [];
+      if (this._state.view === "search") this._paint();
+    } catch (err) { /* Kodi vypnuté — sekce se prostě neukáže */ }
+  }
+
   _results() {
     const st = this._state;
-    if (!st.results.length) return `<div class="muted" style="margin-top:10px">Nic nenalezeno.</div>`;
+    const home = `<div class="chips"><button class="chip" data-back="search"><ha-icon icon="mdi:home-outline" style="--mdc-icon-size:14px"></ha-icon> Úvod</button></div>`;
+    if (!st.results.length) return home + `<div class="muted" style="margin-top:10px">Nic nenalezeno.</div>`;
     const files = st.results.every((r) => r.type === "file");
-    return `<div class="grid${files ? " files" : ""}">` + st.results.map((r, i) => `
+    return home + `<div class="grid${files ? " files" : ""}">` + st.results.map((r, i) => `
       <button class="poster" data-open="${i}">
         <span class="thumb">
           <ha-icon icon="mdi:filmstrip"></ha-icon>
@@ -405,6 +494,9 @@ class NokturnoCard extends HTMLElement {
       <div class="bar detail">
         <ha-icon-button data-back="results" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
         <span class="name">${this._esc(st.item.title)}${st.item.year ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
+        <ha-icon-button class="watch" data-watch="1" title="${this._isWatched(st.item.id) ? "Přestat sledovat" : "Sledovat nové díly"}">
+          <ha-icon icon="${this._isWatched(st.item.id) ? "mdi:eye-check" : "mdi:eye-plus-outline"}"></ha-icon>
+        </ha-icon-button>
         <span class="picks">
           ${this._pick("season", "Sezóna", st.seasons.map((n) => ({ value: String(n), label: n === 0 ? "Speciály" : "Sezóna " + n })), String(st.season))}
         </span>
@@ -497,7 +589,7 @@ class NokturnoCard extends HTMLElement {
         </div>
         <div class="prog"><div style="width:${j.percent || 0}%"></div></div>
       </div>`).join("") + (files.length ? `
-      <div class="muted" style="margin:6px 0 2px">Stažené</div>
+      <div class="muted" style="margin:6px 0 2px">Stažené${sensor && sensor.attributes.free_gb != null ? ` · volných ${sensor.attributes.free_gb} GB` : ""}</div>
       ${files.map((f, i) => `
         <div class="file">
           <span class="label">${this._esc(f.name)}</span>
@@ -564,16 +656,33 @@ class NokturnoCard extends HTMLElement {
   /** Jeden posluchač na celý obsah — přežije překreslení a funguje i uvnitř ha-icon-button. */
   _onClick(event) {
     const st = this._state;
-    const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle"];
+    const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont", "watch", "wopen", "wremove"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
     if (data.toggle === "desc") { this._state.descOpen = !this._state.descOpen; this._paint(); return; }
+    if (data.hist !== undefined) {
+      const sensor = this._hass.states[this._config.downloads];
+      const q = ((sensor && sensor.attributes.search_history) || [])[+data.hist];
+      if (q) { this._input.value = q; st.query = q; this._search(); }
+      return;
+    }
+    if (data.histclear !== undefined) return this._call("clear_history", {}, false).then(() => this._paint());
+    if (data.cont !== undefined) return this._playContinue(st.continueItems[+data.cont]);
+    if (data.watch !== undefined) return this._toggleWatch();
+    if (data.wopen !== undefined) {
+      const w = this._watchlist()[+data.wopen];
+      return this._openItem({ id: w.id, type: "series", title: w.title, alt: w.alt, poster: w.poster });
+    }
+    if (data.wremove !== undefined) {
+      const w = this._watchlist()[+data.wremove];
+      return this._guard(async () => { await this._call("watch_series", { id: w.id, remove: true }, false); this._paint(); });
+    }
     if (data.open !== undefined) {
       st.loading = +data.open;
       return this._openItem(st.results[+data.open]);
     }
-    if (data.back !== undefined) { st.view = data.back; this._paint(); return; }
+    if (data.back !== undefined) { st.view = data.back; if (data.back === "search") st.continueItems = null; this._paint(); return; }
     if (data.ep !== undefined) {
       const list = st.episodes.filter((e) => st.season === null || e.season === st.season);
       const ep = list[+data.ep];

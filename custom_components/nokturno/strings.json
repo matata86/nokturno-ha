@@ -23,7 +23,8 @@
           "max_size_gb": "Max. velikost streamu v GB (0 = bez omezení)",
           "sort_streams": "Řazení streamů",
           "download_dir": "Složka pro stahování",
-          "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu"
+          "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu",
+          "notify_target": "Oznámení o stažení a nových dílech (např. notify.mobile_app_telefon; prázdné = oznámení v HA)"
         }
       }
     },
@@ -49,7 +50,8 @@
           "max_size_gb": "Max. velikost streamu v GB (0 = bez omezení)",
           "sort_streams": "Řazení streamů",
           "download_dir": "Složka pro stahování",
-          "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu"
+          "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu",
+          "notify_target": "Oznámení o stažení a nových dílech (např. notify.mobile_app_telefon; prázdné = oznámení v HA)"
         }
       }
     }

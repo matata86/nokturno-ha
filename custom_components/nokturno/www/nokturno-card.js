@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.19.0";
+const CARD_VERSION = "1.20.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -58,7 +58,21 @@ class NokturnoCard extends HTMLElement {
       this._ready().then(() => this._render());
     } else if (this._root) {
       this._renderDownloads();
+      // změna sledovaných seriálů nebo historie → překreslit úvod / detail (a zahodit dočasné stavy)
+      const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history")]);
+      if (key !== this._sensorKey) {
+        this._sensorKey = key;
+        this._watchOverride = {};
+        if (this._state.view === "search" || this._state.view === "episodes") this._paint();
+      }
     }
+  }
+
+  _sensorAttr(name) {
+    const states = (this._hass && this._hass.states) || {};
+    const sensor = states[this._config.downloads]
+      || Object.values(states).find((s) => s.entity_id.startsWith("sensor.") && s.attributes[name] && s.entity_id.includes("nokturno"));
+    return sensor ? sensor.attributes[name] : null;
   }
 
   getCardSize() { return 12; }
@@ -452,6 +466,9 @@ class NokturnoCard extends HTMLElement {
   async _toggleWatch() {
     const item = this._state.item;
     const watching = this._isWatched(item.id);
+    // ikona se přepne hned, senzor to potvrdí o chvíli později
+    this._watchOverride = this._watchOverride || {};
+    this._watchOverride[item.id] = watching ? false : { id: item.id, title: item.title, alt: item.alt, poster: item.poster };
     await this._guard(async () => {
       await this._call("watch_series", watching
         ? { id: item.id, remove: true }
@@ -461,9 +478,11 @@ class NokturnoCard extends HTMLElement {
   }
 
   _watchlist() {
-    const sensor = this._hass && Object.values(this._hass.states).find((s) =>
-      s.entity_id.startsWith("sensor.") && s.attributes.series && s.entity_id.includes("nokturno"));
-    return (sensor && sensor.attributes.series) || [];
+    const list = [...(this._sensorAttr("series") || [])];
+    const over = this._watchOverride || {};
+    const kept = list.filter((w) => over[w.id] !== false);
+    Object.values(over).forEach((w) => { if (w && !kept.some((k) => k.id === w.id)) kept.push(w); });
+    return kept;
   }
 
   async _loadContinue() {
@@ -681,7 +700,9 @@ class NokturnoCard extends HTMLElement {
     }
     if (data.wremove !== undefined) {
       const w = this._watchlist()[+data.wremove];
-      return this._guard(async () => { await this._call("watch_series", { id: w.id, remove: true }, false); this._paint(); });
+      this._watchOverride = this._watchOverride || {};
+      this._watchOverride[w.id] = false;  // zmizí hned
+      return this._guard(async () => { await this._call("watch_series", { id: w.id, remove: true }, false); });
     }
     if (data.open !== undefined) {
       st.loading = +data.open;

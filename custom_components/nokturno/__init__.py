@@ -202,6 +202,18 @@ def kodi_endpoint(hass: HomeAssistant, entity_id: str | None):
     return None, None
 
 
+def kodi_image(value: str) -> str:
+    """Kodi obaluje obrázky do `image://<zakódované URL>/` — prohlížeč potřebuje holé URL.
+    Mrtvé náhledy Sosáče (movies.sosac.tv, 404) radši vynechat, karta ukáže podklad."""
+    if not value:
+        return ""
+    if value.startswith("image://"):
+        value = urllib.parse.unquote(value[len("image://"):].rstrip("/"))
+    if not value.startswith("http") or "movies.sosac.tv" in value:
+        return ""
+    return value
+
+
 async def kodi_continue(hass: HomeAssistant, entity_id: str | None) -> list[dict]:
     """„Pokračovat ve sledování" z doplňku Nokturno v Kodi (výpis přes JSON-RPC)."""
     url, auth = kodi_endpoint(hass, entity_id)
@@ -227,8 +239,8 @@ async def kodi_continue(hass: HomeAssistant, entity_id: str | None) -> list[dict
             "label": f.get("label") or f.get("title") or "",
             "title": f.get("title") or f.get("label") or "",
             "file": f.get("file"),
-            "thumbnail": art.get("thumb") or art.get("poster") or f.get("thumbnail") or "",
-            "fanart": art.get("fanart") or art.get("landscape") or "",
+            "thumbnail": kodi_image(art.get("thumb") or art.get("poster") or f.get("thumbnail") or ""),
+            "fanart": kodi_image(art.get("landscape") or art.get("fanart") or ""),
             "year": f.get("year") or None,
             "plot": (f.get("plot") or "")[:400],
             "series": f.get("showtitle") or "",

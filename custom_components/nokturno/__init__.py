@@ -1,0 +1,367 @@
+"""Nokturno pro Home Assistant — hledání ve WebShare, Sosáči a Luně, přehrání v Kodi.
+
+Služby vracejí data (`response_variable`), takže s nimi umí pracovat dashboard,
+skripty i hlasový asistent. Přehrávání v Kodi jde přes doplněk `plugin.video.nokturno`,
+aby si Kodi vedl evidenci zhlédnuto/rozkoukáno; ostatní přehrávače dostanou přímé URL.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import urllib.parse
+
+import voluptuous as vol
+
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import ATTR_ENTITY_ID, Platform
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
+
+from .const import (
+    CONF_DOWNLOAD_DIR,
+    CONF_KODI_ENTITY,
+    DEFAULT_DOWNLOAD_DIR,
+    DOMAIN,
+    KODI_PLUGIN,
+    SERVICE_CANCEL_DOWNLOAD,
+    SERVICE_DELETE_FILE,
+    SERVICE_DOWNLOAD,
+    SERVICE_EPISODES,
+    SERVICE_PLAY,
+    SERVICE_RESOLVE,
+    SERVICE_SEARCH,
+    SERVICE_SEND_LINK,
+    SERVICE_STREAMS,
+)
+from homeassistant.util import slugify
+
+from .downloader import Downloader
+from .engine import Engine, NokturnoError
+
+_LOGGER = logging.getLogger(__name__)
+
+PLATFORMS = [Platform.SENSOR]
+
+CARD_FILE = "www/nokturno-card.js"
+CARD_URL = "/nokturno/nokturno-card.js"
+
+SEARCH_SCHEMA = vol.Schema({
+    vol.Required("query"): cv.string,
+    vol.Optional("type", default="movie"): vol.In(["movie", "series", "webshare"]),
+    vol.Optional("limit", default=20): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+})
+
+STREAMS_SCHEMA = vol.Schema({
+    vol.Required("id"): cv.string,
+    vol.Optional("type", default="movie"): vol.In(["movie", "series"]),
+    vol.Optional("alt"): vol.Any(cv.string, None),
+    vol.Optional("series"): vol.Any(cv.string, None),
+    vol.Optional("season"): vol.Any(vol.Coerce(int), None),
+    vol.Optional("episode"): vol.Any(vol.Coerce(int), None),
+})
+
+PLAY_SCHEMA = STREAMS_SCHEMA.extend({
+    vol.Optional("id"): cv.string,
+    vol.Optional("name"): vol.Any(cv.string, None),
+    vol.Optional(ATTR_ENTITY_ID): cv.comp_entity_ids,
+    vol.Optional("stream"): vol.Any(vol.Coerce(int), None),
+    vol.Optional("url"): vol.Any(cv.string, None),
+    vol.Optional("direct", default=False): cv.boolean,
+})
+
+RESOLVE_SCHEMA = STREAMS_SCHEMA.extend({
+    vol.Optional("stream"): vol.Any(vol.Coerce(int), None),
+    vol.Optional("url"): vol.Any(cv.string, None),
+})
+
+DOWNLOAD_SCHEMA = RESOLVE_SCHEMA.extend({
+    vol.Optional("name"): vol.Any(cv.string, None),
+})
+
+SEND_LINK_SCHEMA = RESOLVE_SCHEMA.extend({
+    vol.Required("notify_service"): cv.string,
+    vol.Optional("name"): vol.Any(cv.string, None),
+    vol.Optional("title", default="Nokturno"): cv.string,
+})
+
+EPISODES_SCHEMA = vol.Schema({
+    vol.Required("id"): cv.string,
+    vol.Optional("season"): vol.Any(vol.Coerce(int), None),
+})
+
+CANCEL_SCHEMA = vol.Schema({vol.Required("download_id"): cv.string})
+
+DELETE_SCHEMA = vol.Schema({vol.Required("path"): cv.string})
+
+
+def _entry_data(hass: HomeAssistant) -> dict:
+    """Data jediného config entry (integrace se zakládá jen jednou)."""
+    data = hass.data.get(DOMAIN) or {}
+    if not data:
+        raise HomeAssistantError("Integrace Nokturno není nastavená.")
+    return next(iter(data.values()))
+
+
+def episode_target(engine: Engine, call_data: dict) -> tuple[str, str, str | None, str | None]:
+    """Z parametrů služby udělá (typ, id k přehrání, id seriálu, alt id)."""
+    ctype = call_data.get("type", "movie")
+    item_id = call_data["id"]
+    series = call_data.get("series")
+    alt = call_data.get("alt")
+    season, episode = call_data.get("season"), call_data.get("episode")
+    if season is not None and episode is not None and ":" not in str(item_id).rsplit(":", 2)[-1]:
+        base = series or item_id
+        api = engine.api_for(base)
+        found = None
+        if hasattr(api, "episode_id"):
+            try:
+                found = api.episode_id(base, int(season), int(episode))
+            except Exception:  # noqa: BLE001 – Luna používá tvar id:S:E
+                found = None
+        item_id = found or f"{base}:{int(season)}:{int(episode)}"
+        series = base
+        ctype = "series"
+    return ctype, item_id, series, alt
+
+
+def kodi_url(ctype, item_id, series, alt, stream) -> str:
+    """`plugin://` odkaz — Kodi přehraje vybraný stream a zapíše si zhlédnuto."""
+    params = {"action": "play", "type": ctype, "id": item_id, "url": stream["url"]}
+    if series:
+        params["series"] = series
+    if alt:
+        params["alt"] = alt
+    if stream.get("subtitles"):
+        params["subs"] = "|".join(stream["subtitles"])
+    return KODI_PLUGIN + "?" + urllib.parse.urlencode(params)
+
+
+async def async_phone_owners(hass: HomeAssistant) -> dict[str, str]:
+    """Vlastníci telefonů `{entry_id: jméno}` — jsou jen v `data.user_id` entry mobile_app.
+
+    Čtení uživatele je async, proto se dělá jednou při startu; samotný seznam
+    dostupných notify služeb se skládá až v senzoru (mobile_app se načítá později).
+    """
+    owners = {}
+    for mobile in hass.config_entries.async_entries("mobile_app"):
+        user_id = mobile.data.get("user_id")
+        if not user_id:
+            continue
+        user = await hass.auth.async_get_user(user_id)
+        if user:
+            owners[mobile.entry_id] = user.name
+    return owners
+
+
+async def async_register_card(hass: HomeAssistant) -> None:
+    """Naservíruje kartu a načte ji v prohlížeči — bez ručního přidávání do zdrojů Lovelace."""
+    base = os.path.dirname(__file__)
+    path = os.path.join(base, CARD_FILE)
+    if not os.path.exists(path):
+        return
+    version = "0"
+    try:
+        with open(os.path.join(base, "manifest.json"), encoding="utf-8") as handle:
+            version = json.load(handle).get("version", "0")
+    except OSError:
+        pass
+    try:
+        await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, path, True)])
+    except Exception as err:  # noqa: BLE001 – opakovaná registrace při reloadu
+        _LOGGER.debug("statická cesta %s: %s", CARD_URL, err)
+    # verze v dotazu shodí cache prohlížeče, jakmile se integrace aktualizuje
+    add_extra_js_url(hass, f"{CARD_URL}?v={version}")
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    await async_register_card(hass)
+    options = {**entry.data, **entry.options}
+    engine = await hass.async_add_executor_job(
+        Engine, options, hass.config.path(f".storage/{DOMAIN}")
+    )
+    downloader = Downloader(hass, options.get(CONF_DOWNLOAD_DIR) or DEFAULT_DOWNLOAD_DIR)
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+        "engine": engine,
+        "downloader": downloader,
+        "entry": entry,
+        "owners": await async_phone_owners(hass),
+    }
+
+    async def _in_executor(func, *args):
+        try:
+            return await hass.async_add_executor_job(func, *args)
+        except NokturnoError as err:
+            raise HomeAssistantError(str(err)) from err
+
+    async def _streams(call_data):
+        ctype, item_id, series, alt = episode_target(engine, call_data)
+        return ctype, item_id, series, alt, await _in_executor(engine.streams, ctype, item_id, alt, series)
+
+    async def _chosen_stream(call_data):
+        """Vybraný stream (`stream` index) nebo přímé `url`, jinak nejlepší."""
+        if not call_data.get("id") and not call_data.get("url"):
+            raise HomeAssistantError("Chybí `id` titulu nebo `url` streamu.")
+        if call_data.get("url"):
+            return None, None, None, None, {"url": call_data["url"], "label": "", "subtitles": []}
+        ctype, item_id, series, alt, streams = await _streams(call_data)
+        if not streams:
+            raise HomeAssistantError("Pro tento titul se nenašel žádný stream.")
+        index = call_data.get("stream")
+        if index is not None and not 0 <= int(index) < len(streams):
+            raise HomeAssistantError(f"Stream č. {index} neexistuje (nalezeno {len(streams)}).")
+        return ctype, item_id, series, alt, streams[int(index or 0)]
+
+    # --- služby -------------------------------------------------------------
+
+    async def handle_search(call: ServiceCall):
+        kind = call.data.get("type", "movie")
+        limit = call.data.get("limit", 20)
+        if kind == "webshare":
+            results = await _in_executor(engine.search_webshare, call.data["query"], limit)
+        else:
+            results = await _in_executor(engine.search, kind, call.data["query"], limit)
+        return {"count": len(results), "results": results}
+
+    async def handle_streams(call: ServiceCall):
+        _ctype, _item, _series, _alt, streams = await _streams(call.data)
+        return {"count": len(streams), "streams": streams}
+
+    async def handle_episodes(call: ServiceCall):
+        episodes = await _in_executor(engine.episodes, call.data["id"], call.data.get("season"))
+        seasons = sorted({e["season"] for e in episodes})
+        return {"count": len(episodes), "seasons": seasons, "episodes": episodes}
+
+    async def handle_resolve(call: ServiceCall):
+        _c, _i, _s, _a, stream = await _chosen_stream(call.data)
+        # odkaz je určený pro cizí přehrávač → rovnou v podobě funkční i mimo domácí síť
+        url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)
+        return {"url": url, "label": stream.get("label", ""), "subtitles": stream.get("subtitles") or []}
+
+    async def handle_play(call: ServiceCall):
+        ctype, item_id, series, alt, stream = await _chosen_stream(call.data)
+        targets = call.data.get(ATTR_ENTITY_ID) or options.get(CONF_KODI_ENTITY)
+        if not targets:
+            raise HomeAssistantError("Není zadaný přehrávač (entity_id) ani výchozí Kodi v nastavení.")
+        if isinstance(targets, str):
+            targets = [targets]
+        registry = er.async_get(hass)
+        for entity_id in targets:
+            # Kodi umí plugin:// — přehraje přes doplněk Nokturno, takže titul skončí
+            # v „Pokračovat ve sledování“ a resume drží v Kodi; ostatní potřebují přímé URL
+            entry_reg = registry.async_get(entity_id)
+            is_kodi = bool(entry_reg and entry_reg.platform == "kodi")
+            plugin_ok = is_kodi and not call.data.get("direct")
+            if plugin_ok and str(stream.get("url", "")).startswith("ws:"):
+                # soubor z fulltextu WebShare — doplněk má vlastní akci, odkaz si přeloží sám
+                media_id = KODI_PLUGIN + "?" + urllib.parse.urlencode({
+                    "action": "play_ws", "ident": stream["url"][3:],
+                    "name": call.data.get("name") or stream.get("label") or "",
+                })
+            elif plugin_ok and item_id:
+                media_id = kodi_url(ctype, item_id, series, alt, stream)
+            else:
+                media_id = await _in_executor(engine.resolve, stream["url"])
+            await hass.services.async_call(
+                "media_player", "play_media",
+                {ATTR_ENTITY_ID: entity_id, "media_content_type": "video", "media_content_id": media_id},
+                blocking=True,
+            )
+        return {"stream": stream.get("label", ""), "entity_id": targets}
+
+    async def handle_download(call: ServiceCall):
+        ctype, item_id, series, alt, stream = await _chosen_stream(call.data)
+        url = await _in_executor(engine.resolve, stream["url"])
+        name = call.data.get("name")
+        if not name and item_id:
+            meta, video = await _in_executor(engine.meta, ctype, item_id, series)
+            name = (video or {}).get("title") or meta.get("_title") or meta.get("name") or item_id
+            if video:
+                name = f"{meta.get('name') or ''} {int(video.get('season') or 0)}x" \
+                       f"{int(video.get('episode') or 0):02d} {video.get('title') or ''}".strip()
+        job = downloader.add(url, name or "nokturno", {"stream": stream.get("label", "")})
+        return {"download_id": job["id"], "path": job["path"], "name": job["name"]}
+
+    async def handle_send_link(call: ServiceCall):
+        _c, _i, _s, _a, stream = await _chosen_stream(call.data)
+        url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)
+        name = call.data.get("name") or stream.get("label") or "Nokturno"
+        title = call.data.get("title", "Nokturno")
+        raw = call.data["notify_service"]
+        short = raw.split(".")[-1]
+        # `notify.sm_s921b` bývá entita nové notify platformy, odesílá až `notify.mobile_app_sm_s921b`
+        # odkazy na streamy nemají příponu, takže by je Android stáhl jako neznámý soubor;
+        # intent s typem video/* místo toho nabídne přehrávače (VLC, MX Player…)
+        play_uri = f"intent:{url}#Intent;action=android.intent.action.VIEW;type=video/*;end"
+        for service in (short, f"mobile_app_{short}"):
+            if hass.services.has_service("notify", service):
+                await hass.services.async_call("notify", service, {
+                    "title": title,
+                    "message": f"{name}\n{url}",
+                    "data": {
+                        "url": play_uri,
+                        "clickAction": play_uri,
+                        "actions": [
+                            {"action": "URI", "title": "Přehrát", "uri": play_uri},
+                            {"action": "URI", "title": "Otevřít odkaz", "uri": url},
+                        ],
+                    },
+                }, blocking=True)
+                return {"url": url, "play_uri": play_uri, "notify_service": f"notify.{service}"}
+        entity_id = raw if raw.startswith("notify.") else f"notify.{short}"
+        if hass.states.get(entity_id) is None:
+            raise HomeAssistantError(f"Notifikační služba ani entita „{raw}“ neexistuje.")
+        # entita umí jen text — odkaz proto rovnou do zprávy
+        await hass.services.async_call("notify", "send_message", {
+            ATTR_ENTITY_ID: entity_id, "title": title, "message": f"{name}\n{url}",
+        }, blocking=True)
+        return {"url": url, "notify_service": entity_id}
+
+    async def handle_cancel(call: ServiceCall):
+        downloader.remove(call.data["download_id"])
+
+    async def handle_delete_file(call: ServiceCall):
+        try:
+            await downloader.async_delete(call.data["path"])
+        except (OSError, ValueError) as err:
+            raise HomeAssistantError(f"Smazání selhalo: {err}") from err
+
+    services = (
+        (SERVICE_SEARCH, handle_search, SEARCH_SCHEMA, SupportsResponse.ONLY),
+        (SERVICE_STREAMS, handle_streams, STREAMS_SCHEMA, SupportsResponse.ONLY),
+        (SERVICE_EPISODES, handle_episodes, EPISODES_SCHEMA, SupportsResponse.ONLY),
+        (SERVICE_RESOLVE, handle_resolve, RESOLVE_SCHEMA, SupportsResponse.ONLY),
+        (SERVICE_PLAY, handle_play, PLAY_SCHEMA, SupportsResponse.OPTIONAL),
+        (SERVICE_DOWNLOAD, handle_download, DOWNLOAD_SCHEMA, SupportsResponse.OPTIONAL),
+        (SERVICE_SEND_LINK, handle_send_link, SEND_LINK_SCHEMA, SupportsResponse.OPTIONAL),
+        (SERVICE_CANCEL_DOWNLOAD, handle_cancel, CANCEL_SCHEMA, SupportsResponse.NONE),
+        (SERVICE_DELETE_FILE, handle_delete_file, DELETE_SCHEMA, SupportsResponse.NONE),
+    )
+    for name, handler, schema, response in services:
+        hass.services.async_register(DOMAIN, name, handler, schema=schema, supports_response=response)
+
+    await downloader.async_refresh_files()
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    return True
+
+
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        data = hass.data[DOMAIN].pop(entry.entry_id)
+        data["downloader"].shutdown()
+        if not hass.data[DOMAIN]:
+            for name in (SERVICE_SEARCH, SERVICE_STREAMS, SERVICE_EPISODES, SERVICE_RESOLVE, SERVICE_PLAY,
+                         SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_DELETE_FILE):
+                hass.services.async_remove(DOMAIN, name)
+    return unloaded

@@ -1,0 +1,323 @@
+search:
+  name: Hledat
+  description: Vyhledá film nebo seriál ve všech nastavených zdrojích (Luna, Sosáč) nebo přímo ve WebShare. Vrací výsledky jako odpověď.
+  fields:
+    query:
+      name: Dotaz
+      required: true
+      example: Matrix
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - series
+            - webshare
+    limit:
+      name: Počet výsledků
+      default: 20
+      selector:
+        number:
+          min: 1
+          max: 60
+
+streams:
+  name: Streamy titulu
+  description: Vrátí seřazené streamy pro titul z hledání (id z výsledku služby Hledat).
+  fields:
+    id:
+      name: ID titulu
+      required: true
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - series
+    alt:
+      name: Alternativní ID (druhý zdroj)
+      selector:
+        text:
+    series:
+      name: ID seriálu
+      selector:
+        text:
+    season:
+      name: Sezóna
+      selector:
+        number:
+          min: 0
+          max: 100
+    episode:
+      name: Epizoda
+      selector:
+        number:
+          min: 0
+          max: 500
+
+play:
+  name: Přehrát
+  description: Pustí titul v Kodi (přes doplněk Nokturno) nebo v jiném přehrávači (přímý odkaz).
+  fields:
+    id:
+      name: ID titulu
+      required: true
+      selector:
+        text:
+    entity_id:
+      name: Přehrávač
+      selector:
+        entity:
+          domain: media_player
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - series
+    stream:
+      name: Pořadí streamu
+      description: Index ze služby Streamy titulu; prázdné = nejlepší podle nastavení.
+      selector:
+        number:
+          min: 0
+          max: 100
+    url:
+      name: Přímý odkaz
+      description: Místo hledání streamu pustí tento odkaz.
+      selector:
+        text:
+    alt:
+      name: Alternativní ID
+      selector:
+        text:
+    series:
+      name: ID seriálu
+      selector:
+        text:
+    season:
+      name: Sezóna
+      selector:
+        number:
+          min: 0
+          max: 100
+    episode:
+      name: Epizoda
+      selector:
+        number:
+          min: 0
+          max: 500
+    direct:
+      name: Vždy přímý odkaz
+      description: I pro Kodi použije přímé URL místo doplňku (bez evidence zhlédnuto).
+      default: false
+      selector:
+        boolean:
+
+resolve:
+  name: Získat odkaz
+  description: Vrátí přímé HTTP URL streamu — pro externí přehrávač (VLC, mobil) nebo Cast.
+  fields:
+    id:
+      name: ID titulu
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - series
+    stream:
+      name: Pořadí streamu
+      selector:
+        number:
+          min: 0
+          max: 100
+    url:
+      name: Odkaz streamu
+      selector:
+        text:
+    alt:
+      name: Alternativní ID
+      selector:
+        text:
+    series:
+      name: ID seriálu
+      selector:
+        text:
+    season:
+      name: Sezóna
+      selector:
+        number:
+          min: 0
+          max: 100
+    episode:
+      name: Epizoda
+      selector:
+        number:
+          min: 0
+          max: 500
+
+download:
+  name: Stáhnout
+  description: Stáhne stream do složky HA (výchozí /media/nokturno) — pak je dostupný i v Media Browseru.
+  fields:
+    id:
+      name: ID titulu
+      selector:
+        text:
+    name:
+      name: Název souboru
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - series
+    stream:
+      name: Pořadí streamu
+      selector:
+        number:
+          min: 0
+          max: 100
+    url:
+      name: Odkaz streamu
+      selector:
+        text:
+    alt:
+      name: Alternativní ID
+      selector:
+        text:
+    series:
+      name: ID seriálu
+      selector:
+        text:
+    season:
+      name: Sezóna
+      selector:
+        number:
+          min: 0
+          max: 100
+    episode:
+      name: Epizoda
+      selector:
+        number:
+          min: 0
+          max: 500
+
+send_link:
+  name: Poslat odkaz do mobilu
+  description: Pošle notifikaci s odkazem na stream; klepnutím se otevře v přehrávači na telefonu.
+  fields:
+    notify_service:
+      name: Notifikační služba
+      required: true
+      example: notify.sm_s921b
+      selector:
+        text:
+    id:
+      name: ID titulu
+      selector:
+        text:
+    name:
+      name: Popis
+      selector:
+        text:
+    title:
+      name: Titulek notifikace
+      default: Nokturno
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - series
+    stream:
+      name: Pořadí streamu
+      selector:
+        number:
+          min: 0
+          max: 100
+    url:
+      name: Odkaz streamu
+      selector:
+        text:
+    alt:
+      name: Alternativní ID
+      selector:
+        text:
+    series:
+      name: ID seriálu
+      selector:
+        text:
+    season:
+      name: Sezóna
+      selector:
+        number:
+          min: 0
+          max: 100
+    episode:
+      name: Epizoda
+      selector:
+        number:
+          min: 0
+          max: 500
+
+cancel_download:
+  name: Zrušit stahování
+  description: Zruší a odstraní položku z fronty stahování.
+  fields:
+    download_id:
+      name: ID stahování
+      required: true
+      selector:
+        text:
+
+episodes:
+  name: Epizody seriálu
+  description: Vrátí seznam epizod (a sezón) seriálu z hledání.
+  fields:
+    id:
+      name: ID seriálu
+      required: true
+      selector:
+        text:
+    season:
+      name: Sezóna
+      description: Prázdné = všechny sezóny.
+      selector:
+        number:
+          min: 0
+          max: 100
+
+delete_file:
+  name: Smazat stažený soubor
+  description: Smaže soubor ze složky pro stahování.
+  fields:
+    path:
+      name: Cesta k souboru
+      required: true
+      example: /media/nokturno/Matrix.mp4
+      selector:
+        text:

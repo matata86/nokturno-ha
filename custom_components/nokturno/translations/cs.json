@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nokturno — účty",
+        "description": "Vyplň jen zdroje, které chceš používat. Údaje jsou stejné jako v Kodi doplňku.",
+        "data": {
+          "ws_username": "WebShare — e-mail",
+          "ws_password": "WebShare — heslo (nebo uložený hash)",
+          "streamuj_username": "Streamuj.tv — uživatel (pro Sosáč)",
+          "streamuj_password": "Streamuj.tv — heslo",
+          "luna_url": "Luna — adresa serveru",
+          "luna_token": "Luna — token (nebo celá instalační URL)"
+        }
+      },
+      "preferences": {
+        "title": "Nokturno — přehrávání",
+        "data": {
+          "kodi_entity": "Výchozí přehrávač (Kodi)",
+          "pref_lang": "Preferovaný jazyk zvuku",
+          "pref_surround": "Preferovat prostorový zvuk (5.1 a víc)",
+          "hide_sd": "Skrýt SD streamy",
+          "max_size_gb": "Max. velikost streamu v GB (0 = bez omezení)",
+          "sort_streams": "Řazení streamů",
+          "download_dir": "Složka pro stahování",
+          "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Nokturno už je nastavené."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nokturno",
+        "data": {
+          "ws_username": "WebShare — e-mail",
+          "ws_password": "WebShare — heslo (nebo uložený hash)",
+          "streamuj_username": "Streamuj.tv — uživatel (pro Sosáč)",
+          "streamuj_password": "Streamuj.tv — heslo",
+          "luna_url": "Luna — adresa serveru",
+          "luna_token": "Luna — token",
+          "kodi_entity": "Výchozí přehrávač (Kodi)",
+          "pref_lang": "Preferovaný jazyk zvuku",
+          "pref_surround": "Preferovat prostorový zvuk (5.1 a víc)",
+          "hide_sd": "Skrýt SD streamy",
+          "max_size_gb": "Max. velikost streamu v GB (0 = bez omezení)",
+          "sort_streams": "Řazení streamů",
+          "download_dir": "Složka pro stahování",
+          "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu"
+        }
+      }
+    }
+  }
+}

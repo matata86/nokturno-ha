@@ -12,7 +12,7 @@ import unicodedata
 import urllib.parse
 
 from .const import LANGS, SORT_ORDERS
-from .lib.enrich import DEAD_IMAGES, enrich, enrich_one
+from .lib.enrich import DEAD_IMAGES, _cinemeta, enrich, enrich_one
 from .lib.luna_api import LunaApi, LunaError, clean_label, parse_base_url, parse_token
 from .lib.sosac_api import SosacError, names_match
 from .lib.sosac_api import is_sosac_id as _is_legacy_sosac_id
@@ -349,7 +349,37 @@ class Engine:
             "subtitles": stream.get("subtitles") or [],
         }
 
-    def _webshare_streams(self, meta, video=None):
+    def original_titles(self, meta, ctype, alt=None):
+        """Další názvy titulu pro fulltext: originál ze Sosáče (`_orig`), anglický název z Cinemety.
+
+        Luna originál neposílá, přitom soubory na WebShare se často jmenují originálem
+        („Outlander: Blood of My Blood“, „The Matrix“).
+        """
+        title = meta.get("_title") or meta.get("name") or ""
+        names = [meta.get("_orig") or ""]
+        if alt and self.sosac:
+            try:
+                alt_meta = self.sosac.meta(ctype, alt)
+                names += [alt_meta.get("_orig") or "", alt_meta.get("_title") or ""]
+            except (SosacError, Exception) as err:  # noqa: BLE001 – jen doplňkový zdroj
+                _LOGGER.debug("originál z alt %s: %s", alt, err)
+        imdb = meta.get("imdb_id") or (meta.get("id") if str(meta.get("id", "")).startswith("tt") else "")
+        if imdb:
+            def load():
+                try:
+                    return {"name": _cinemeta(ctype, imdb).get("name") or ""}
+                except Exception:  # noqa: BLE001
+                    return {"name": ""}
+            names.append((self.store.cached(f"cmname:{ctype}:{imdb}", 30 * 86400, load) or {}).get("name", ""))
+        out, seen = [], {_fold(title)}
+        for name in names:
+            key = _fold(name)
+            if name and key and key not in seen and not key.isdigit():
+                seen.add(key)
+                out.append(name)
+        return out
+
+    def _webshare_streams(self, meta, video=None, ctype="movie", alt=None):
         """Tytéž soubory přímo z WebShare — jejich odkazy fungují i mimo domácí síť.
 
         Streamy přes Lunu míří na její lokální adresu (`http://192.168.1.10:7126/…`),
@@ -360,21 +390,20 @@ class Engine:
         if not self.ws:
             return []
         title = meta.get("_title") or meta.get("name") or ""
-        orig = meta.get("_orig") or ""
+        origs = self.original_titles(meta, ctype, alt)
         if video:
             episode = f"S{int(video.get('season') or 0):02d}E{int(video.get('episode') or 0):02d}"
-            queries = [f"{title} {episode}"] + ([f"{orig} {episode}"] if orig else [])
+            queries = [f"{title} {episode}"] + [f"{o} {episode}" for o in origs]
         else:
             year = self._year(meta)
             queries = [f"{title} {year}" if year else title, title]
-            if orig and orig != title:
-                queries.append(f"{orig} {year}" if year else orig)
+            queries += [f"{o} {year}" if year else o for o in origs]
         # fulltext WebShare vrací i soubory, které mají společné jen část slov („Krev mé krve" u
         # Hry o trůny i Cizinky) — bereme jen ty, co mají všechna slova názvu (nebo originálu)
         # a u epizody i její číslo (S02E01 / 2x01 / 02x01)
         def words(text):
             return [w for w in re.split(r"[^a-z0-9]+", _fold(text)) if len(w) > 2]
-        wanted = [w for w in (words(title), words(orig)) if w]
+        wanted = [w for w in [words(title)] + [words(o) for o in origs] if w]
         episode_re = None
         if video:
             se, ep = int(video.get("season") or 0), int(video.get("episode") or 0)
@@ -408,34 +437,37 @@ class Engine:
                 })
         return out
 
-    def _webshare_subtitles(self, meta, video=None):
+    def _webshare_subtitles(self, meta, video=None, ctype="movie", alt=None):
         """Titulky k titulu z WebShare (`.srt`), české napřed — `ws:<ident>` jako u streamů."""
         if not self.ws:
             return []
         title = meta.get("_title") or meta.get("name") or ""
         year = self._year(meta)
+        names = [title] + self.original_titles(meta, ctype, alt)
         if video:
-            query = f"{title} S{int(video.get('season') or 0):02d}E{int(video.get('episode') or 0):02d} srt"
+            suffix = f" S{int(video.get('season') or 0):02d}E{int(video.get('episode') or 0):02d} srt"
         else:
-            query = f"{title} {year} srt" if year else f"{title} srt"
-        try:
-            root = self.ws._with_token("search", what=query, category="", sort="", limit=40, offset=0)
-        except WebshareError as err:
-            _LOGGER.debug("WebShare titulky: %s", err)
-            return []
-        words = [w for w in re.split(r"\W+", _fold(title)) if len(w) > 2]
-        found = []
-        for f in root.findall("file"):
-            name, kind = f.findtext("name") or "", (f.findtext("type") or "").lower()
-            if kind != "srt":
+            suffix = f" {year} srt" if year else " srt"
+        groups = [[w for w in re.split(r"\W+", _fold(n)) if len(w) > 2] for n in names]
+        found, seen = [], set()
+        for query in [n + suffix for n in names]:
+            try:
+                root = self.ws._with_token("search", what=query, category="", sort="", limit=40, offset=0)
+            except WebshareError as err:
+                _LOGGER.debug("WebShare titulky: %s", err)
                 continue
-            folded = _fold(name)
-            if words and not all(w in folded for w in words):
-                continue
-            if year and not video and str(year) not in folded:
-                continue
-            czech = bool(re.search(r"(^|[^a-z])(cz|cze|czech|cs)([^a-z]|$)", folded))
-            found.append((0 if czech else 1, name, f.findtext("ident")))
+            for f in root.findall("file"):
+                name, kind, ident = f.findtext("name") or "", (f.findtext("type") or "").lower(), f.findtext("ident")
+                if kind != "srt" or ident in seen:
+                    continue
+                folded = _fold(name)
+                if groups and not any(g and all(w in folded for w in g) for g in groups):
+                    continue
+                seen.add(ident)
+                if year and not video and str(year) not in folded:
+                    continue
+                czech = bool(re.search(r"(^|[^a-z])(cz|cze|czech|cs)([^a-z]|$)", folded))
+                found.append((0 if czech else 1, name, ident))
         found.sort()
         return ["ws:" + ident for _rank, _name, ident in found[:SUBS_MAX]]
 
@@ -482,12 +514,12 @@ class Engine:
             _LOGGER.warning("streamy %s: %s", item_id, err)
             found = []
         found += self._cross_streams(ctype, item_id, meta, alt)
-        found += self._webshare_streams(meta, video)
+        found += self._webshare_streams(meta, video, ctype, alt)
         for stream in found:
             parse_stream(stream)
         found = self._merge_direct(found)
         # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
-        subs = self._webshare_subtitles(meta, video)
+        subs = self._webshare_subtitles(meta, video, ctype, alt)
         if subs:
             for stream in found:
                 if not stream.get("subtitles"):

@@ -144,7 +144,7 @@ class NokturnoEpisodesSensor(SensorEntity):
         items = sorted(self._watchlist.values(), key=lambda i: i.get("title") or "")
         return {
             "series": [
-                {k: item.get(k) for k in ("id", "title", "alt", "poster", "latest", "new", "checked")}
+                {k: item.get(k) for k in ("id", "title", "alt", "poster", "latest", "available", "new", "checked")}
                 for item in items
             ],
         }

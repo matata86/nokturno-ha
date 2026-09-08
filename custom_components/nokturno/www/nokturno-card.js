@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.21.0";
+const CARD_VERSION = "1.22.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -453,8 +453,12 @@ class NokturnoCard extends HTMLElement {
         <div>${series.map((w, i) => `
           <div class="stream">
             <span class="tag" style="background:${w.new ? "#2e8b57" : "#777"}">${w.new ? "nový díl" : "sleduji"}</span>
-            <span class="label">${this._esc(w.title)}${w.new ? ` — ${w.new.season}x${String(w.new.episode).padStart(2, "0")} ${this._esc(w.new.title)}`
-              : (w.latest ? ` <span class="muted">· naposledy ${w.latest.season}x${String(w.latest.episode).padStart(2, "0")}</span>` : "")}</span>
+            <span class="label">${this._esc(w.title)}${w.new
+              ? ` — ${w.new.season}x${String(w.new.episode).padStart(2, "0")} ${this._esc(w.new.title)}`
+              : ` <span class="muted">· ${w.available
+                  ? `ke sledování ${w.available.season}x${String(w.available.episode).padStart(2, "0")}`
+                  : "zatím bez streamu"}${w.latest && (!w.available || w.latest.episode !== w.available.episode || w.latest.season !== w.available.season)
+                  ? `, odvysíláno ${w.latest.season}x${String(w.latest.episode).padStart(2, "0")}` : ""}</span>`}</span>
             <span class="icons">
               <ha-icon-button data-wopen="${i}" title="Otevřít"><ha-icon icon="mdi:folder-play-outline"></ha-icon></ha-icon-button>
               <ha-icon-button data-wremove="${i}" title="Přestat sledovat"><ha-icon icon="mdi:eye-off-outline"></ha-icon></ha-icon-button>

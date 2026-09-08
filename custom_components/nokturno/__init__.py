@@ -396,7 +396,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "id": last.get("id"), "released": (last.get("released") or "")[:10]}
 
     async def check_series(_now=None):
-        """Projde sledované seriály a u nových dílů zapíše `new` + oznámí."""
+        """Projde sledované seriály: nový díl se hlásí, až když má stream (ne jen když byl odvysílán).
+
+        `latest` = poslední odvysílaný podle metadat, `available` = nejnovější díl se streamem.
+        Zkouší se jen díly novější než dosud dostupný, nejvýš tři nejnovější (každý dotaz stojí pár sekund).
+        """
         data = watchlist()
         changed = False
         for sid, item in list(data.items()):
@@ -408,16 +412,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             latest = _latest_aired(episodes)
             if not latest:
                 continue
-            known = item.get("latest") or {}
-            if (latest["season"], latest["episode"]) > (known.get("season", 0), known.get("episode", 0)):
-                if known:  # při prvním zařazení jen zapamatovat, ne hlásit
-                    item["new"] = latest
-                    hass.bus.async_fire(EVENT_NEW_EPISODE, {"id": sid, "title": item.get("title"), **latest})
-                    await notify("Nokturno — nový díl",
-                                 f"{item.get('title')}: {latest['season']}x{latest['episode']:02d} {latest['title']}".strip())
+            if latest != item.get("latest"):
                 item["latest"] = latest
-                item["checked"] = dt_util.now().isoformat()
                 changed = True
+            known = item.get("available") or {}
+            known_key = (known.get("season", 0), known.get("episode", 0))
+            today = dt_util.now().date().isoformat()
+            candidates = sorted(
+                (e for e in episodes if e.get("season") and (e["season"], e["episode"]) > known_key
+                 and (not e.get("released") or e["released"][:10] <= today)),
+                key=lambda e: (e["season"], e["episode"]), reverse=True,
+            )[:3]
+            found = None
+            for ep in candidates:
+                try:
+                    streams = await hass.async_add_executor_job(engine.streams, "series", ep["id"], item.get("alt"), sid)
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug("streamy %s: %s", ep["id"], err)
+                    continue
+                if streams:
+                    found = {"season": ep["season"], "episode": ep["episode"], "title": ep.get("title") or "",
+                             "id": ep["id"], "released": (ep.get("released") or "")[:10], "streams": len(streams)}
+                    break
+            if found:
+                first_check = "available" not in item and "checked" not in item
+                item["available"] = found
+                if not first_check:  # při zařazení jen zapamatovat, hlásit až další
+                    item["new"] = found
+                    hass.bus.async_fire(EVENT_NEW_EPISODE, {"id": sid, "title": item.get("title"), **found})
+                    await notify("Nokturno — nový díl ke sledování",
+                                 f"{item.get('title')}: {found['season']}x{found['episode']:02d} {found['title']}".strip())
+                changed = True
+            item["checked"] = dt_util.now().isoformat()
+            changed = True
         if changed:
             await watchlist_save(data)
         return data

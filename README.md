@@ -4,8 +4,6 @@
 
 Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu. Doplňuje [Kodi doplněk Nokturno](https://github.com/matata86/plugin.video.nokturno), se kterým sdílí zdroje i účty.
 
-![Karta Nokturno](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/karta.png)
-
 ## Co to umí
 
 - **Jedno hledání ve všech zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz.

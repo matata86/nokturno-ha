@@ -35,7 +35,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Pozor: Trakt od července 2026 vydává API klíče jen pro VIP účty, takže bez VIP tuhle část nezapneš — vlastní seznam funguje i tak.
 - **Rok v dotazu je filtr** — „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere. Rok se hlídá i u souborů z fulltextu WebShare, takže se k titulu nepřimíchá stejnojmenný film z jiného roku.
-- **Automatické přepnutí filmy ↔ seriály** — když ve zvoleném typu nic není, zkusí se druhý a přepínač se přepne sám.
+- **Jedno hledání pro filmy i seriály** — přepínač *Filmy / Seriály* se objeví, jen když dotaz sedí na obojí; jinak karta rovnou ukáže to, co našla. Stejně to funguje i v doplňku do Kodi.
 - **Databáze filmů po ruce vždycky** — tlačítko *Hledat v databázi filmů* je u každých výsledků, ne jen když zdroje nic nenajdou. Klepnutím na titul se otevře jeho detail s plakátem a popisem (u chystaných filmů, které popis nikde nemají, aspoň žánr, režie a obsazení) a záložkou v něm si ho uložíš do seznamu k zhlédnutí. Dokud jsi v databázi, hledá tam i tlačítko *Hledat*.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
 
@@ -120,7 +120,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 
 <img src="docs/01-uvod.png" width="420" alt="Úvodní obrazovka">
 
-- **Pole pro hledání** a tlačítko **Hledat** (během dotazu se v něm točí kolečko); pod nimi přepínač **Filmy / Seriály**. Rok napsaný do dotazu se použije jako filtr — „Duna 2021" vrátí jen film z roku 2021.
+- **Pole pro hledání** a tlačítko **Hledat** (během dotazu se v něm točí kolečko). Přepínač **Filmy / Seriály** se ukáže až u výsledků, a jen když dotaz našel obojí. Rok napsaný do dotazu se použije jako filtr — „Duna 2021" vrátí jen film z roku 2021.
 - **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
 - **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
 - **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
@@ -140,7 +140,8 @@ Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí ko
 | Napíšeš název | zeptá se Luny i Sosáče naráz a stejný titul z obou spojí do jedné dlaždice |
 | Napíšeš rok („Duna 2021") | rok odřízne z dotazu a použije ho jako filtr; projdou tituly z toho roku a ty, u kterých zdroj rok neuvádí |
 | Číslo patří k názvu („Blade Runner 2049", „2012") | rok v budoucnosti se nebere jako filtr, hledá se celý název |
-| Máš přepnuto na Filmy, ale je to seriál | když mezi filmy nic není, zkusí to samo mezi seriály (a naopak) a přepínač přepne — v bublině se objeví, co se stalo |
+| Dotaz sedí jen na seriál (nebo jen na film) | výsledky se ukážou rovnou, přepínač *Filmy / Seriály* zůstane skrytý |
+| Dotaz sedí na filmy i seriály („Matrix") | nad výsledky se objeví přepínač; přepnutí jen přepne seznam, nehledá se znovu |
 | Zdroje nenajdou nic | tlačítko **Hledat v databázi filmů** je hned vedle **Úvod**; databáze zná i chystané tituly |
 | Jsi v databázi filmů | další hledání zůstane v ní, dokud se nevrátíš tlačítkem **Zpět k výsledkům ze zdrojů** nebo na **Úvod** |
 | Klepneš na titul z databáze | otevře se detail s plakátem a popisem; streamy tam většinou nejsou, proto je nahoře záložka pro uložení do seznamu k zhlédnutí |

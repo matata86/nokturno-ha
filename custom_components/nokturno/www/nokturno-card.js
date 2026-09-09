@@ -583,10 +583,12 @@ class NokturnoCard extends HTMLElement {
     if (st.error) html += `<div class="err">${this._esc(st.error)}</div>`;
     body.innerHTML = html;
     body.querySelectorAll("[data-pick]").forEach((el) => {
-      const apply = () => {
+      // ha-select hodnotu sám nemění — pošle jen `selected` s novou hodnotou a čeká, až ji nastavíme
+      const apply = (event) => {
         const id = el.dataset.pick;
-        const value = el.value;
+        const value = (event && event.detail && event.detail.value) ?? el.value;
         if (value == null || value === "") return;
+        if (el.value !== value) el.value = value;
         if (id === "season") { st.season = +value; this._paint(); }
         else if (id === "player") { st.player = value; }
         else if (id === "phone") { st.phone = value; }
@@ -602,7 +604,7 @@ class NokturnoCard extends HTMLElement {
           el.value = conf.value;
         }
         el.addEventListener("value-changed", apply);
-        el.addEventListener("closed", apply);
+        el.addEventListener("selected", apply);
       }
     });
     this._retryImages(body);

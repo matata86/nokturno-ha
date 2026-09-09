@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.22.0";
+const CARD_VERSION = "1.22.1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -328,7 +328,10 @@ class NokturnoCard extends HTMLElement {
         /* rozbalený seznam kreslí prohlížeč — bez těchhle barev je v tmavém motivu bílý na bílém */
         .pick option { background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color); }
         .stream { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--divider-color); }
-        .stream .label { flex:1; font-size:.9rem; }
+        /* dlouhý název souboru nesmí roztáhnout řádek a vytlačit ikony mimo kartu */
+        .stream .label { flex:1 1 0; min-width:0; font-size:.9rem; overflow-wrap:anywhere;
+                         display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+        .stream .icons { flex:0 0 auto; }
         .tag { font-size:.7rem; font-weight:600; padding:2px 6px; border-radius:6px; color:#fff; white-space:nowrap;
                display:inline-flex; align-items:center; gap:3px; }
         /* zeměkoule = odkaz vede přímo z WebShare, takže hraje i mimo domácí síť */
@@ -351,7 +354,7 @@ class NokturnoCard extends HTMLElement {
         .icons ha-icon-button { --mdc-icon-button-size:40px; --mdc-icon-size:20px; }
         /* na úzké kartě (mobil) se popis lámal vedle štítku — štítek proto nad text */
         @container (max-width: 430px) {
-          .stream { display:grid; grid-template-columns:1fr auto; grid-template-areas:"tag icons" "label icons";
+          .stream { display:grid; grid-template-columns:minmax(0, 1fr) auto; grid-template-areas:"tag icons" "label icons";
                     column-gap:8px; row-gap:2px; padding:8px 0; }
           .stream .tag { grid-area:tag; justify-self:start; }
           .stream .label { grid-area:label; }
@@ -364,6 +367,7 @@ class NokturnoCard extends HTMLElement {
         .dl { margin-top:12px; border-top:1px solid var(--divider-color); padding-top:8px; }
         .dlrow { display:flex; justify-content:space-between; gap:8px; }
         .file { display:flex; align-items:center; gap:8px; padding:2px 0; }
+        .file .label { min-width:0; }
         .file .label { flex:1; font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .prog { height:4px; border-radius:2px; background: var(--divider-color); overflow:hidden; margin-top:3px; }
         .prog > div { height:100%; background: var(--primary-color); }

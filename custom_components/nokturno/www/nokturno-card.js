@@ -39,6 +39,7 @@ class NokturnoCard extends HTMLElement {
     this._state = {
       view: "search", type: "movie", query: "", results: [], streams: [], episodes: [],
       seasons: [], season: null, item: null, title: "", busy: false, searching: false, loading: null, error: "",
+      byType: { movie: [], series: [] }, bothTypes: false,
       player: config.player || (config.players || [])[0] || "", phone: config.phone || "",
       continueItems: null, stack: [],
     };
@@ -134,22 +135,25 @@ class NokturnoCard extends HTMLElement {
     this._state.searching = true;
     await this._guard(async () => {
       const st = this._state;
-      const res = await this._call("search", { query, type: st.type, limit: 24 });
-      st.results = res.results || [];
-      // „Teorie velkého třesku“ s přepínačem na Filmy nenajde nic — zkusíme rovnou seriály
-      if (!st.results.length) {
-        const other = st.type === "series" ? "movie" : "series";
-        const alt = await this._call("search", { query, type: other, limit: 24 });
-        if ((alt.results || []).length) {
-          st.results = alt.results;
-          st.type = other;
-          this._toast(other === "series" ? "Mezi filmy nic — tohle jsou seriály."
-                                         : "Mezi seriály nic — tohle jsou filmy.");
-        }
-      }
+      // jedno hledání pro obojí — přepínač Filmy/Seriály má smysl, jen když jsou obojí
+      const [movies, series] = await Promise.all([
+        this._call("search", { query, type: "movie", limit: 24 }),
+        this._call("search", { query, type: "series", limit: 24 }),
+      ]);
+      st.byType = { movie: movies.results || [], series: series.results || [] };
+      this._pickType();
       st.item = null;
       st.view = "results";
     });
+  }
+
+  /** Co ukázat po hledání: typ, který něco našel; obojí = necháme na uživateli. */
+  _pickType() {
+    const st = this._state;
+    const both = st.byType.movie.length > 0 && st.byType.series.length > 0;
+    if (!both) st.type = st.byType.series.length ? "series" : "movie";
+    st.results = st.byType[st.type] || [];
+    st.bothTypes = both;
   }
 
   async _openItem(item) {
@@ -418,7 +422,7 @@ class NokturnoCard extends HTMLElement {
         .stream .icons { grid-area:icons; display:flex; justify-content:flex-end; gap:2px; margin-top:2px; }
         /* tlačítka streamu ve vzhledu HA: čtyři široká vedle sebe přes celou šířku */
         .icons.wide { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:6px; }
-        .icons.wide ha-control-button { height:40px; --control-button-border-radius:12px; }
+        .icons.wide ha-control-button { width:100%; height:40px; --control-button-border-radius:12px; }
         .icons.wide ha-icon { --mdc-icon-size:20px; }
         .tag { font-size:.7rem; font-weight:600; padding:2px 6px; border-radius:6px; color:#fff; white-space:nowrap;
                display:inline-flex; align-items:center; gap:3px; }
@@ -498,7 +502,11 @@ class NokturnoCard extends HTMLElement {
     const kind = this._root.querySelector("#type");
     kind.options = KINDS;
     kind.value = this._state.type;
-    kind.addEventListener("value-changed", (e) => { this._state.type = (e.detail && e.detail.value) || kind.value; });
+    kind.addEventListener("value-changed", (e) => {
+      const st = this._state;
+      st.type = (e.detail && e.detail.value) || kind.value;
+      if (st.byType && st.view === "results") { st.results = st.byType[st.type] || []; this._paint(); }
+    });
     this._paint();
   }
 
@@ -514,6 +522,8 @@ class NokturnoCard extends HTMLElement {
     const st = this._state;
     const kind = this._root.querySelector("#type");
     if (kind && kind.value !== st.type) kind.value = st.type;
+    // přepínač dává smysl jen tehdy, když dotaz našel filmy i seriály
+    if (kind) kind.hidden = !(st.view === "results" && st.bothTypes);
     // v detailu (epizody, streamy) je hledání jen na překážku
     this._root.querySelector("#search").hidden = st.view === "streams" || st.view === "episodes";
     let html = "";
@@ -648,20 +658,12 @@ class NokturnoCard extends HTMLElement {
     this._state.searching = true;
     await this._guard(async () => {
       const st = this._state;
-      const res = await this._call("search", {
-        query, type: st.type === "series" ? "catalog_series" : "catalog", limit: 12 });
-      st.results = res.results || [];
-      if (!st.results.length) {
-        const other = st.type === "series" ? "movie" : "series";
-        const alt = await this._call("search", {
-          query, type: other === "series" ? "catalog_series" : "catalog", limit: 12 });
-        if ((alt.results || []).length) {
-          st.results = alt.results;
-          st.type = other;
-          this._toast(other === "series" ? "Mezi filmy nic — tohle jsou seriály."
-                                         : "Mezi seriály nic — tohle jsou filmy.");
-        }
-      }
+      const [movies, series] = await Promise.all([
+        this._call("search", { query, type: "catalog", limit: 12 }),
+        this._call("search", { query, type: "catalog_series", limit: 12 }),
+      ]);
+      st.byType = { movie: movies.results || [], series: series.results || [] };
+      this._pickType();
       st.catalog = true;
       st.view = "results";
       if (!st.results.length) this._toast("V databázi filmů nic takového není.");

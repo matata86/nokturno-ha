@@ -47,6 +47,7 @@ from .const import (
     SERVICE_CANCEL_DOWNLOAD,
     SERVICE_DELETE_FILE,
     SERVICE_DOWNLOAD,
+    SERVICE_DETAIL,
     SERVICE_EPISODES,
     SERVICE_PLAY,
     SERVICE_RESOLVE,
@@ -120,6 +121,11 @@ SEND_LINK_SCHEMA = RESOLVE_SCHEMA.extend({
     vol.Required("notify_service"): cv.string,
     vol.Optional("name"): vol.Any(cv.string, None),
     vol.Optional("title", default="Nokturno"): cv.string,
+})
+
+DETAIL_SCHEMA = vol.Schema({
+    vol.Required("id"): cv.string,
+    vol.Optional("type", default="movie"): vol.In(["movie", "series"]),
 })
 
 EPISODES_SCHEMA = vol.Schema({
@@ -809,6 +815,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _ctype, _item, _series, _alt, streams = await _streams(call.data)
         return {"count": len(streams), "streams": streams}
 
+    async def handle_detail(call: ServiceCall):
+        """Detail titulu z databáze filmů (popis, plakát) — pro tituly, které zdroje nemají."""
+        return await _in_executor(engine.catalog_detail, call.data.get("type", "movie"), call.data["id"])
+
     async def handle_episodes(call: ServiceCall):
         episodes = await _in_executor(engine.episodes, call.data["id"], call.data.get("season"))
         seasons = sorted({e["season"] for e in episodes})
@@ -961,6 +971,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_SEARCH, handle_search, SEARCH_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_STREAMS, handle_streams, STREAMS_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_EPISODES, handle_episodes, EPISODES_SCHEMA, SupportsResponse.ONLY),
+        (SERVICE_DETAIL, handle_detail, DETAIL_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_RESOLVE, handle_resolve, RESOLVE_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_PLAY, handle_play, PLAY_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_DOWNLOAD, handle_download, DOWNLOAD_SCHEMA, SupportsResponse.OPTIONAL),

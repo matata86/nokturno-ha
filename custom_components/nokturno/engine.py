@@ -15,7 +15,7 @@ import urllib.request
 from datetime import datetime
 
 from .const import LANGS, SORT_ORDERS
-from .lib.enrich import DEAD_IMAGES, _cinemeta, enrich, enrich_one
+from .lib.enrich import DEAD_IMAGES, _cinemeta, _fetch, _fetch_title, enrich, enrich_one
 from .lib.luna_api import LunaApi, LunaError, clean_label, parse_base_url, parse_token
 from .lib.sosac_api import SosacError, names_match
 from .lib.sosac_api import is_sosac_id as _is_legacy_sosac_id
@@ -43,6 +43,23 @@ def _fold(text):
 
 
 YEAR_RE = re.compile(r"\b(19\d{2}|20\d{2})\b")
+
+# databáze filmů vrací žánry a země anglicky — do shrnutí patří česky
+GENRES_CS = {
+    "Action": "Akční", "Adventure": "Dobrodružný", "Animation": "Animovaný", "Biography": "Životopisný",
+    "Comedy": "Komedie", "Crime": "Krimi", "Documentary": "Dokument", "Drama": "Drama", "Family": "Rodinný",
+    "Fantasy": "Fantasy", "History": "Historický", "Horror": "Horor", "Music": "Hudební", "Musical": "Muzikál",
+    "Mystery": "Mysteriózní", "Romance": "Romantický", "Sci-Fi": "Sci-fi", "Short": "Krátkometrážní",
+    "Sport": "Sportovní", "Thriller": "Thriller", "War": "Válečný", "Western": "Western",
+}
+COUNTRIES_CS = {
+    "Czech Republic": "Česko", "Czechia": "Česko", "Czechoslovakia": "Československo", "Slovakia": "Slovensko",
+    "United States": "USA", "United States of America": "USA", "United Kingdom": "Velká Británie",
+    "Germany": "Německo", "France": "Francie", "Italy": "Itálie", "Spain": "Španělsko", "Poland": "Polsko",
+    "Austria": "Rakousko", "Hungary": "Maďarsko", "Canada": "Kanada", "Japan": "Japonsko", "Denmark": "Dánsko",
+    "Sweden": "Švédsko", "Norway": "Norsko", "Netherlands": "Nizozemsko", "Belgium": "Belgie",
+    "Switzerland": "Švýcarsko", "Australia": "Austrálie", "Russia": "Rusko", "Ireland": "Irsko",
+}
 
 
 class NokturnoError(Exception):
@@ -283,6 +300,85 @@ class Engine:
                 "alt": None,
             })
         return out
+
+    def catalog_detail(self, ctype="movie", item_id=""):
+        """Popis, plakát a hodnocení titulu z databáze filmů — katalog Cinemety je nemá."""
+        if not item_id:
+            raise NokturnoError("Chybí `id`.")
+        kind = "series" if ctype == "series" else "movie"
+        key = f"cinemeta:{kind}:{item_id}"
+        try:
+            meta = self.store.cached(key, 86400, lambda: _cinemeta(kind, item_id))
+        except Exception as err:  # noqa: BLE001
+            raise NokturnoError(f"Databáze filmů neodpověděla: {err}") from err
+        # Cinemeta u čerstvých titulů popis nemá — TMDB (přes Lunu) ho většinou zná, a česky
+        try:
+            meta = {**meta, **{k: v for k, v in _fetch(self.luna, self.store, kind, item_id).items() if v}}
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("detail %s: %s", item_id, err)
+        year = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
+        year_num = int(year) if year.isdigit() else None
+        if not meta.get("description"):  # čerstvý film — zkusit TMDB ještě podle názvu a roku
+            try:
+                by_name = _fetch_title(self.luna, self.store, kind, meta.get("name") or "", year_num)
+                meta = {**meta, **{k: v for k, v in by_name.items() if v}}
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("detail podle názvu %s: %s", item_id, err)
+        return {
+            "id": item_id,
+            "type": kind,
+            "title": self._local_title(kind, meta.get("name") or "", year_num) or meta.get("name") or "",
+            "year": year_num,
+            "poster": meta.get("poster") or "",
+            "background": meta.get("background") or "",
+            "description": (meta.get("description") or self._summary(meta))[:900],
+            "rating": meta.get("imdbRating") or "",
+            "genres": meta.get("genres") or [],
+            "runtime": meta.get("runtime") or "",
+            "cast": meta.get("cast") or [],
+            "director": meta.get("director") or [],
+            "source": "katalog",
+        }
+
+    def _local_title(self, kind, name, year):
+        """Databáze filmů vede mezinárodní přepis („Pet svestek“) — český název zná TMDB."""
+        if not self.luna or not name:
+            return ""
+
+        def load():
+            cid = "search.movie" if kind == "movie" else "search.series"
+            try:
+                metas = self.luna.catalog(kind, cid, search=name)
+            except Exception:  # noqa: BLE001 – Luna nemusí běžet
+                return ""
+            for meta in metas[:10]:
+                found = meta.get("name") or ""
+                if _fold(found) != _fold(name):
+                    continue
+                my = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
+                if year and my.isdigit() and abs(int(my) - year) > 1:
+                    continue
+                return found
+            return ""
+
+        return self.store.cached(f"lname:{kind}:{_fold(name)}:{year or ''}", 30 * 86400, load)
+
+    @staticmethod
+    def _summary(meta):
+        """Chystané filmy popis nemají nikde — složíme aspoň větu z toho, co je známo."""
+        parts = []
+        head = ", ".join(GENRES_CS.get(g, g) for g in (meta.get("genres") or []))
+        if meta.get("country"):
+            country = ", ".join(COUNTRIES_CS.get(c.strip(), c.strip())
+                                for c in str(meta["country"]).split(","))
+            head = f"{head} · {country}" if head else country
+        if head:
+            parts.append(head + ".")
+        if meta.get("director"):
+            parts.append("Režie " + ", ".join(meta["director"][:3]) + ".")
+        if meta.get("cast"):
+            parts.append("Hrají " + ", ".join(meta["cast"][:5]) + ".")
+        return " ".join(parts)
 
     def search_webshare(self, query, limit=20):
         """Soubory přímo z WebShare (fulltext), bez metadat titulu."""

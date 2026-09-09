@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.31.3";
+const CARD_VERSION = "1.32.1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -369,6 +369,30 @@ class NokturnoCard extends HTMLElement {
         /* zeměkoule = odkaz vede přímo z WebShare, takže hraje i mimo domácí síť */
         .tag .ext { --mdc-icon-size:13px; opacity:.9; }
         .tag ha-icon.ext { --mdc-icon-size:12px; }
+        /* v úvodních sekcích je název krátký, štítek se vejde vedle něj */
+        .stream.stacked { grid-template-columns:auto minmax(0, 1fr) auto;
+                          grid-template-areas:"tag label icons"; align-items:center; row-gap:0; }
+        .stream.stacked .label { -webkit-line-clamp:2; }
+        @container (max-width: 430px) {
+          .stream.stacked { grid-template-columns:minmax(0, 1fr) auto;
+                            grid-template-areas:"tag icons" "label icons"; row-gap:2px; }
+        }
+        .icons { display:flex; }
+        .watch { margin-left:auto; }
+        /* štítky s posledními dotazy a přepínači nad výsledky */
+        .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .chip { background: var(--secondary-background-color); color: var(--primary-text-color); border:none;
+                border-radius:14px; padding:5px 11px; font:inherit; font-size:.8rem; cursor:pointer;
+                display:inline-flex; align-items:center; gap:4px; }
+        .chip.x { color: var(--secondary-text-color); }
+        .section { margin-top:14px; font-weight:500; display:flex; align-items:center; gap:6px; }
+        .section ha-icon { --mdc-icon-size:18px; }
+        .section .add { --mdc-icon-button-size:32px; --mdc-icon-size:18px; margin-left:auto; }
+        /* rozkoukané: dlaždice na šířku, ať je poznat záběr z filmu */
+        .cont { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:8px; }
+        .cont .poster .thumb { aspect-ratio:16/9; }
+        .where { position:absolute; left:6px; bottom:6px; font-size:.68rem; font-weight:600; padding:2px 6px;
+                 border-radius:6px; background:rgba(0,0,0,.65); color:#fff; }
         .icons ha-icon-button { --mdc-icon-button-size:40px; --mdc-icon-size:20px; }
         .legend { margin-top:8px; font-size:.75rem; color: var(--secondary-text-color); display:flex;
                   align-items:center; gap:4px; }
@@ -653,7 +677,8 @@ class NokturnoCard extends HTMLElement {
       <div class="bar detail">
         <div class="titlerow">
           <ha-icon-button data-back="back" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
-          <span class="name">${this._esc(st.title)}${st.item && st.item.year && !st.episode ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
+          <span class="name">${this._esc(st.title)}${st.item && st.item.year && !st.episode
+            && !String(st.title).includes(String(st.item.year)) ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
           ${st.item ? `<ha-icon-button data-want="1" title="${this._isWanted(st.item.id) ? "Odebrat ze seznamu k zhlédnutí" : "Přidat do seznamu k zhlédnutí"}">
             <ha-icon icon="${this._isWanted(st.item.id) ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
           </ha-icon-button>` : ""}

@@ -35,6 +35,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Pozor: Trakt od července 2026 vydává API klíče jen pro VIP účty, takže bez VIP tuhle část nezapneš — vlastní seznam funguje i tak.
 - **Rok v dotazu je filtr** — „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere. Rok se hlídá i u souborů z fulltextu WebShare, takže se k titulu nepřimíchá stejnojmenný film z jiného roku.
+- **Automatické přepnutí filmy ↔ seriály** — když ve zvoleném typu nic není, zkusí se druhý a přepínač se přepne sám.
 - **Databáze filmů po ruce vždycky** — tlačítko *Hledat v databázi filmů* je u každých výsledků, ne jen když zdroje nic nenajdou. Klepnutím na titul se otevře jeho detail s plakátem a popisem (u chystaných filmů, které popis nikde nemají, aspoň žánr, režie a obsazení) a záložkou v něm si ho uložíš do seznamu k zhlédnutí. Dokud jsi v databázi, hledá tam i tlačítko *Hledat*.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
 
@@ -59,26 +60,28 @@ Zkopíruj složku `custom_components/nokturno` do své konfigurace a restartuj H
 
 Průvodce má dva kroky. **Účty** — vyplň jen zdroje, které chceš používat:
 
-| Pole | Popis |
-|---|---|
-| WebShare — e-mail, heslo | fulltextové hledání souborů, přímé odkazy z CDN, titulky. Heslo lze zadat i jako uložený salted hash. |
-| Streamuj.tv — uživatel, heslo | streamy Sosáče (české tituly a dabing) |
-| Luna — adresa, token | katalogy TMDB, metadata a streamy přes [Lunu](https://github.com/matata86/ha-addons); token lze vložit i jako celou instalační URL |
+| Pole | Bez čeho to nejde | Co tím získáš |
+|---|---|---|
+| WebShare — e-mail, heslo | placený účet WebShare | fulltextové hledání souborů, streamy u titulů z Luny, přímé odkazy z CDN (hrají i mimo domácí síť), titulky. Heslo lze zadat i jako uložený salted hash z Kodi doplňku. |
+| Streamuj.tv — uživatel, heslo | účet Streamuj.tv (přehrávač Sosáče) | streamy Sosáče, tedy české tituly a dabing. Katalogy a hledání jdou z veřejných exportů, přihlášení je potřeba až na přehrání. |
+| Luna — adresa, token | běžící addon [Luna](https://github.com/matata86/ha-addons) v síti | katalogy a metadata z TMDB (české názvy, popisy, plakáty) a streamy z WebShare přes Lunu. Token lze vložit i jako celou instalační URL, adresa se z ní vytáhne sama. |
+
+Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Bez Luny chybí české popisy a plakáty, bez WebShare fulltext a odkazy mimo síť, bez Streamuj.tv streamy Sosáče.
 
 **Předvolby přehrávání** (jdou kdykoli změnit v *Nastavení → Zařízení a služby → Nokturno → Konfigurovat*):
 
-| Pole | Výchozí | K čemu |
-|---|---|---|
-| Výchozí přehrávač | — | Kodi, na které se pouští, když se v kartě nevybere jiné |
-| Preferovaný jazyk zvuku | CZ | takové streamy jdou v seznamu nahoru |
-| Preferovat prostorový zvuk | vypnuto | 5.1 a víc má přednost při shodné kvalitě |
-| Skrýt SD streamy | vypnuto | vyhodí kvalitu pod 720p |
-| Max. velikost streamu (GB) | 0 | 0 = bez omezení |
-| Řazení streamů | quality | `quality`, `size_desc`, `size_asc`, `source` |
-| Složka pro stahování | `/media/nokturno` | musí být uvnitř `media_dirs`, ať je vidět v Médiích |
-| Adresa mimo domácí síť | — | Tailscale/VPN adresa HA (např. `100.94.191.65`); použije se jen když addon Tailscale běží |
-| Oznámení | — | notify služba telefonu (`notify.mobile_app_…`); prázdné = oznámení v HA |
-| Trakt.tv — Client ID, Secret | — | volitelné; z [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications). **Trakt od 7/2026 vydává API klíče jen s VIP** — bez nich funguje vlastní seznam k zhlédnutí. |
+| Pole | Hodnoty | Výchozí | Co dělá |
+|---|---|---|---|
+| Výchozí přehrávač | entita `media_player` | — | Kodi, na které se pouští, když se v kartě nevybere jiné. Kodi se pozná z registru entit, takže se do něj pouští přes doplněk Nokturno a titul si drží pozici; ostatní přehrávače dostanou přímý odkaz. |
+| Preferovaný jazyk zvuku | CZ, SK, EN, … | CZ | streamy s tímhle zvukem jdou v seznamu nahoru. Neodfiltrují se ostatní, jen se seřadí. |
+| Preferovat prostorový zvuk | ano / ne | ne | při shodné kvalitě jde nahoru 5.1 a víc. |
+| Skrýt SD streamy | ano / ne | ne | vyhodí ze seznamu všechno pod 720p. |
+| Max. velikost streamu (GB) | číslo, 0 = bez omezení | 0 | užitečné, když nechceš 40GB remuxy na mobilní data. |
+| Řazení streamů | `quality`, `size_desc`, `size_asc`, `source` | `quality` | `quality` řadí podle rozlišení (odhad z velikosti u souborů bez kvality v názvu se pozná podle vlnovky), `source` seskupí podle zdroje. |
+| Složka pro stahování | cesta | `/media/nokturno` | musí být uvnitř `media_dirs`, jinak stažené soubory neuvidíš v Médiích. Titulky se ukládají vedle videa se stejným názvem. |
+| Adresa mimo domácí síť | IP nebo doména | — | Tailscale/VPN adresa HA (např. `100.94.191.65`). Použije se při odesílání odkazu a při `resolve`, a jen tehdy, když addon Tailscale skutečně běží — integrace si to ověřuje přes Supervisor. |
+| Oznámení | notify služba | — | kam chodí hlášky o dokončeném stahování, novém dílu a nově dostupném titulu (`notify.mobile_app_…`). Prázdné = trvalé oznámení v HA. |
+| Trakt.tv — Client ID, Secret | z [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications) | — | volitelné propojení účtu. **Trakt od 7/2026 vydává API klíče jen s VIP** — bez nich funguje vlastní seznam k zhlédnutí úplně stejně. |
 
 Po vyplnění Traktu spusť službu `nokturno.trakt_auth` — přijde oznámení s kódem, který zadáš na [trakt.tv/activate](https://trakt.tv/activate).
 
@@ -130,6 +133,18 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 
 Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí kolečko a druhé se točí v tlačítku *Hledat*, dokud se detail nenačte. Vedle tlačítka **Úvod** je vždy **Hledat v databázi filmů** (IMDb/TMDB) — hodí se, když zdroje vrátí něco jiného, než jsi hledal, nebo film teprve vyjde; z těch výsledků klepnutím titul rovnou uložíš do seznamu k zhlédnutí a **Zpět k výsledkům ze zdrojů** tě vrátí. Když hledáš s rokem a zdroje nic z toho roku nemají, výsledek je prázdný — právě proto, aby ti nepodstrčily jiný film. Titul, který má jen Sosáč, dostane plakát z TMDB. Po klepnutí se přes plakát položí kolečko, dokud se streamy nenačtou. **Úvod** vlevo nahoře se vrátí zpět.
 
+### Jak se hledá
+
+| Situace | Co karta udělá |
+|---|---|
+| Napíšeš název | zeptá se Luny i Sosáče naráz a stejný titul z obou spojí do jedné dlaždice |
+| Napíšeš rok („Duna 2021") | rok odřízne z dotazu a použije ho jako filtr; projdou tituly z toho roku a ty, u kterých zdroj rok neuvádí |
+| Číslo patří k názvu („Blade Runner 2049", „2012") | rok v budoucnosti se nebere jako filtr, hledá se celý název |
+| Máš přepnuto na Filmy, ale je to seriál | když mezi filmy nic není, zkusí to samo mezi seriály (a naopak) a přepínač přepne — v bublině se objeví, co se stalo |
+| Zdroje nenajdou nic | tlačítko **Hledat v databázi filmů** je hned vedle **Úvod**; databáze zná i chystané tituly |
+| Jsi v databázi filmů | další hledání zůstane v ní, dokud se nevrátíš tlačítkem **Zpět k výsledkům ze zdrojů** nebo na **Úvod** |
+| Klepneš na titul z databáze | otevře se detail s plakátem a popisem; streamy tam většinou nejsou, proto je nahoře záložka pro uložení do seznamu k zhlédnutí |
+
 ### Seriál a epizody
 
 <img src="docs/04-epizody.png" width="420" alt="Epizody seriálu">
@@ -150,6 +165,10 @@ Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Lu
 | 🔗 | zkopíruje přímý odkaz do schránky |
 
 Nad seznamem jsou výběry **Přehrávač** a **Mobil** — platí pro všechny akce v seznamu.
+
+### Bubliny u tlačítek
+
+Každé tlačítko v kartě má bublinu, která říká, co udělá — od štítků s historií (*Zopakovat hledání …*) přes tlačítka u streamu až po ikony u sledovaných seriálů. U streamu je v bublině navíc celý název souboru, titulky, bitrate a jestli hraje i mimo domácí síť.
 
 ## Entity
 

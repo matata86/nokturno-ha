@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.29.1";
+const CARD_VERSION = "1.30.1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -355,47 +355,24 @@ class NokturnoCard extends HTMLElement {
                        padding:0; margin:0; width:100%; cursor:pointer; outline:none; appearance:none; }
         /* rozbalený seznam kreslí prohlížeč — bez těchhle barev je v tmavém motivu bílý na bílém */
         .pick option { background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color); }
-        .stream { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--divider-color); }
-        /* dlouhý název souboru nesmí roztáhnout řádek a vytlačit ikony mimo kartu */
-        .stream .label { flex:1 1 0; min-width:0; font-size:.9rem; overflow-wrap:anywhere;
+        /* štítek nad názvem, ikony vpravo přes obě řádky — stejné v široké i úzké kartě */
+        .stream, .stream.stacked { display:grid; grid-template-columns:minmax(0, 1fr) auto;
+                                   grid-template-areas:"tag icons" "label icons";
+                                   column-gap:8px; row-gap:2px; padding:8px 0;
+                                   border-bottom:1px solid var(--divider-color); }
+        .stream .tag { grid-area:tag; justify-self:start; }
+        .stream .label { grid-area:label; font-size:.9rem; overflow-wrap:anywhere;
                          display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-        .stream .icons { flex:0 0 auto; }
-        /* seznamy na úvodu mají štítek nad názvem, ať je řádek čitelný i na širší kartě */
-        .stream.stacked { display:grid; grid-template-columns:minmax(0, 1fr) auto;
-                          grid-template-areas:"tag icons" "label icons"; column-gap:8px; row-gap:2px; padding:8px 0; }
-        .stream.stacked .tag { grid-area:tag; justify-self:start; }
-        .stream.stacked .label { grid-area:label; -webkit-line-clamp:2; }
-        .stream.stacked .icons { grid-area:icons; align-self:center; }
+        .stream .icons { grid-area:icons; align-self:center; display:flex; }
         .tag { font-size:.7rem; font-weight:600; padding:2px 6px; border-radius:6px; color:#fff; white-space:nowrap;
                display:inline-flex; align-items:center; gap:3px; }
         /* zeměkoule = odkaz vede přímo z WebShare, takže hraje i mimo domácí síť */
         .tag .ext { --mdc-icon-size:13px; opacity:.9; }
-        .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-        .chip { background: var(--secondary-background-color); color: var(--primary-text-color); border:none;
-                border-radius:14px; padding:5px 11px; font:inherit; font-size:.8rem; cursor:pointer; }
-        .chip.x { color: var(--secondary-text-color); }
-        .section { margin-top:14px; font-weight:500; display:flex; align-items:center; gap:6px; }
-        .section ha-icon { --mdc-icon-size:18px; }
-        .section .add { --mdc-icon-button-size:32px; --mdc-icon-size:18px; margin-left:auto; }
         .tag ha-icon.ext { --mdc-icon-size:12px; }
-        .cont { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:8px; }
-        .cont .poster .thumb { aspect-ratio:16/9; }
-        .where { position:absolute; left:6px; bottom:6px; font-size:.68rem; font-weight:600; padding:2px 6px;
-                 border-radius:6px; background:rgba(0,0,0,.65); color:#fff; }
-        .watch { margin-left:auto; }
+        .icons ha-icon-button { --mdc-icon-button-size:40px; --mdc-icon-size:20px; }
         .legend { margin-top:8px; font-size:.75rem; color: var(--secondary-text-color); display:flex;
                   align-items:center; gap:4px; }
         .legend ha-icon { --mdc-icon-size:14px; }
-        .icons { display:flex; }
-        .icons ha-icon-button { --mdc-icon-button-size:40px; --mdc-icon-size:20px; }
-        /* na úzké kartě (mobil) se popis lámal vedle štítku — štítek proto nad text */
-        @container (max-width: 430px) {
-          .stream { display:grid; grid-template-columns:minmax(0, 1fr) auto; grid-template-areas:"tag icons" "label icons";
-                    column-gap:8px; row-gap:2px; padding:8px 0; }
-          .stream .tag { grid-area:tag; justify-self:start; }
-          .stream .label { grid-area:label; }
-          .stream .icons { grid-area:icons; align-self:center; }
-        }
         .muted { color: var(--secondary-text-color); font-size:.85rem; }
         .err { color: var(--error-color); font-size:.85rem; margin-top:8px; }
         .ep { display:flex; gap:8px; align-items:center; padding:9px 0; border-bottom:1px solid var(--divider-color); cursor:pointer; }
@@ -620,7 +597,8 @@ class NokturnoCard extends HTMLElement {
     const hint = st.catalog
       ? `<div class="muted" style="margin-top:8px">Z databáze filmů — klepnutím titul přidáš do seznamu k zhlédnutí a dám vědět, až bude ke sledování.</div>` : "";
     return home + hint + `<div class="grid${files ? " files" : ""}">` + st.results.map((r, i) => `
-      <button class="poster" data-${st.catalog ? "wantcat" : "open"}="${i}">
+      <button class="poster" data-${st.catalog ? "wantcat" : "open"}="${i}" title="${this._esc(
+        [r.title + (r.year ? ` (${r.year})` : ""), r.description].filter(Boolean).join("\n"))}">
         <span class="thumb">
           <ha-icon icon="mdi:filmstrip"></ha-icon>
           ${r.poster ? `<img src="${this._esc(r.poster)}" referrerpolicy="no-referrer" />` : ""}
@@ -679,7 +657,7 @@ class NokturnoCard extends HTMLElement {
     const legend = st.streams.some((s) => s.direct)
       ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = hraje i mimo domácí síť</div>` : "";
     return head + legend + `<div>${st.streams.map((s, i) => `
-      <div class="stream">
+      <div class="stream" title="${this._esc(this._streamTitle(s))}">
         <span class="tag" style="background:${SOURCE_COLORS[s.source] || "#777"}">${s.source || "?"}${
           s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="Hraje i mimo domácí síť"></ha-icon>` : ""}</span>
         <span class="label">${this._esc(s.label.replace(s.source + "  ·  ", ""))}</span>
@@ -742,7 +720,7 @@ class NokturnoCard extends HTMLElement {
       <div class="section"><ha-icon icon="mdi:folder-download-outline"></ha-icon> Stažené
         ${sensor && sensor.attributes.free_gb != null ? `<span class="muted" style="font-weight:400">· volných ${sensor.attributes.free_gb} GB</span>` : ""}</div>
       ${files.map((f, i) => `
-        <div class="file">
+        <div class="file" title="${this._esc(f.path)}">
           <span class="label">${this._esc(f.name)}${f.subtitles ? ` <span class="muted">· ${f.subtitles}× titulky</span>` : ""}</span>
           <span class="muted">${this._size(f.size)}</span>
           <span class="icons">
@@ -893,6 +871,16 @@ class NokturnoCard extends HTMLElement {
     if (data.dl !== undefined) return this._download(st.streams[+data.dl]);
     if (data.link !== undefined) return this._openLink(st.streams[+data.link]);
     return undefined;
+  }
+
+  /** Popis pro tooltip — celý název souboru a co karta zkrátila. */
+  _streamTitle(s) {
+    const rows = [s.label];
+    if (s.file && !s.label.includes(s.file)) rows.push(s.file);
+    if (s.subs && s.subs.length) rows.push("titulky: " + s.subs.join(", "));
+    if (s.bitrate) rows.push(`${s.bitrate} Mb/s`);
+    if (s.direct) rows.push("hraje i mimo domácí síť");
+    return rows.filter(Boolean).join("\n");
   }
 
   _esc(text) {

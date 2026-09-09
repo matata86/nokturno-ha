@@ -30,8 +30,11 @@ from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
     CONF_DOWNLOAD_DIR,
+    CONF_EXTERNAL_HOST,
     CONF_KODI_ENTITY,
     CONF_NOTIFY_TARGET,
+    CONF_TRAKT_ID,
+    CONF_TRAKT_SECRET,
     DEFAULT_DOWNLOAD_DIR,
     DOMAIN,
     EVENT_DOWNLOAD_DONE,
@@ -47,6 +50,9 @@ from .const import (
     SERVICE_PLAY,
     SERVICE_RESOLVE,
     SERVICE_SEARCH,
+    SERVICE_SEEN,
+    SERVICE_TRAKT_AUTH,
+    SERVICE_TRAKT_WATCHED,
     SERVICE_SEND_LINK,
     SERVICE_STREAMS,
     SERVICE_WATCH,
@@ -57,7 +63,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .downloader import Downloader
-from .engine import Engine, NokturnoError
+from .engine import Engine, NokturnoError, split_episode_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,6 +132,15 @@ WATCH_SCHEMA = vol.Schema({
 
 CONTINUE_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTITY_ID): cv.string})
 
+SEEN_SCHEMA = vol.Schema({vol.Optional("id"): vol.Any(cv.string, None)})
+
+TRAKT_WATCHED_SCHEMA = vol.Schema({
+    vol.Required("id"): cv.string,
+    vol.Optional("season"): vol.Any(vol.Coerce(int), None),
+    vol.Optional("episode"): vol.Any(vol.Coerce(int), None),
+    vol.Optional("remove", default=False): cv.boolean,
+})
+
 
 def _entry_data(hass: HomeAssistant) -> dict:
     """Data jediného config entry (integrace se zakládá jen jednou)."""
@@ -184,6 +199,18 @@ async def async_phone_owners(hass: HomeAssistant) -> dict[str, str]:
         if user:
             owners[mobile.entry_id] = user.name
     return owners
+
+
+async def async_tailscale_running(hass: HomeAssistant) -> bool:
+    """Běží na instanci addon Tailscale? Bez něj nemá smysl přepisovat adresu Luny."""
+    try:
+        from homeassistant.components.hassio import get_supervisor_client
+
+        addons = (await get_supervisor_client(hass).addons.list()).addons
+    except Exception as err:  # noqa: BLE001 – bez Supervisoru (Core instalace) prostě nevíme
+        _LOGGER.debug("seznam addonů: %s", err)
+        return False
+    return any("tailscale" in (a.slug or "") and a.state == "started" for a in addons)
 
 
 def kodi_endpoints(hass: HomeAssistant, entity_id: str | None = None) -> list[dict]:
@@ -345,6 +372,9 @@ async def async_register_resource(hass: HomeAssistant, url: str) -> None:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await async_register_card(hass)
     options = {**entry.data, **entry.options}
+    if options.get(CONF_EXTERNAL_HOST) and not await async_tailscale_running(hass):
+        _LOGGER.info("addon Tailscale neběží — odkazy mimo síť se nebudou přepisovat")
+        options = {**options, CONF_EXTERNAL_HOST: ""}
     engine = await hass.async_add_executor_job(
         Engine, options, hass.config.path(f".storage/{DOMAIN}")
     )
@@ -374,6 +404,71 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await notify("Nokturno — staženo", f"{job['name']} je připravený v Médiích.")
 
     downloader.on_done = _download_done
+
+    # --- Trakt.tv -------------------------------------------------------------
+
+    def trakt():
+        """Klient Traktu, nebo None, když nejsou vyplněné údaje aplikace."""
+        from .lib.trakt_api import TraktApi
+
+        if not options.get(CONF_TRAKT_ID) or not options.get(CONF_TRAKT_SECRET):
+            return None
+        return TraktApi(options[CONF_TRAKT_ID], options[CONF_TRAKT_SECRET],
+                        tokens=engine.store.load("trakt", {}),
+                        on_tokens=lambda data: engine.store.save("trakt", data))
+
+    async def handle_trakt_auth(call: ServiceCall):
+        """Přihlášení kódem: pošle kód do oznámení a na pozadí čeká na potvrzení."""
+        from .lib.trakt_api import TraktError
+
+        api = trakt()
+        if api is None:
+            raise HomeAssistantError("Nejsou vyplněné Client ID a Secret aplikace na Trakt.tv.")
+        try:
+            code = await hass.async_add_executor_job(api.device_code)
+        except TraktError as err:
+            raise HomeAssistantError(f"Trakt: {err}") from err
+        await notify("Nokturno — přihlášení k Trakt.tv",
+                     f"Otevři {code.get('verification_url')} a zadej kód {code.get('user_code')}",
+                     code.get("verification_url"))
+
+        async def _wait():
+            try:
+                await hass.async_add_executor_job(api.poll_token, code["device_code"])
+            except TraktError as err:
+                await notify("Nokturno — Trakt.tv", f"Přihlášení se nepovedlo: {err}")
+                return
+            await notify("Nokturno — Trakt.tv", "Účet je propojený.")
+
+        hass.async_create_background_task(_wait(), "nokturno_trakt_auth")
+        return {"user_code": code.get("user_code"), "url": code.get("verification_url")}
+
+    async def handle_trakt_watched(call: ServiceCall):
+        from .lib.trakt_api import TraktError
+
+        api = trakt()
+        if api is None or not api.logged_in():
+            raise HomeAssistantError("Trakt.tv není propojený (spusť nokturno.trakt_auth).")
+        base_id, season, episode = split_episode_id(call.data["id"])
+        season = call.data.get("season", season)
+        episode = call.data.get("episode", episode)
+        func = api.unmark_watched if call.data.get("remove") else api.mark_watched
+        try:
+            await hass.async_add_executor_job(func, base_id, season, episode)
+        except TraktError as err:
+            raise HomeAssistantError(f"Trakt: {err}") from err
+        return {"id": base_id, "season": season, "episode": episode, "removed": call.data.get("remove", False)}
+
+    async def trakt_scrobble_start(ctype, item_id):
+        """Po spuštění přehrávání dá Traktu vědět, co se hraje (jen když je propojený)."""
+        api = trakt()
+        if api is None or not api.logged_in():
+            return
+        base_id, season, episode = split_episode_id(item_id)
+        try:
+            await hass.async_add_executor_job(api.scrobble, "start", base_id, 0, season, episode)
+        except Exception as err:  # noqa: BLE001 – Trakt nesmí shodit přehrávání
+            _LOGGER.debug("trakt scrobble: %s", err)
 
     # --- sledované seriály ----------------------------------------------------
 
@@ -490,6 +585,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         items = await kodi_continue(hass, call.data.get(ATTR_ENTITY_ID), engine)
         return {"count": len(items), "items": items}
 
+    async def handle_seen(call: ServiceCall):
+        """Označí nový díl (u jednoho nebo všech seriálů) za viděný — zhasne v kartě i v senzoru."""
+        data = watchlist()
+        sid = call.data.get("id")
+        changed = False
+        for key, item in data.items():
+            if (sid in (None, key)) and item.get("new"):
+                item.pop("new", None)
+                changed = True
+        if changed:
+            await watchlist_save(data)
+        return {"count": sum(1 for i in data.values() if i.get("new"))}
+
     async def handle_clear_history(call: ServiceCall):
         await hass.async_add_executor_job(engine.clear_history)
         async_dispatcher_send(hass, SIGNAL_WATCHLIST)
@@ -601,6 +709,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 {ATTR_ENTITY_ID: entity_id, "media_content_type": "video", "media_content_id": media_id},
                 blocking=True,
             )
+        if item_id:
+            hass.async_create_task(trakt_scrobble_start(ctype, item_id))
         return {"stream": stream.get("label", ""), "entity_id": targets}
 
     async def handle_download(call: ServiceCall):
@@ -678,6 +788,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_WATCH, handle_watch, WATCH_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CHECK_SERIES, handle_check_series, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_CLEAR_HISTORY, handle_clear_history, vol.Schema({}), SupportsResponse.NONE),
+        (SERVICE_SEEN, handle_seen, SEEN_SCHEMA, SupportsResponse.OPTIONAL),
+        (SERVICE_TRAKT_AUTH, handle_trakt_auth, vol.Schema({}), SupportsResponse.OPTIONAL),
+        (SERVICE_TRAKT_WATCHED, handle_trakt_watched, TRAKT_WATCHED_SCHEMA, SupportsResponse.OPTIONAL),
     )
     for name, handler, schema, response in services:
         hass.services.async_register(DOMAIN, name, handler, schema=schema, supports_response=response)
@@ -703,6 +816,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             for name in (SERVICE_SEARCH, SERVICE_STREAMS, SERVICE_EPISODES, SERVICE_RESOLVE, SERVICE_PLAY,
                          SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_DELETE_FILE,
-                         SERVICE_CONTINUE, SERVICE_WATCH, SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY):
+                         SERVICE_CONTINUE, SERVICE_WATCH, SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
+                         SERVICE_SEEN, SERVICE_TRAKT_AUTH, SERVICE_TRAKT_WATCHED):
                 hass.services.async_remove(DOMAIN, name)
     return unloaded

@@ -12,6 +12,8 @@ from .const import (
     CONF_DOWNLOAD_DIR,
     CONF_EXTERNAL_HOST,
     CONF_NOTIFY_TARGET,
+    CONF_TRAKT_ID,
+    CONF_TRAKT_SECRET,
     CONF_HIDE_SD,
     CONF_KODI_ENTITY,
     CONF_LUNA_TOKEN,
@@ -61,6 +63,8 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_DOWNLOAD_DIR, default=data.get(CONF_DOWNLOAD_DIR, DEFAULT_DOWNLOAD_DIR)): str,
         vol.Optional(CONF_EXTERNAL_HOST, default=data.get(CONF_EXTERNAL_HOST, "")): str,
         vol.Optional(CONF_NOTIFY_TARGET, default=data.get(CONF_NOTIFY_TARGET, "")): str,
+        vol.Optional(CONF_TRAKT_ID, default=data.get(CONF_TRAKT_ID, "")): str,
+        vol.Optional(CONF_TRAKT_SECRET, default=data.get(CONF_TRAKT_SECRET, "")): str,
     })
 
 

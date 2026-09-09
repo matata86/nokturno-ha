@@ -371,3 +371,44 @@ check_series:
 clear_history:
   name: Smazat historii hledání
   description: Vymaže poslední dotazy zobrazené v kartě.
+
+mark_seen:
+  name: Nový díl viděn
+  description: Zhasne označení nového dílu u sledovaného seriálu (bez ID u všech).
+  fields:
+    id:
+      name: ID seriálu
+      selector:
+        text:
+
+trakt_auth:
+  name: Propojit Trakt.tv
+  description: Pošle přihlašovací kód do oznámení; po zadání na trakt.tv/activate se účet propojí.
+
+trakt_watched:
+  name: Trakt — označit jako zhlédnuté
+  description: Zapíše film nebo epizodu do historie Trakt.tv (s `remove` ji odebere).
+  fields:
+    id:
+      name: ID titulu
+      required: true
+      example: tt0133093
+      selector:
+        text:
+    season:
+      name: Sezóna
+      selector:
+        number:
+          min: 0
+          max: 100
+    episode:
+      name: Epizoda
+      selector:
+        number:
+          min: 0
+          max: 500
+    remove:
+      name: Odebrat z historie
+      default: false
+      selector:
+        boolean:

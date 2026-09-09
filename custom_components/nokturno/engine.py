@@ -328,7 +328,8 @@ class Engine:
             parts.insert(2 if len(parts) > 2 else len(parts), name[:51] + "…" if len(name) > 52 else name)
         return {
             "index": index,
-            "direct": bool(stream.get("_direct")) or bool(stream.get("_ws_url")),
+            # Sosáč streamuje z veřejného streamuj.tv, takže jeho odkazy hrají i mimo domácí síť
+            "direct": bool(stream.get("_direct")) or bool(stream.get("_ws_url")) or stream.get("source") == "sosac",
             # odkaz, který funguje i mimo domácí síť (přímo z WebShare)
             "ws_url": stream.get("_ws_url", ""),
             "label": "  ·  ".join(parts) or clean_label(stream.get("label") or ""),

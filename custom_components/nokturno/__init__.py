@@ -246,16 +246,21 @@ async def async_phone_owners(hass: HomeAssistant) -> dict[str, str]:
     return owners
 
 
-async def async_tailscale_running(hass: HomeAssistant) -> bool:
-    """Běží na instanci addon Tailscale? Bez něj nemá smysl přepisovat adresu Luny."""
+async def async_tailscale_running(hass: HomeAssistant) -> bool | None:
+    """Běží na instanci addon Tailscale? `None` znamená, že se to nedá zjistit.
+
+    Nevědomost nesmí adresu mimo síť zahodit — bez Supervisoru (instalace Core)
+    se stav addonů zjistit nedá a uživatel ji přesto vyplnil záměrně."""
     try:
         from homeassistant.components.hassio import get_supervisor_client
 
         addons = (await get_supervisor_client(hass).addons.list()).addons
-    except Exception as err:  # noqa: BLE001 – bez Supervisoru (Core instalace) prostě nevíme
+    except Exception as err:  # noqa: BLE001 – bez Supervisoru prostě nevíme
         _LOGGER.debug("seznam addonů: %s", err)
-        return False
-    return any("tailscale" in (a.slug or "") and a.state == "started" for a in addons)
+        return None
+    # `state` je výčet, ne řetězec — porovnání s „started“ napřímo je vždy False
+    return any("tailscale" in (a.slug or "")
+               and str(getattr(a.state, "value", a.state)) == "started" for a in addons)
 
 
 def kodi_endpoints(hass: HomeAssistant, entity_id: str | None = None) -> list[dict]:
@@ -422,8 +427,8 @@ async def async_register_resource(hass: HomeAssistant, url: str) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await async_register_card(hass)
     options = {**entry.data, **entry.options}
-    if options.get(CONF_EXTERNAL_HOST) and not await async_tailscale_running(hass):
-        _LOGGER.info("addon Tailscale neběží — odkazy mimo síť se nebudou přepisovat")
+    if options.get(CONF_EXTERNAL_HOST) and await async_tailscale_running(hass) is False:
+        _LOGGER.warning("addon Tailscale neběží — odkazy mimo síť se nebudou přepisovat")
         options = {**options, CONF_EXTERNAL_HOST: ""}
     engine = await hass.async_add_executor_job(
         Engine, options, hass.config.path(f".storage/{DOMAIN}")

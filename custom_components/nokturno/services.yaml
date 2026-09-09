@@ -440,3 +440,44 @@ share_file:
         number:
           min: 1
           max: 720
+
+want_to_watch:
+  name: Chci vidět
+  description: Přidá titul do seznamu k zhlédnutí (kontroluje se denně, jestli už má stream). S `remove` ho odebere.
+  fields:
+    id:
+      name: ID titulu
+      required: true
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - series
+    title:
+      name: Název
+      selector:
+        text:
+    year:
+      name: Rok
+      selector:
+        number:
+          min: 1900
+          max: 2100
+    alt:
+      name: Alternativní ID
+      selector:
+        text:
+    poster:
+      name: Plakát (URL)
+      selector:
+        text:
+    remove:
+      name: Odebrat
+      default: false
+      selector:
+        boolean:

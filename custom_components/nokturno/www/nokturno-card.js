@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.26.0";
+const CARD_VERSION = "1.27.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -64,6 +64,7 @@ class NokturnoCard extends HTMLElement {
       if (key !== this._sensorKey) {
         this._sensorKey = key;
         this._watchOverride = {};
+        this._wantOverride = {};
         if (this._state.view === "search" || this._state.view === "episodes") this._paint();
       }
     }
@@ -489,7 +490,7 @@ class NokturnoCard extends HTMLElement {
     }
     const trakt = this._traktList();
     if (trakt.length) {
-      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí (Trakt)</div>
+      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí</div>
         <div>${trakt.slice(0, 12).map((t, i) => `
           <div class="stream stacked" data-trakt="${i}" style="cursor:pointer">
             <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">
@@ -540,6 +541,28 @@ class NokturnoCard extends HTMLElement {
   /** Seznam k zhlédnutí z Traktu (ze senzoru „K zhlédnutí"). */
   _traktList() {
     return (this._sensorAttr("items") || []).filter((i) => i && i.id);
+  }
+
+  _isWanted(id) {
+    const over = this._wantOverride || {};
+    if (id in over) return over[id] !== false;
+    return this._traktList().some((t) => t.id === id);
+  }
+
+  /** Seznam „k zhlédnutí" — vlastní i z Traktu; kontroluje se denně, jestli už má stream. */
+  async _toggleWant() {
+    const item = this._state.item;
+    const wanted = this._isWanted(item.id);
+    this._wantOverride = this._wantOverride || {};
+    this._wantOverride[item.id] = wanted ? false : true;
+    this._paint();
+    await this._guard(async () => {
+      await this._call("want_to_watch", wanted
+        ? { id: item.id, remove: true }
+        : { id: item.id, type: item.type === "series" ? "series" : "movie", title: item.title,
+            year: item.year || undefined, alt: item.alt || undefined, poster: item.poster || undefined }, false);
+      this._toast(wanted ? "Odebráno ze seznamu" : "Přidáno — dám vědět, až bude ke sledování");
+    });
   }
 
   _watchlist() {
@@ -611,6 +634,9 @@ class NokturnoCard extends HTMLElement {
         <div class="titlerow">
           <ha-icon-button data-back="back" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
           <span class="name">${this._esc(st.title)}${st.item && st.item.year && !st.episode ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
+          ${st.item ? `<ha-icon-button data-want="1" title="${this._isWanted(st.item.id) ? "Odebrat ze seznamu k zhlédnutí" : "Přidat do seznamu k zhlédnutí"}">
+            <ha-icon icon="${this._isWanted(st.item.id) ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
+          </ha-icon-button>` : ""}
         </div>
         <span class="picks">
           ${players.length > 1 ? this._pick("player", "Přehrávač", players.map((p) => ({ value: p, label: this._friendly(p) })), st.player) : ""}
@@ -762,7 +788,7 @@ class NokturnoCard extends HTMLElement {
   _onClick(event) {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
-                  "watch", "wopen", "wremove", "wseen", "trakt"];
+                  "watch", "wopen", "wremove", "wseen", "trakt", "want"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -780,6 +806,7 @@ class NokturnoCard extends HTMLElement {
       const w = this._watchlist()[+data.wopen];
       return this._openItem({ id: w.id, type: "series", title: w.title, alt: w.alt, poster: w.poster });
     }
+    if (data.want !== undefined) return this._toggleWant();
     if (data.trakt !== undefined) {
       const t = this._traktList()[+data.trakt];
       if (!t) return undefined;

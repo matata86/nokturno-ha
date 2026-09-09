@@ -56,6 +56,7 @@ from .const import (
     SERVICE_TRAKT_AUTH,
     SERVICE_TRAKT_LIST,
     SERVICE_TRAKT_WATCHED,
+    SERVICE_WANT,
     SERVICE_SEND_LINK,
     SERVICE_STREAMS,
     SERVICE_WATCH,
@@ -134,6 +135,16 @@ SHARE_SCHEMA = vol.Schema({
     vol.Required("path"): cv.string,
     vol.Optional("notify_service"): vol.Any(cv.string, None),
     vol.Optional("hours", default=24): vol.All(vol.Coerce(int), vol.Range(min=1, max=24 * 30)),
+})
+
+WANT_SCHEMA = vol.Schema({
+    vol.Required("id"): cv.string,
+    vol.Optional("type", default="movie"): vol.In(["movie", "series"]),
+    vol.Optional("title"): vol.Any(cv.string, None),
+    vol.Optional("year"): vol.Any(vol.Coerce(int), None),
+    vol.Optional("alt"): vol.Any(cv.string, None),
+    vol.Optional("poster"): vol.Any(cv.string, None),
+    vol.Optional("remove", default=False): cv.boolean,
 })
 
 WATCH_SCHEMA = vol.Schema({
@@ -460,23 +471,48 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     def trakt_cache():
         return engine.store.load("trakt_list", {})
 
+    def wantlist():
+        """Vlastní seznam „chci vidět" — funguje i bez Traktu (ten od 7/2026 chce VIP)."""
+        return engine.store.load("wantlist", {})
+
+    async def handle_want(call: ServiceCall):
+        data = wantlist()
+        wid = call.data["id"]
+        if call.data.get("remove"):
+            data.pop(wid, None)
+        else:
+            item = data.get(wid) or {"id": wid, "added": dt_util.now().isoformat()}
+            item.update({k: call.data[k] for k in ("type", "title", "year", "alt", "poster") if call.data.get(k)})
+            item.setdefault("type", "movie")
+            data[wid] = item
+        await hass.async_add_executor_job(engine.store.save, "wantlist", data)
+        async_dispatcher_send(hass, SIGNAL_TRAKT)
+        if not call.data.get("remove"):
+            hass.async_create_task(check_trakt())
+        return {"count": len(data), "watching": wid in data}
+
     async def check_trakt(_now=None):
         """Seznam „k zhlédnutí" z Traktu + kontrola, co už jde pustit.
 
         Jednou denně; když titul, který stream neměl, ho nově má, přijde oznámení.
         """
+        items = list(wantlist().values())
         api = trakt()
-        if api is None or not api.logged_in():
+        if api is not None and api.logged_in():
+            for kind in ("movies", "shows"):
+                try:
+                    items += await hass.async_add_executor_job(api.watchlist, kind)
+                except Exception as err:  # noqa: BLE001 – výpadek Traktu nesmí shodit kontrolu
+                    _LOGGER.debug("trakt watchlist %s: %s", kind, err)
+        if not items:
             return {}
-        items = []
-        for kind in ("movies", "shows"):
-            try:
-                items += await hass.async_add_executor_job(api.watchlist, kind)
-            except Exception as err:  # noqa: BLE001 – výpadek Traktu nesmí shodit kontrolu
-                _LOGGER.debug("trakt watchlist %s: %s", kind, err)
         known = trakt_cache()
         fresh, newly = {}, []
+        seen_ids = set()
         for item in items[:TRAKT_MAX]:
+            if item["id"] in seen_ids:  # týž titul ve vlastním seznamu i na Traktu
+                continue
+            seen_ids.add(item["id"])
             before = known.get(item["id"]) or {}
             try:
                 streams = await hass.async_add_executor_job(
@@ -484,7 +520,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             except Exception as err:  # noqa: BLE001
                 _LOGGER.debug("trakt streamy %s: %s", item["id"], err)
                 streams = []
-            record = {**item, "streams": len(streams),
+            record = {**item, "type": item.get("type", "movie"), "streams": len(streams),
                       "best": streams[0]["label"] if streams else "",
                       "checked": dt_util.now().isoformat()}
             if streams and not before.get("streams") and before:
@@ -892,6 +928,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_SEEN, handle_seen, SEEN_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_AUTH, handle_trakt_auth, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_LIST, handle_trakt_list, vol.Schema({}), SupportsResponse.OPTIONAL),
+        (SERVICE_WANT, handle_want, WANT_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_WATCHED, handle_trakt_watched, TRAKT_WATCHED_SCHEMA, SupportsResponse.OPTIONAL),
     )
     for name, handler, schema, response in services:
@@ -902,6 +939,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.async_add_executor_job(engine.store.load, "watchlist", {})
     await hass.async_add_executor_job(engine.store.load, "history", [])
     await hass.async_add_executor_job(engine.store.load, "trakt_list", {})
+    await hass.async_add_executor_job(engine.store.load, "wantlist", {})
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
@@ -920,6 +958,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for name in (SERVICE_SEARCH, SERVICE_STREAMS, SERVICE_EPISODES, SERVICE_RESOLVE, SERVICE_PLAY,
                          SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_DELETE_FILE,
                          SERVICE_SHARE_FILE, SERVICE_CONTINUE, SERVICE_WATCH, SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
-                         SERVICE_SEEN, SERVICE_TRAKT_AUTH, SERVICE_TRAKT_LIST, SERVICE_TRAKT_WATCHED):
+                         SERVICE_SEEN, SERVICE_TRAKT_AUTH, SERVICE_TRAKT_LIST, SERVICE_TRAKT_WATCHED,
+                         SERVICE_WANT):
                 hass.services.async_remove(DOMAIN, name)
     return unloaded

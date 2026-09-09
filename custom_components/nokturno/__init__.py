@@ -159,6 +159,8 @@ TORRENT_SCHEMA = vol.Schema({
 WANT_SCHEMA = vol.Schema({
     vol.Optional("id"): cv.string,
     vol.Optional("query"): cv.string,
+    # `series` u uloženého dílu — jeho id samo o sobě metadata seriálu nenajde
+    vol.Optional("series"): vol.Any(cv.string, None),
     vol.Optional("type", default="movie"): vol.In(["movie", "series"]),
     vol.Optional("title"): vol.Any(cv.string, None),
     vol.Optional("year"): vol.Any(vol.Coerce(int), None),
@@ -524,7 +526,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 await hass.async_add_executor_job(engine.store.save, "trakt_list", cache)
         else:
             item = data.get(wid) or {"id": wid, "added": dt_util.now().isoformat()}
-            item.update({k: call.data[k] for k in ("type", "title", "year", "alt", "poster") if call.data.get(k)})
+            item.update({k: call.data[k] for k in ("type", "title", "year", "alt", "poster", "series")
+                         if call.data.get(k)})
             item.setdefault("type", "movie")
             if query:
                 item["query"] = query
@@ -586,7 +589,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         "poster": hit.get("poster") or item.get("poster"), "found_id": hit["id"], "alt": alt}
             try:
                 streams = await hass.async_add_executor_job(
-                    engine.streams_or_torrents, item["type"], target, alt, None)
+                    engine.streams_or_torrents, item["type"], target, alt, item.get("series"))
             except Exception as err:  # noqa: BLE001
                 _LOGGER.debug("trakt streamy %s: %s", item["id"], err)
                 streams = []

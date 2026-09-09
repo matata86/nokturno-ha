@@ -109,9 +109,12 @@ class ProwlarrApi:
         return " ".join(head + ([tail] if tail else []))
 
     def _raw(self, query, ctype, limit):
+        # U seriálu se ptáme i na filmovou kategorii: české trackery tam balíky
+        # sezón běžně zařazují. Nesouvisející nálezy stejně vyhodí filtr sezóny.
+        cats = [CAT_SERIES, CAT_MOVIE] if ctype == "series" else [CAT_MOVIE]
         return self._get("/api/v1/search", {
             "query": query,
-            "categories": CAT_SERIES if ctype == "series" else CAT_MOVIE,
+            "categories": cats,
             "type": "search",
             "limit": max(1, min(int(limit), 100)),
         }) or []

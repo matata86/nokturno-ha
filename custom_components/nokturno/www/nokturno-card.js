@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.46.2";
+const CARD_VERSION = "1.47.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c", "Torrent": "#3f9e6f" };
@@ -851,18 +851,36 @@ class NokturnoCard extends HTMLElement {
     return this._traktList().some((t) => t.id === id);
   }
 
+  /** Co si záložka uloží. Otevřený díl se hlídá jako díl — uživatel si ho
+      vybral, hlídat kvůli němu celý seriál by mu řeklo něco jiného. */
+  _wantTarget() {
+    const st = this._state;
+    const item = st.item;
+    if (!item) return null;
+    const ep = st.episode;
+    if (ep && item.type === "series") {
+      const num = `${ep.season}x${String(ep.episode).padStart(2, "0")}`;
+      return { id: ep.id, type: "series", series: item.id,
+               title: `${item.title} — ${num}${ep.title ? ` ${ep.title}` : ""}`,
+               year: item.year, alt: item.alt, poster: item.poster };
+    }
+    return { id: item.id, type: item.type === "series" ? "series" : "movie",
+             title: item.title, year: item.year, alt: item.alt, poster: item.poster };
+  }
+
   /** Seznam „k zhlédnutí" — vlastní i z Traktu; kontroluje se denně, jestli už má stream. */
   async _toggleWant() {
-    const item = this._state.item;
-    const wanted = this._isWanted(item.id);
+    const target = this._wantTarget();
+    if (!target) return;
+    const wanted = this._isWanted(target.id);
     this._wantOverride = this._wantOverride || {};
-    this._wantOverride[item.id] = wanted ? false : true;
+    this._wantOverride[target.id] = wanted ? false : true;
     this._paint();
     await this._guard(async () => {
       await this._call("want_to_watch", wanted
-        ? { id: item.id, remove: true }
-        : { id: item.id, type: item.type === "series" ? "series" : "movie", title: item.title,
-            year: item.year || undefined, alt: item.alt || undefined, poster: item.poster || undefined }, false);
+        ? { id: target.id, remove: true }
+        : { id: target.id, type: target.type, title: target.title, series: target.series || undefined,
+            year: target.year || undefined, alt: target.alt || undefined, poster: target.poster || undefined }, false);
       this._toast(wanted ? "Odebráno ze seznamu" : "Přidáno — dám vědět, až bude ke sledování");
     });
   }
@@ -985,9 +1003,11 @@ class NokturnoCard extends HTMLElement {
           <ha-icon-button data-back="back" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
           <span class="name">${this._esc(st.title)}${st.item && st.item.year && !st.episode
             && !String(st.title).includes(String(st.item.year)) ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
-          ${st.item ? `<ha-icon-button data-want="1" title="${this._isWanted(st.item.id) ? "Odebrat ze seznamu k zhlédnutí" : "Přidat do seznamu k zhlédnutí"}">
-            <ha-icon icon="${this._isWanted(st.item.id) ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
-          </ha-icon-button>` : ""}
+          ${st.item ? (() => {
+            const saved = this._isWanted((this._wantTarget() || {}).id);
+            return `<ha-icon-button data-want="1" title="${saved ? "Odebrat ze seznamu k zhlédnutí" : "Přidat do seznamu k zhlédnutí"}">
+            <ha-icon icon="${saved ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
+          </ha-icon-button>`; })() : ""}
         </div>
       </div>`;
     // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání.
@@ -1240,6 +1260,18 @@ class NokturnoCard extends HTMLElement {
       const t = this._traktList()[+data.trakt];
       if (!t) return undefined;
       if (t.pending) { this._toast("Titul zatím žádný zdroj nemá — hlídám ho."); return undefined; }
+      const parts = String(t.id).split(":");
+      if (parts.length === 3) {
+        // uložený díl: seznam epizod by byl objížďka, otevřít rovnou jeho streamy
+        const series = t.series || parts[0];
+        st.item = { id: series, type: "series", title: t.title, year: t.year,
+                    alt: t.alt || null, poster: t.poster || "" };
+        st.title = t.title;
+        st.episode = { id: t.id, season: +parts[1], episode: +parts[2], title: "" };
+        st.descOpen = false;
+        return this._loadStreams({ id: t.id, type: "series", series, alt: t.alt || null })
+          .then(() => this._fillDetail());   // plakát a popis seriálu k dílu
+      }
       return this._openItem({ id: t.id, type: t.type, title: t.title, year: t.year, alt: t.alt || null,
                               poster: t.poster || "", description: t.description || "" });
     }

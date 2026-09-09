@@ -448,7 +448,6 @@ class NokturnoCard extends HTMLElement {
         .chip.x { color: var(--secondary-text-color); }
         .section { margin-top:14px; font-weight:500; display:flex; align-items:center; gap:6px; }
         .section ha-icon { --mdc-icon-size:18px; }
-        .section .add { --mdc-icon-button-size:32px; --mdc-icon-size:18px; margin-left:auto; }
         /* rozkoukané: dlaždice na šířku, ať je poznat záběr z filmu */
         .cont { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:8px; }
         .cont .poster .thumb { aspect-ratio:16/9; }
@@ -560,9 +559,7 @@ class NokturnoCard extends HTMLElement {
     }
     const trakt = this._traktList();
     if (trakt.length) {
-      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí
-        <ha-icon-button class="add" data-catalog="1" title="Přidat z databáze filmů (i titul, který zatím nikde není)">
-          <ha-icon icon="mdi:plus"></ha-icon></ha-icon-button></div>
+      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí</div>
         <div>${trakt.slice(0, 12).map((t, i) => `
           <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? `Otevřít streamy — ${t.streams} k dispozici` : "Zatím žádný stream; hlídám a dám vědět"}">
             <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">

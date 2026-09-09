@@ -124,7 +124,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 - **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
 - **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
 - **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
-- **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Zelené „lze pustit" u těch, které už mají stream, „hlídám" u těch, které zatím nikde nejsou; klepnutí otevře streamy. Tlačítko **+** v nadpisu otevře hledání v databázi filmů, kde přidáš i film, který teprve vyjde.
+- **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Zelené „lze pustit" u těch, které už mají stream, „hlídám" u těch, které zatím nikde nejsou; klepnutí otevře streamy. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.
 - Dole **Stahování** (fronta s procenty) a **Stažené** — u každého souboru počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
 
 ### Výsledky hledání

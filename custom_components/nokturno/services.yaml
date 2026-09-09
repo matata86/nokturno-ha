@@ -1,6 +1,6 @@
 search:
   name: Hledat
-  description: Vyhledá film nebo seriál ve všech nastavených zdrojích (Luna, Sosáč) nebo přímo ve WebShare. Vrací výsledky jako odpověď.
+  description: Vyhledá film nebo seriál ve zdrojích (Luna, Sosáč), přímo ve WebShare, nebo v databázi filmů (`catalog` / `catalog_series` — najde i tituly, které zatím nikde nejsou). Vrací výsledky jako odpověď.
   fields:
     query:
       name: Dotaz
@@ -17,6 +17,8 @@ search:
             - movie
             - series
             - webshare
+            - catalog
+            - catalog_series
     limit:
       name: Počet výsledků
       default: 20
@@ -443,11 +445,17 @@ share_file:
 
 want_to_watch:
   name: Chci vidět
-  description: Přidá titul do seznamu k zhlédnutí (kontroluje se denně, jestli už má stream). S `remove` ho odebere.
+  description: Přidá titul do seznamu k zhlédnutí (kontroluje se denně, jestli už má stream). Bez ID stačí název — hlídá se, dokud se titul někde neobjeví. S `remove` položku odebere.
   fields:
     id:
       name: ID titulu
-      required: true
+      description: Z výsledků hledání; bez něj použij Název k hlídání.
+      selector:
+        text:
+    query:
+      name: Název k hlídání
+      description: Pro tituly, které zatím žádný zdroj nemá.
+      example: Duna 3
       selector:
         text:
     type:

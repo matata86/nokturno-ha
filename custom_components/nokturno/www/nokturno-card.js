@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.27.0";
+const CARD_VERSION = "1.29.1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -376,6 +376,7 @@ class NokturnoCard extends HTMLElement {
         .chip.x { color: var(--secondary-text-color); }
         .section { margin-top:14px; font-weight:500; display:flex; align-items:center; gap:6px; }
         .section ha-icon { --mdc-icon-size:18px; }
+        .section .add { --mdc-icon-button-size:32px; --mdc-icon-size:18px; margin-left:auto; }
         .tag ha-icon.ext { --mdc-icon-size:12px; }
         .cont { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:8px; }
         .cont .poster .thumb { aspect-ratio:16/9; }
@@ -490,12 +491,14 @@ class NokturnoCard extends HTMLElement {
     }
     const trakt = this._traktList();
     if (trakt.length) {
-      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí</div>
+      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí
+        <ha-icon-button class="add" data-catalog="1" title="Přidat z databáze filmů (i titul, který zatím nikde není)">
+          <ha-icon icon="mdi:plus"></ha-icon></ha-icon-button></div>
         <div>${trakt.slice(0, 12).map((t, i) => `
           <div class="stream stacked" data-trakt="${i}" style="cursor:pointer">
             <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">
-              <ha-icon icon="${t.streams ? "mdi:play-circle-outline" : "mdi:clock-outline"}" class="ext"></ha-icon>
-              ${t.streams ? "lze pustit" : "zatím ne"}</span>
+              <ha-icon icon="${t.streams ? "mdi:play-circle-outline" : (t.pending ? "mdi:radar" : "mdi:clock-outline")}" class="ext"></ha-icon>
+              ${t.streams ? "lze pustit" : (t.pending ? "hlídám" : "zatím ne")}</span>
             <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${t.year})</span>` : ""}${
               t.streams ? ` <span class="muted">· ${t.streams} streamů</span>` : ""}</span>
           </div>`).join("")}</div>`;
@@ -565,6 +568,31 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
+  /** Hlídat titul, který zatím žádný zdroj nemá — stačí název z vyhledávacího pole. */
+  /** Databáze filmů (IMDb/TMDB) — najde i tituly, které zatím žádný zdroj nemá. */
+  async _searchCatalog() {
+    const query = (this._state.query || this._readInput() || "").trim();
+    if (!query) { this._toast("Napiš nejdřív název do pole pro hledání."); return; }
+    await this._guard(async () => {
+      const res = await this._call("search", {
+        query, type: this._state.type === "series" ? "catalog_series" : "catalog", limit: 12 });
+      this._state.results = res.results || [];
+      this._state.catalog = true;
+      this._state.view = "results";
+      if (!this._state.results.length) this._toast("V databázi filmů nic takového není.");
+    });
+  }
+
+  async _wantQuery() {
+    const query = (this._state.query || this._readInput() || "").trim();
+    if (!query) { this._toast("Napiš nejdřív název do pole pro hledání."); return; }
+    await this._guard(async () => {
+      await this._call("want_to_watch", { query, type: this._state.type === "series" ? "series" : "movie" }, false);
+      this._toast(`Hlídám „${query}" — dám vědět, až bude ke sledování`);
+      this._state.view = "search";
+    });
+  }
+
   _watchlist() {
     const list = [...(this._sensorAttr("series") || [])];
     const over = this._watchOverride || {};
@@ -585,10 +613,14 @@ class NokturnoCard extends HTMLElement {
   _results() {
     const st = this._state;
     const home = `<div class="chips"><button class="chip" data-back="search"><ha-icon icon="mdi:home-outline" style="--mdc-icon-size:14px"></ha-icon> Úvod</button></div>`;
-    if (!st.results.length) return home + `<div class="muted" style="margin-top:10px">Nic nenalezeno.</div>`;
+    if (!st.results.length) return home + `<div class="muted" style="margin-top:10px">Nic nenalezeno.</div>
+      <div class="chips"><button class="chip" data-catalog="1"><ha-icon icon="mdi:database-search-outline" style="--mdc-icon-size:14px"></ha-icon>
+        Hledat v databázi filmů</button></div>`;
     const files = st.results.every((r) => r.type === "file");
-    return home + `<div class="grid${files ? " files" : ""}">` + st.results.map((r, i) => `
-      <button class="poster" data-open="${i}">
+    const hint = st.catalog
+      ? `<div class="muted" style="margin-top:8px">Z databáze filmů — klepnutím titul přidáš do seznamu k zhlédnutí a dám vědět, až bude ke sledování.</div>` : "";
+    return home + hint + `<div class="grid${files ? " files" : ""}">` + st.results.map((r, i) => `
+      <button class="poster" data-${st.catalog ? "wantcat" : "open"}="${i}">
         <span class="thumb">
           <ha-icon icon="mdi:filmstrip"></ha-icon>
           ${r.poster ? `<img src="${this._esc(r.poster)}" referrerpolicy="no-referrer" />` : ""}
@@ -788,7 +820,7 @@ class NokturnoCard extends HTMLElement {
   _onClick(event) {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
-                  "watch", "wopen", "wremove", "wseen", "trakt", "want"];
+                  "watch", "wopen", "wremove", "wseen", "trakt", "want", "catalog", "wantcat"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -807,9 +839,21 @@ class NokturnoCard extends HTMLElement {
       return this._openItem({ id: w.id, type: "series", title: w.title, alt: w.alt, poster: w.poster });
     }
     if (data.want !== undefined) return this._toggleWant();
+    if (data.wantquery !== undefined) return this._wantQuery();
+    if (data.catalog !== undefined) return this._searchCatalog();
+    if (data.wantcat !== undefined) {
+      const item = st.results[+data.wantcat];
+      return this._guard(async () => {
+        await this._call("want_to_watch", { id: item.id, type: item.type, title: item.title,
+                                            year: item.year || undefined, poster: item.poster || undefined }, false);
+        this._toast(`Hlídám „${item.title}" — dám vědět, až bude ke sledování`);
+        st.view = "search"; st.catalog = false;
+      });
+    }
     if (data.trakt !== undefined) {
       const t = this._traktList()[+data.trakt];
       if (!t) return undefined;
+      if (t.pending) { this._toast("Titul zatím žádný zdroj nemá — hlídám ho."); return undefined; }
       return this._openItem({ id: t.id, type: t.type, title: t.title, year: t.year, alt: null, poster: "" });
     }
     if (data.wseen !== undefined) {

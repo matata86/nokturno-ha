@@ -32,7 +32,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Odkazy použitelné mimo domácí síť** (ikona 🌐) — přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
 - **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat.
 - **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB.
-- **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Funguje samostatně, **Trakt k tomu není potřeba**.
+- **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Pozor: Trakt od července 2026 vydává API klíče jen pro VIP účty, takže bez VIP tuhle část nezapneš — vlastní seznam funguje i tak.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
 
@@ -119,14 +119,14 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 - **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
 - **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
 - **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
-- **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Zelené „lze pustit" u těch, které už mají stream, jinak „zatím ne"; klepnutí otevře streamy.
+- **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Zelené „lze pustit" u těch, které už mají stream, „hlídám" u těch, které zatím nikde nejsou; klepnutí otevře streamy. Tlačítko **+** v nadpisu otevře hledání v databázi filmů, kde přidáš i film, který teprve vyjde.
 - Dole **Stahování** (fronta s procenty) a **Stažené** — u každého souboru počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
 
 ### Výsledky hledání
 
 <img src="docs/02-vysledky.png" width="420" alt="Výsledky hledání">
 
-Mřížka plakátů s názvem a rokem. Titul, který má jen Sosáč, dostane plakát z TMDB. Po klepnutí se přes plakát položí kolečko, dokud se streamy nenačtou. **Úvod** vlevo nahoře se vrátí zpět.
+Mřížka plakátů s názvem a rokem. Když zdroje nic nemají, nabídne se **Hledat v databázi filmů** — z těch výsledků klepnutím titul rovnou uložíš do seznamu k zhlédnutí. Titul, který má jen Sosáč, dostane plakát z TMDB. Po klepnutí se přes plakát položí kolečko, dokud se streamy nenačtou. **Úvod** vlevo nahoře se vrátí zpět.
 
 ### Seriál a epizody
 
@@ -162,7 +162,7 @@ Nad seznamem jsou výběry **Přehrávač** a **Mobil** — platí pro všechny 
 Služby označené **↩** vracejí data — volej je s `response_variable`.
 
 ### `nokturno.search` ↩
-Hledání ve zdrojích. `query` (povinné), `type` = `movie` (výchozí) / `series` / `webshare`, `limit` (1–60, výchozí 20).
+Hledání. `query` (povinné), `type` = `movie` (výchozí) / `series` / `webshare` (soubory přímo z WebShare) / `catalog` / `catalog_series` (databáze filmů — najde i tituly, které zatím nikde nejsou), `limit` (1–60, výchozí 20).
 Vrací `results`: `id`, `type`, `title`, `year`, `poster`, `background`, `description`, `alt` (id téhož titulu v druhém zdroji), `source`.
 
 ### `nokturno.streams` ↩
@@ -197,7 +197,7 @@ Rozkoukané tituly ze všech Kodi (nebo z jednoho přes `entity_id`). U každé 
 Sledování seriálů: přidat (`id`, `title`, `alt`, `poster`) nebo odebrat (`remove: true`); ruční kontrola nových dílů; zhasnutí označení nového dílu (bez `id` u všech).
 
 ### `nokturno.want_to_watch` ↩
-Přidá titul do seznamu k zhlédnutí (`id`, `type`, `title`, `year`, `alt`, `poster`) nebo ho odebere (`remove: true`). Seznam se kontroluje jednou denně a při přidání.
+Přidá titul do seznamu k zhlédnutí (`id` z hledání nebo z databáze filmů, `type`, `title`, `year`, `alt`, `poster`) nebo ho odebere (`remove: true`). Místo `id` stačí `query` — pak se hlídá název, dokud se titul někde neobjeví. Seznam se kontroluje jednou denně a hned po přidání.
 
 ### `nokturno.trakt_auth` ↩ / `nokturno.trakt_watched` ↩ / `nokturno.trakt_watchlist` ↩
 Propojení účtu kódem, zápis filmu nebo epizody do historie (`id`, `season`, `episode`, `remove`), načtení seznamu „k zhlédnutí" s kontrolou dostupnosti.

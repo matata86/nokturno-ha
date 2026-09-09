@@ -219,21 +219,28 @@ sequence:
       entity_id: media_player.coreelec
 ```
 
-Jemnější řízení s výběrem streamu:
+Jemnější řízení — najdi titul, vyber první stream použitelný i mimo domácí síť a pusť ho:
 
 ```yaml
 sequence:
-  - action: nokturno.streams
+  - action: nokturno.search
     data:
       query: "{{ nazev }}"
       type: movie
+      limit: 1
     response_variable: nalezeno
+  - action: nokturno.streams
+    data:
+      id: "{{ nalezeno.results[0].id }}"
+      alt: "{{ nalezeno.results[0].alt }}"
+      type: movie
+    response_variable: seznam
   - action: nokturno.play
     data:
-      id: "{{ nalezeno.streams[0].index is defined and nazev }}"
-      query: "{{ nazev }}"
-      stream: >-
-        {{ (nalezeno.streams | selectattr('direct') | list | first).index }}
+      id: "{{ nalezeno.results[0].id }}"
+      alt: "{{ nalezeno.results[0].alt }}"
+      type: movie
+      stream: "{{ (seznam.streams | selectattr('direct') | first).index }}"
       entity_id: media_player.coreelec
 ```
 

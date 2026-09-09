@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.46.0";
+const CARD_VERSION = "1.46.1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c", "Torrent": "#3f9e6f" };
@@ -262,23 +262,25 @@ class NokturnoCard extends HTMLElement {
   /** Vybere přehrávač nebo mobil. S jedinou možností se neptá, jinak ukáže
       malý výběr — dva rozbalovací seznamy natrvalo v kartě zabíraly víc místa,
       než kolik se jich reálně používá. */
-  _choose(kind) {
-    const list = kind === "phone" ? this._phones() : this._players();
-    const name = (v) => (kind === "phone" ? this._phoneName(v) : this._friendly(v));
-    if (!list.length) return Promise.resolve(null);
-    if (list.length === 1) return Promise.resolve(list[0]);
+  /** Společný modal karty. `body` je obsah panelu, `wire` navěsí obsluhu
+      a dostane funkci, kterou modal zavře i s výsledkem. */
+  _modal(body, wire) {
     return new Promise((resolve) => {
       // Modal patří do stránky, ne do karty: uvnitř dashboardu ho transformace
-      // rodičovských prvků vytrhly z prostředka obrazovky do rohu — `fixed` se
-      // pak počítá k nim, ne k oknu. Proto i vlastní styly místo těch v kartě.
+      // rodičovských prvků vytrhly z prostředka obrazovky do rohu (`fixed` se
+      // pak počítá k nim). Proto i vlastní styly místo těch v kartě.
       const wrap = document.createElement("div");
       wrap.className = "nokturno-chooser";
       wrap.innerHTML = `<style>
-        .nokturno-chooser { position:fixed; inset:0; z-index:99; display:flex; align-items:center;
-          justify-content:center; background:rgba(0,0,0,.5); }
-        .nokturno-chooser .panel { background: var(--card-background-color, #1c1c1c);
+        .nokturno-chooser { position:fixed !important; top:0 !important; left:0 !important;
+          width:100vw; height:100vh; z-index:99; background:rgba(0,0,0,.5); }
+        /* panel se kotví na střed okna sám, ne přes rozvržení obalu */
+        .nokturno-chooser .panel { position:fixed !important; top:50% !important; left:50% !important;
+          transform:translate(-50%,-50%) !important; margin:0 !important;
+          background: var(--card-background-color, #1c1c1c);
           color: var(--primary-text-color, #fff); border-radius:14px; padding:8px;
-          min-width:250px; max-width:min(90vw,340px); box-shadow:0 8px 32px rgba(0,0,0,.5); }
+          width:max-content; min-width:250px; max-width:min(90vw,340px);
+          box-shadow:0 8px 32px rgba(0,0,0,.5); }
         .nokturno-chooser .phead { display:flex; align-items:center; justify-content:space-between;
           gap:8px; padding:4px 4px 8px 10px; }
         .nokturno-chooser .ptitle { font-size:.8rem; font-weight:600; color: var(--secondary-text-color, #9e9e9e); }
@@ -290,16 +292,12 @@ class NokturnoCard extends HTMLElement {
           border-radius:8px; cursor:pointer; }
         .nokturno-chooser .pick:hover { background: var(--secondary-background-color, #2a2a2a); }
         .nokturno-chooser .pick ha-icon { --mdc-icon-size:18px; color: var(--secondary-text-color, #9e9e9e); }
-      </style>
-      <div class="panel">
-        <div class="phead">
-          <span class="ptitle">${kind === "phone" ? "Do kterého mobilu?" : "Kde přehrát?"}</span>
-          <button class="pclose" title="Zavřít">×</button>
-        </div>
-        ${list.map((v, i) => `<button class="pick" data-pickone="${i}">
-          <ha-icon icon="${kind === "phone" ? "mdi:cellphone" : "mdi:cast"}"></ha-icon>
-          <span>${this._esc(name(v))}</span></button>`).join("")}
-      </div>`;
+        .nokturno-chooser .ptext { padding:2px 10px 10px; font-size:.9rem; line-height:1.35; }
+        .nokturno-chooser .pfoot { display:flex; justify-content:flex-end; gap:8px; padding:4px; }
+        .nokturno-chooser .pbtn { border:none; border-radius:8px; padding:8px 14px; font:inherit;
+          cursor:pointer; background: var(--secondary-background-color, #2a2a2a); color:inherit; }
+        .nokturno-chooser .pbtn.danger { background: var(--error-color, #c0392b); color:#fff; }
+      </style>${body}`;
       const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(null); } };
       const close = (value) => {
         window.removeEventListener("keydown", onKey, true);
@@ -308,11 +306,50 @@ class NokturnoCard extends HTMLElement {
       };
       window.addEventListener("keydown", onKey, true);
       wrap.addEventListener("click", (e) => { if (e.target === wrap) close(null); });   // klepnutí vedle zavře
-      wrap.querySelector(".pclose").addEventListener("click", () => close(null));
-      wrap.querySelectorAll("[data-pickone]").forEach((el) =>
-        el.addEventListener("click", () => close(list[+el.dataset.pickone])));
+      const closer = wrap.querySelector(".pclose");
+      if (closer) closer.addEventListener("click", () => close(null));
+      wire(wrap, close);
       document.body.appendChild(wrap);
     });
+  }
+
+  /** Vybere přehrávač nebo mobil. S jedinou možností se neptá, jinak ukáže
+      malý výběr — dva rozbalovací seznamy natrvalo v kartě zabíraly víc místa,
+      než kolik se jich reálně používá. */
+  _choose(kind) {
+    const list = kind === "phone" ? this._phones() : this._players();
+    const name = (v) => (kind === "phone" ? this._phoneName(v) : this._friendly(v));
+    if (!list.length) return Promise.resolve(null);
+    if (list.length === 1) return Promise.resolve(list[0]);
+    return this._modal(`<div class="panel">
+      <div class="phead">
+        <span class="ptitle">${kind === "phone" ? "Do kterého mobilu?" : "Kde přehrát?"}</span>
+        <button class="pclose" title="Zavřít">×</button>
+      </div>
+      ${list.map((v, i) => `<button class="pick" data-pickone="${i}">
+        <ha-icon icon="${kind === "phone" ? "mdi:cellphone" : "mdi:cast"}"></ha-icon>
+        <span>${this._esc(name(v))}</span></button>`).join("")}
+    </div>`, (wrap, close) => {
+      wrap.querySelectorAll("[data-pickone]").forEach((el) =>
+        el.addEventListener("click", () => close(list[+el.dataset.pickone])));
+    });
+  }
+
+  /** Potvrzení vlastním modalem — `window.confirm` prohlížeč po pár dialozích
+      potlačí a mazání pak tiše nedělá nic. */
+  _confirm(title, text, label = "Smazat") {
+    return this._modal(`<div class="panel">
+      <div class="phead"><span class="ptitle">${this._esc(title)}</span>
+        <button class="pclose" title="Zavřít">×</button></div>
+      <div class="ptext">${this._esc(text)}</div>
+      <div class="pfoot">
+        <button class="pbtn" data-no="1">Zpět</button>
+        <button class="pbtn danger" data-yes="1">${this._esc(label)}</button>
+      </div>
+    </div>`, (wrap, close) => {
+      wrap.querySelector("[data-no]").addEventListener("click", () => close(null));
+      wrap.querySelector("[data-yes]").addEventListener("click", () => close(true));
+    }).then((value) => value === true);
   }
 
   async _download(stream) {
@@ -1097,7 +1134,10 @@ class NokturnoCard extends HTMLElement {
   }
 
   async _deleteFile(file) {
-    if (!window.confirm(`Smazat ${file.name}${file.subtitles ? " i s titulky" : ""}?`)) return;
+    if (!file) return;
+    const ok = await this._confirm("Smazat soubor?",
+      `${file.name}${file.subtitles ? " i s titulky" : ""}. Když film přišel z torrentu, odebere se i ten z qBittorrentu.`);
+    if (!ok) return;
     await this._guard(async () => {
       await this._call("delete_file", { path: file.path }, false);
       this._toast("Smazáno");

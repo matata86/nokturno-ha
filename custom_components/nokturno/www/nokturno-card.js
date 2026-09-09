@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.24.0";
+const CARD_VERSION = "1.25.1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -361,6 +361,12 @@ class NokturnoCard extends HTMLElement {
         .stream .label { flex:1 1 0; min-width:0; font-size:.9rem; overflow-wrap:anywhere;
                          display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
         .stream .icons { flex:0 0 auto; }
+        /* seznamy na úvodu mají štítek nad názvem, ať je řádek čitelný i na širší kartě */
+        .stream.stacked { display:grid; grid-template-columns:minmax(0, 1fr) auto;
+                          grid-template-areas:"tag icons" "label icons"; column-gap:8px; row-gap:2px; padding:8px 0; }
+        .stream.stacked .tag { grid-area:tag; justify-self:start; }
+        .stream.stacked .label { grid-area:label; -webkit-line-clamp:2; }
+        .stream.stacked .icons { grid-area:icons; align-self:center; }
         .tag { font-size:.7rem; font-weight:600; padding:2px 6px; border-radius:6px; color:#fff; white-space:nowrap;
                display:inline-flex; align-items:center; gap:3px; }
         /* zeměkoule = odkaz vede přímo z WebShare, takže hraje i mimo domácí síť */
@@ -394,10 +400,12 @@ class NokturnoCard extends HTMLElement {
         .err { color: var(--error-color); font-size:.85rem; margin-top:8px; }
         .ep { display:flex; gap:8px; align-items:center; padding:9px 0; border-bottom:1px solid var(--divider-color); cursor:pointer; }
         .ep .n { color: var(--secondary-text-color); min-width:46px; font-variant-numeric: tabular-nums; }
-        .dl { margin-top:12px; border-top:1px solid var(--divider-color); padding-top:8px; }
+        .dl { margin-top:4px; }
         .dlrow { display:flex; justify-content:space-between; gap:8px; }
-        .file { display:flex; align-items:center; gap:8px; padding:2px 0; }
-        .file .label { min-width:0; }
+        /* oddělovače patří mezi položky, ne nad nadpis sekce */
+        .file { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--divider-color); }
+        .file:last-child { border-bottom:none; }
+        .file .label { flex:1; min-width:0; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .file .label { flex:1; font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .prog { height:4px; border-radius:2px; background: var(--divider-color); overflow:hidden; margin-top:3px; }
         .prog > div { height:100%; background: var(--primary-color); }
@@ -485,7 +493,7 @@ class NokturnoCard extends HTMLElement {
     if (trakt.length) {
       html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí (Trakt)</div>
         <div>${trakt.slice(0, 12).map((t, i) => `
-          <div class="stream" data-trakt="${i}" style="cursor:pointer">
+          <div class="stream stacked" data-trakt="${i}" style="cursor:pointer">
             <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">
               <ha-icon icon="${t.streams ? "mdi:play-circle-outline" : "mdi:clock-outline"}" class="ext"></ha-icon>
               ${t.streams ? "lze pustit" : "zatím ne"}</span>
@@ -497,7 +505,7 @@ class NokturnoCard extends HTMLElement {
     if (series.length) {
       html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> Sledované seriály</div>
         <div>${series.map((w, i) => `
-          <div class="stream">
+          <div class="stream stacked">
             <span class="tag" style="background:${w.new ? "#2e8b57" : "#777"}">${w.new ? "nový díl" : "sleduji"}</span>
             <span class="label">${this._esc(w.title)}${w.new
               ? ` — ${w.new.season}x${String(w.new.episode).padStart(2, "0")} ${this._esc(w.new.title)}`
@@ -666,22 +674,25 @@ class NokturnoCard extends HTMLElement {
     this._files = files;
     if (!active.length && !files.length) { box.hidden = true; box.innerHTML = ""; return; }
     box.hidden = false;
-    box.innerHTML = active.map((j) => `
-      <div style="margin-bottom:6px">
+    box.innerHTML = (active.length ? `<div class="section"><ha-icon icon="mdi:progress-download"></ha-icon> Stahování</div>` : "")
+      + active.map((j) => `
+      <div style="margin:6px 0">
         <div class="dlrow">
           <span class="muted">${this._esc(j.name)}</span>
           <span class="muted">${j.status === "queued" ? "ve frontě" : j.percent + " %"}</span>
         </div>
         <div class="prog"><div style="width:${j.percent || 0}%"></div></div>
       </div>`).join("") + (files.length ? `
-      <div class="muted" style="margin:6px 0 2px">Stažené${sensor && sensor.attributes.free_gb != null ? ` · volných ${sensor.attributes.free_gb} GB` : ""}</div>
+      <div class="section"><ha-icon icon="mdi:folder-download-outline"></ha-icon> Stažené
+        ${sensor && sensor.attributes.free_gb != null ? `<span class="muted" style="font-weight:400">· volných ${sensor.attributes.free_gb} GB</span>` : ""}</div>
       ${files.map((f, i) => `
         <div class="file">
-          <span class="label">${this._esc(f.name)}</span>
+          <span class="label">${this._esc(f.name)}${f.subtitles ? ` <span class="muted">· ${f.subtitles}× titulky</span>` : ""}</span>
           <span class="muted">${this._size(f.size)}</span>
           <span class="icons">
             <ha-icon-button data-fileplay="${i}" title="Přehrát"><ha-icon icon="mdi:play"></ha-icon></ha-icon-button>
-            <ha-icon-button data-filedel="${i}" title="Smazat"><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
+            <ha-icon-button data-fileshare="${i}" title="Poslat odkaz do mobilu"><ha-icon icon="mdi:cellphone-play"></ha-icon></ha-icon-button>
+            <ha-icon-button data-filedel="${i}" title="Smazat i s titulky"><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
           </span>
         </div>`).join("")}` : "");
     this._bindFiles(box);
@@ -690,6 +701,8 @@ class NokturnoCard extends HTMLElement {
   _bindFiles(box) {
     box.querySelectorAll("[data-fileplay]").forEach((el) =>
       el.addEventListener("click", () => this._playFile(this._files[+el.dataset.fileplay])));
+    box.querySelectorAll("[data-fileshare]").forEach((el) =>
+      el.addEventListener("click", () => this._shareFile(this._files[+el.dataset.fileshare])));
     box.querySelectorAll("[data-filedel]").forEach((el) =>
       el.addEventListener("click", () => this._deleteFile(this._files[+el.dataset.filedel])));
   }
@@ -715,8 +728,17 @@ class NokturnoCard extends HTMLElement {
     return rel ? rel + "/" : "";
   }
 
+  /** Odkaz na stažený soubor přes veřejnou adresu HA (venku Nabu Casa) rovnou do mobilu. */
+  async _shareFile(file) {
+    const target = this._state.phone || this._phones()[0];
+    await this._guard(async () => {
+      const res = await this._call("share_file", { path: file.path, notify_service: target || undefined });
+      this._toast(res.url ? `Odkaz odeslán: ${this._phoneName(target)}` : "Odkaz se nepodařilo vytvořit");
+    });
+  }
+
   async _deleteFile(file) {
-    if (!window.confirm(`Smazat ${file.name}?`)) return;
+    if (!window.confirm(`Smazat ${file.name}${file.subtitles ? " i s titulky" : ""}?`)) return;
     await this._guard(async () => {
       await this._call("delete_file", { path: file.path }, false);
       this._toast("Smazáno");

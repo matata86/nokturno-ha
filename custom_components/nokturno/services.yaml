@@ -416,3 +416,27 @@ trakt_watched:
 trakt_watchlist:
   name: Trakt — seznam k zhlédnutí
   description: Načte seznam k zhlédnutí z Trakt.tv a zjistí, které tituly už mají stream (jinak běží jednou denně).
+
+share_file:
+  name: Poslat stažený soubor
+  description: Vytvoří dočasný odkaz na stažený soubor přes veřejnou adresu HA (Nabu Casa) a pošle ho do mobilu.
+  fields:
+    path:
+      name: Cesta k souboru
+      required: true
+      example: /media/nokturno/Matrix.mp4
+      selector:
+        text:
+    notify_service:
+      name: Notifikační služba
+      description: Prázdné = cíl z nastavení integrace.
+      example: notify.mobile_app_telefon
+      selector:
+        text:
+    hours:
+      name: Platnost odkazu (hodin)
+      default: 24
+      selector:
+        number:
+          min: 1
+          max: 720

@@ -18,6 +18,7 @@ import voluptuous as vol
 
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.http.auth import async_sign_path
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
@@ -50,6 +51,7 @@ from .const import (
     SERVICE_PLAY,
     SERVICE_RESOLVE,
     SERVICE_SEARCH,
+    SERVICE_SHARE_FILE,
     SERVICE_SEEN,
     SERVICE_TRAKT_AUTH,
     SERVICE_TRAKT_LIST,
@@ -127,6 +129,12 @@ EPISODES_SCHEMA = vol.Schema({
 CANCEL_SCHEMA = vol.Schema({vol.Required("download_id"): cv.string})
 
 DELETE_SCHEMA = vol.Schema({vol.Required("path"): cv.string})
+
+SHARE_SCHEMA = vol.Schema({
+    vol.Required("path"): cv.string,
+    vol.Optional("notify_service"): vol.Any(cv.string, None),
+    vol.Optional("hours", default=24): vol.All(vol.Coerce(int), vol.Range(min=1, max=24 * 30)),
+})
 
 WATCH_SCHEMA = vol.Schema({
     vol.Required("id"): cv.string,
@@ -821,6 +829,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_cancel(call: ServiceCall):
         downloader.remove(call.data["download_id"])
 
+    async def handle_share_file(call: ServiceCall):
+        """Odkaz na stažený soubor přes veřejnou adresu HA (Nabu Casa), volitelně rovnou do mobilu."""
+        from datetime import timedelta as _timedelta
+
+        from homeassistant.components import media_source
+        from homeassistant.helpers.network import get_url
+
+        path = os.path.abspath(call.data["path"])
+        root = os.path.abspath(downloader.directory)
+        if os.path.commonpath([path, root]) != root or not os.path.exists(path):
+            raise HomeAssistantError(f"Soubor {call.data['path']} ve složce pro stahování není.")
+        rel = os.path.relpath(path, "/media").replace(os.sep, "/")
+        try:
+            resolved = await media_source.async_resolve_media(
+                hass, f"media-source://media_source/local/{rel}", None)
+        except Exception as err:  # noqa: BLE001 – složka mimo media_dirs apod.
+            raise HomeAssistantError(f"Soubor nejde sdílet přes Média: {err}") from err
+        signed = async_sign_path(hass, resolved.url, _timedelta(hours=call.data["hours"]))
+        try:
+            base_url = get_url(hass, prefer_external=True, allow_cloud=True)
+        except Exception:  # noqa: BLE001 – bez externí adresy aspoň vnitřní
+            base_url = get_url(hass, prefer_external=False)
+        url = base_url.rstrip("/") + signed
+        target = (call.data.get("notify_service") or options.get(CONF_NOTIFY_TARGET) or "").split(".")[-1]
+        name = os.path.basename(path)
+        if target:
+            play_uri = f"intent:{url}#Intent;action=android.intent.action.VIEW;type=video/*;end"
+            for service in (target, f"mobile_app_{target}"):
+                if hass.services.has_service("notify", service):
+                    await hass.services.async_call("notify", service, {
+                        "title": "Nokturno — stažený film",
+                        "message": f"{name}\n{url}",
+                        "data": {"url": play_uri, "clickAction": play_uri,
+                                 "actions": [{"action": "URI", "title": "Přehrát", "uri": play_uri},
+                                             {"action": "URI", "title": "Otevřít odkaz", "uri": url}]},
+                    }, blocking=True)
+                    break
+        return {"url": url, "name": name, "hours": call.data["hours"]}
+
     async def handle_delete_file(call: ServiceCall):
         try:
             await downloader.async_delete(call.data["path"])
@@ -837,6 +884,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_SEND_LINK, handle_send_link, SEND_LINK_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CANCEL_DOWNLOAD, handle_cancel, CANCEL_SCHEMA, SupportsResponse.NONE),
         (SERVICE_DELETE_FILE, handle_delete_file, DELETE_SCHEMA, SupportsResponse.NONE),
+        (SERVICE_SHARE_FILE, handle_share_file, SHARE_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CONTINUE, handle_continue, CONTINUE_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_WATCH, handle_watch, WATCH_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CHECK_SERIES, handle_check_series, vol.Schema({}), SupportsResponse.OPTIONAL),
@@ -871,7 +919,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             for name in (SERVICE_SEARCH, SERVICE_STREAMS, SERVICE_EPISODES, SERVICE_RESOLVE, SERVICE_PLAY,
                          SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_DELETE_FILE,
-                         SERVICE_CONTINUE, SERVICE_WATCH, SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
+                         SERVICE_SHARE_FILE, SERVICE_CONTINUE, SERVICE_WATCH, SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
                          SERVICE_SEEN, SERVICE_TRAKT_AUTH, SERVICE_TRAKT_LIST, SERVICE_TRAKT_WATCHED):
                 hass.services.async_remove(DOMAIN, name)
     return unloaded

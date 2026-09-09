@@ -384,6 +384,8 @@ class NokturnoCard extends HTMLElement {
         ha-control-button#go { width:100%; }
         ha-control-button#go ha-icon { --mdc-icon-size:20px; margin-right:4px; vertical-align:-4px; }
         ha-control-select { --control-select-thickness:40px; }
+        /* prvek má vlastní display, atribut hidden by se bez tohohle neprojevil */
+        ha-control-select[hidden] { display:none; }
         ha-control-select::part(label), ha-control-select { white-space:nowrap; }
         /* detail: [zpět][název] a pod tím dva výběry vedle sebe přes celou šířku */
         .bar.detail { display:block; margin-top:10px; }

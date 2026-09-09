@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.23.1";
+const CARD_VERSION = "1.24.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -371,6 +371,7 @@ class NokturnoCard extends HTMLElement {
         .chip.x { color: var(--secondary-text-color); }
         .section { margin-top:14px; font-weight:500; display:flex; align-items:center; gap:6px; }
         .section ha-icon { --mdc-icon-size:18px; }
+        .tag ha-icon.ext { --mdc-icon-size:12px; }
         .cont { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:8px; }
         .cont .poster .thumb { aspect-ratio:16/9; }
         .where { position:absolute; left:6px; bottom:6px; font-size:.68rem; font-weight:600; padding:2px 6px;
@@ -480,6 +481,18 @@ class NokturnoCard extends HTMLElement {
             <div class="t">${this._esc(c.label)}</div>
           </button>`).join("")}</div>`;
     }
+    const trakt = this._traktList();
+    if (trakt.length) {
+      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí (Trakt)</div>
+        <div>${trakt.slice(0, 12).map((t, i) => `
+          <div class="stream" data-trakt="${i}" style="cursor:pointer">
+            <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">
+              <ha-icon icon="${t.streams ? "mdi:play-circle-outline" : "mdi:clock-outline"}" class="ext"></ha-icon>
+              ${t.streams ? "lze pustit" : "zatím ne"}</span>
+            <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${t.year})</span>` : ""}${
+              t.streams ? ` <span class="muted">· ${t.streams} streamů</span>` : ""}</span>
+          </div>`).join("")}</div>`;
+    }
     const series = this._watchlist();
     if (series.length) {
       html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> Sledované seriály</div>
@@ -516,6 +529,11 @@ class NokturnoCard extends HTMLElement {
         : { id: item.id, title: item.title, alt: item.alt || undefined, poster: item.poster || undefined }, false);
       this._toast(watching ? "Seriál už nesleduji" : "Nové díly budu hlásit");
     });
+  }
+
+  /** Seznam k zhlédnutí z Traktu (ze senzoru „K zhlédnutí"). */
+  _traktList() {
+    return (this._sensorAttr("items") || []).filter((i) => i && i.id);
   }
 
   _watchlist() {
@@ -724,7 +742,7 @@ class NokturnoCard extends HTMLElement {
   _onClick(event) {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
-                  "watch", "wopen", "wremove", "wseen"];
+                  "watch", "wopen", "wremove", "wseen", "trakt"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -741,6 +759,11 @@ class NokturnoCard extends HTMLElement {
     if (data.wopen !== undefined) {
       const w = this._watchlist()[+data.wopen];
       return this._openItem({ id: w.id, type: "series", title: w.title, alt: w.alt, poster: w.poster });
+    }
+    if (data.trakt !== undefined) {
+      const t = this._traktList()[+data.trakt];
+      if (!t) return undefined;
+      return this._openItem({ id: t.id, type: t.type, title: t.title, year: t.year, alt: null, poster: "" });
     }
     if (data.wseen !== undefined) {
       const w = this._watchlist()[+data.wseen];

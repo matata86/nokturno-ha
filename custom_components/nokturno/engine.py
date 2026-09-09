@@ -319,13 +319,18 @@ class Engine:
         quality = QUALITY_NAMES.get(stream.get("quality_rank") or 0, "")
         source = SOURCE_NAMES.get(stream.get("source"), "")
         size = stream.get("size_gb") or 0
-        parts = [p for p in (source, quality, ("zvuk " + " ".join(langs)) if langs else "",
-                             ("tit. " + " ".join(stream.get("subs") or [])) if stream.get("subs") else "",
-                             f"{size:.1f} GB" if size else "") if p]
+        # pevné pořadí: zdroj · kvalita · název souboru · zvuk · titulky · velikost
         name = clean_label(stream.get("label") if stream.get("_direct") else stream.get("_ws_name", ""))
-        if name:
-            # název souboru řekne o kvalitě zdroje víc než samotná velikost
-            parts.insert(2 if len(parts) > 2 else len(parts), name[:51] + "…" if len(name) > 52 else name)
+        if len(name) > 52:
+            name = name[:51] + "…"
+        parts = [p for p in (
+            source,
+            quality,
+            name,
+            ("zvuk " + " ".join(langs)) if langs else "",
+            ("tit. " + " ".join(stream.get("subs") or [])) if stream.get("subs") else "",
+            f"{size:.1f} GB" if size else "",
+        ) if p]
         return {
             "index": index,
             # Sosáč streamuje z veřejného streamuj.tv, takže jeho odkazy hrají i mimo domácí síť

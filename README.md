@@ -1,24 +1,39 @@
 # Nokturno pro Home Assistant
 
 [![Podpoř autora na Ko-fi](https://img.shields.io/badge/Ko--fi-podpo%C5%99%20autora-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/matata86)
+[![HACS: vlastní repozitář](https://img.shields.io/badge/HACS-vlastn%C3%AD%20repozit%C3%A1%C5%99-41BDF5.svg)](https://hacs.xyz/)
 
 Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu.
 
 > **Patří k sobě:** [**plugin.video.nokturno**](https://github.com/matata86/plugin.video.nokturno) je klient pro Kodi, tahle integrace jeho protějšek v Home Assistantu. Sdílejí knihovny zdrojů i účty a přehrávání na TV vede přes doplněk, takže si Kodi drží „Pokračovat ve sledování". Streamovací server Luna jde provozovat jako [addon HA](https://github.com/matata86/ha-addons).
+
+<img src="docs/01-uvod.png" width="380" alt="Úvodní obrazovka karty"> <img src="docs/03-streamy.png" width="380" alt="Seznam streamů">
+
+## Obsah
+
+- [Co to umí](#co-to-umí)
+- [Instalace](#instalace)
+- [Nastavení integrace](#nastavení-integrace)
+- [Karta na dashboard](#karta-na-dashboard)
+- [Ovládací prvky karty](#ovládací-prvky-karty)
+- [Entity](#entity)
+- [Služby](#služby)
+- [Události](#události)
+- [Příklady automatizací](#příklady-automatizací)
+- [Jak to funguje uvnitř](#jak-to-funguje-uvnitř)
+- [Řešení potíží](#řešení-potíží)
 
 ## Co to umí
 
 - **Jedno hledání ve všech zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz. U každého streamu je zdroj, kvalita, název souboru, jazyky zvuku i titulků a velikost.
 - **Přehrání v Kodi přes doplněk Nokturno**, takže si Kodi vede „Pokračovat ve sledování" a pamatuje si pozici. Ostatní přehrávače (TV, Cast) dostanou přímé URL.
 - **Odeslání do mobilu** — notifikace s odkazem, klepnutím se spustí ve VLC (posílá se jako Android intent s typem videa, jinak by telefon soubor jen stáhl).
-- **Stahování do `/media/nokturno`** s frontou a průběhem; hotové soubory jsou vidět v kartě, dají se přehrát nebo smazat.
-- **Odkazy použitelné mimo domácí síť** — pokud se ke streamu najde tentýž soubor přímo na WebShare, použije se odkaz z jejich CDN (v kartě ikona 🌐). Odkazy Sosáče (streamuj.tv) fungují venku taky. Zbytek se přepíše na adresu z Tailscale/VPN, pokud ji vyplníš — integrace přitom ověří, že addon Tailscale opravdu běží, jinak přepis nedělá. Hledá se pod českým i **originálním názvem** (z Sosáče nebo z Cinemety podle IMDb id — „The Matrix", „Outlander: Blood of My Blood") a soubor se bere jen tehdy, když má v názvu všechna slova jednoho z těch názvů a u epizody i její číslo — jinak by se k „Cizince: Krev mé krve" nabízela Hra o trůny.
-- **Hlasovka a skripty jedním krokem** — službám stačí `query` místo ID: `nokturno.play` s `query: Matrix` najde první výsledek, vybere nejlepší stream podle tvých předvoleb a pustí ho.
-- **Pokračovat ve sledování** — karta ukáže rozkoukané tituly a další díly ze **všech Kodi v domácnosti** (čte je z doplňku přes JSON-RPC; vypnutá Kodi se přeskočí). Jedním klepnutím se pokračuje od uložené pozice na tom Kodi, kde jsi to rozkoukal — u víc zařízení je na dlaždici jeho jméno.
-- **Trakt.tv** — po vyplnění Client ID a Secret propojíš účet službou `nokturno.trakt_auth` (kód přijde do oznámení). Spuštění přehrávání se pak hlásí Traktu a `nokturno.trakt_watched` zapíše film nebo epizodu do historie.
-- **Sledované seriály** — u seriálu klepneš na oko, integrace každých 6 hodin zkontroluje nové díly a pošle oznámení. Nový díl se hlásí, **až když se dá pustit** (má stream), ne když ho TMDB jen eviduje jako odvysílaný — karta ukazuje obojí („ke sledování 1x10, odvysíláno 2x10"). Při zařazení integrace najde nejnovější sezónu se streamy, dál už jen sleduje díly za posledním dostupným. `sensor.nokturno_nove_dily` hlásí, kolik seriálů má nový díl (pro automatizace i událost `nokturno_new_episode`); označení zhasne tlačítkem v kartě nebo službou `nokturno.mark_seen`.
-- **Titulky z WebShare** — ke streamům se dohledají `.srt` (české napřed) a pošlou do Kodi; při stažení se uloží vedle videa.
-- **Historie hledání** v kartě, **oznámení po dostažení** (událost `nokturno_download_done`) a **hlídání místa na disku** — stahování odmítne soubor, který by se nevešel.
+- **Stahování do `/media/nokturno`** s frontou a průběhem; hotové soubory jsou vidět v kartě, dají se přehrát nebo smazat. Titulky se stáhnou vedle videa.
+- **Odkazy použitelné mimo domácí síť** (ikona 🌐) — přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
+- **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí pokračuje na tom, kde jsi to rozkoukal.
+- **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB.
+- **Trakt.tv** — propojení účtu, hlášení přehrávání, zápis do historie a hlídání seznamu „k zhlédnutí": jednou denně se kontroluje, co už má stream, a přijde oznámení.
+- **Hlasovka jedním krokem** — službám stačí `query` místo ID.
 
 ## Instalace
 
@@ -29,61 +44,171 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 3. Najdi **Nokturno**, nainstaluj a restartuj Home Assistant
 4. **Nastavení → Zařízení a služby → Přidat integraci → Nokturno**
 
-Kartu do dashboardu integrace naservíruje sama a sama si ji zapíše i do zdrojů Lovelace (`/nokturno/nokturno-card.js?v=…`), nemusíš nic přidávat. Pokud jsi ji tam dřív přidal ručně z `/local/…`, ten záznam odeber. Po první instalaci nebo aktualizaci mobilní aplikaci úplně zavři a otevři znovu, ať si stáhne novou verzi karty.
+Kartu integrace naservíruje sama a sama si ji zapíše do zdrojů Lovelace (`/nokturno/nokturno-card.js?v=…`) — nic nepřidávej ručně. Pokud jsi ji tam dřív přidal z `/local/…`, ten záznam odeber.
 
 ### Ručně
 
 Zkopíruj složku `custom_components/nokturno` do své konfigurace a restartuj HA.
 
-## Nastavení
+> **Po aktualizaci** mobilní aplikaci úplně zavři a otevři znovu, ať si stáhne novou verzi karty.
 
-Průvodce se ptá na účty (vyplň jen zdroje, které chceš) a na předvolby přehrávání:
+## Nastavení integrace
 
-| Pole | K čemu |
+Průvodce má dva kroky. **Účty** — vyplň jen zdroje, které chceš používat:
+
+| Pole | Popis |
 |---|---|
-| WebShare — e-mail a heslo | fulltextové hledání souborů a přímé odkazy |
-| Streamuj.tv — uživatel a heslo | streamy Sosáče |
-| Luna — adresa a token | katalogy TMDB a streamy přes [Lunu](https://github.com/matata86/ha-addons) |
-| Výchozí přehrávač | Kodi, na které se pouští |
-| Preferovaný jazyk, prostorový zvuk, skrýt SD, max. velikost, řazení | stejné volby jako v Kodi doplňku |
-| Složka pro stahování | výchozí `/media/nokturno` |
-| Adresa mimo domácí síť | Tailscale/VPN adresa HA, aby odkazy fungovaly i venku |
-| Oznámení | notify služba telefonu pro zprávy o stažení a nových dílech (prázdné = oznámení v HA) |
+| WebShare — e-mail, heslo | fulltextové hledání souborů, přímé odkazy z CDN, titulky. Heslo lze zadat i jako uložený salted hash. |
+| Streamuj.tv — uživatel, heslo | streamy Sosáče (české tituly a dabing) |
+| Luna — adresa, token | katalogy TMDB, metadata a streamy přes [Lunu](https://github.com/matata86/ha-addons); token lze vložit i jako celou instalační URL |
 
-## Karta
+**Předvolby přehrávání** (jdou kdykoli změnit v *Nastavení → Zařízení a služby → Nokturno → Konfigurovat*):
 
-Přidej kartu **Nokturno** (`custom:nokturno-card`) — má vizuální editor, takže stačí vybrat přehrávače a mobil.
+| Pole | Výchozí | K čemu |
+|---|---|---|
+| Výchozí přehrávač | — | Kodi, na které se pouští, když se v kartě nevybere jiné |
+| Preferovaný jazyk zvuku | CZ | takové streamy jdou v seznamu nahoru |
+| Preferovat prostorový zvuk | vypnuto | 5.1 a víc má přednost při shodné kvalitě |
+| Skrýt SD streamy | vypnuto | vyhodí kvalitu pod 720p |
+| Max. velikost streamu (GB) | 0 | 0 = bez omezení |
+| Řazení streamů | quality | `quality`, `size_desc`, `size_asc`, `source` |
+| Složka pro stahování | `/media/nokturno` | musí být uvnitř `media_dirs`, ať je vidět v Médiích |
+| Adresa mimo domácí síť | — | Tailscale/VPN adresa HA (např. `100.94.191.65`); použije se jen když addon Tailscale běží |
+| Oznámení | — | notify služba telefonu (`notify.mobile_app_…`); prázdné = oznámení v HA |
+| Trakt.tv — Client ID, Secret | — | z [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications), redirect URI `urn:ietf:wg:oauth:2.0:oob` |
+
+Po vyplnění Traktu spusť službu `nokturno.trakt_auth` — přijde oznámení s kódem, který zadáš na [trakt.tv/activate](https://trakt.tv/activate).
+
+## Karta na dashboard
+
+Přidej kartu **Nokturno** (`custom:nokturno-card`). Má vizuální editor, takže stačí vybrat přehrávače a mobil.
 
 ```yaml
 type: custom:nokturno-card
-player: media_player.coreelec
-players:
+title: Nokturno                  # nadpis karty
+show_header: true                # false skryje nadpis i ikonu
+player: media_player.coreelec    # výchozí přehrávač
+players:                         # nabídka v detailu (víc Kodi, TV, Cast…)
   - media_player.coreelec
   - media_player.samsung_tv_q6
-phone: notify.mobile_app_muj_telefon
-downloads: sensor.nokturno_stahovani
-show_header: true      # false skryje nadpis a ikonu karty
+phone: notify.mobile_app_muj_telefon   # výchozí mobil pro odeslání odkazu
+phones:                          # volitelně ruční seznam; jinak se doplní sám
+  - notify.mobile_app_muj_telefon
+downloads: sensor.nokturno_stahovani   # senzor s frontou stahování
 ```
+
+Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` první telefon s aplikací HA, `downloads` má výchozí hodnotu.
+
+| Pole v editoru | Odpovídá |
+|---|---|
+| Nadpis karty | `title` |
+| Zobrazit nadpis a ikonu | `show_header` |
+| Výchozí přehrávač | `player` |
+| Přehrávače na výběr | `players` |
+| Výchozí mobil | `phone` (nabídka se plní z telefonů, které integrace našla, i se jménem majitele) |
+| Senzor stahování | `downloads` |
+
+## Ovládací prvky karty
+
+### Úvodní obrazovka
+
+<img src="docs/01-uvod.png" width="420" alt="Úvodní obrazovka">
+
+- **Pole pro hledání** a tlačítko **Hledat**; pod nimi přepínač **Filmy / Seriály**.
+- **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
+- **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný; klepnutí pokračuje právě tam.
+- **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
+- **K zhlédnutí (Trakt)** — seznam z Traktu; zelené „lze pustit" u titulů, které už mají stream, jinak „zatím ne". Klepnutí otevře streamy.
+- Dole **fronta stahování** s procenty a **Stažené** soubory (přehrát / smazat) i s volným místem.
+
+### Výsledky hledání
+
+<img src="docs/02-vysledky.png" width="420" alt="Výsledky hledání">
+
+Mřížka plakátů s názvem a rokem. Titul, který má jen Sosáč, dostane plakát z TMDB. Po klepnutí se přes plakát položí kolečko, dokud se streamy nenačtou. **Úvod** vlevo nahoře se vrátí zpět.
+
+### Seriál a epizody
+
+<img src="docs/04-epizody.png" width="420" alt="Epizody seriálu">
+
+Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, šipka zpět a **oko** pro sledování nových dílů. Výběr sezóny je pod názvem, epizody se pak vypíšou jako seznam.
+
+### Streamy
+
+<img src="docs/03-streamy.png" width="420" alt="Streamy">
+
+Každý řádek: **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová) s 🌐 u odkazů, které hrají i mimo domácí síť, a popis `kvalita · název souboru · zvuk · titulky · velikost`. Vpravo čtyři akce:
+
+| Ikona | Co udělá |
+|---|---|
+| ▶ | pustí stream na vybraném přehrávači (Kodi přes doplněk, ostatní přímým odkazem) |
+| 📱 | pošle odkaz do vybraného mobilu jako notifikaci; klepnutím se otevře ve VLC |
+| ⬇ | stáhne do složky pro stahování (i s titulky) |
+| 🔗 | zkopíruje přímý odkaz do schránky |
+
+Nad seznamem jsou výběry **Přehrávač** a **Mobil** — platí pro všechny akce v seznamu.
+
+## Entity
+
+| Entita | Stav | Atributy |
+|---|---|---|
+| `sensor.nokturno_stahovani` | počet běžících stahování | `downloads` (fronta), `files` (hotové soubory), `free_gb`, `directory`, `search_history`, `notify_targets` |
+| `sensor.nokturno_nove_dily` | kolik sledovaných seriálů má nový díl | `series` — u každého `latest` (odvysíláno), `available` (nejnovější se streamem), `new`, `checked` |
+| `sensor.nokturno_k_zhlednuti` | kolik titulů z Traktu už má stream | `total`, `items` (id, název, rok, počet streamů, nejlepší stream) |
 
 ## Služby
 
-| Služba | Vrací data | K čemu |
-|---|---|---|
-| `nokturno.search` | ano | hledání (`movie`, `series`, `webshare`) |
-| `nokturno.streams` | ano | streamy titulu, seřazené podle nastavení |
-| `nokturno.episodes` | ano | sezóny a epizody seriálu |
-| `nokturno.resolve` | ano | přímé URL streamu pro cizí přehrávač |
-| `nokturno.play` | | přehrání na přehrávači (`id` nebo `query`) |
-| `nokturno.continue_watching` | ano | rozkoukané tituly a další díly ze všech Kodi (nebo z jednoho přes `entity_id`), u každé položky `entity_id` zdrojového Kodi |
-| `nokturno.watch_series` / `check_series` | ano | sledování seriálů a ruční kontrola nových dílů |
-| `nokturno.clear_history` | | smazání historie hledání |
-| `nokturno.mark_seen` | ano | zhasne označení nového dílu (bez `id` u všech seriálů) |
-| `nokturno.trakt_auth` / `trakt_watched` | ano | propojení Trakt.tv a zápis do historie |
-| `nokturno.download` | | stažení do složky HA |
-| `nokturno.send_link` | | odeslání odkazu do mobilu |
-| `nokturno.cancel_download`, `nokturno.delete_file` | | správa stahování a souborů |
+Služby označené **↩** vracejí data — volej je s `response_variable`.
 
-Nejkratší cesta pro hlasového asistenta — „pusť Matrix na televizi":
+### `nokturno.search` ↩
+Hledání ve zdrojích. `query` (povinné), `type` = `movie` (výchozí) / `series` / `webshare`, `limit` (1–60, výchozí 20).
+Vrací `results`: `id`, `type`, `title`, `year`, `poster`, `background`, `description`, `alt` (id téhož titulu v druhém zdroji), `source`.
+
+### `nokturno.streams` ↩
+Streamy titulu. `id` nebo `query`, `type`, volitelně `alt`, `series`, `season`, `episode`.
+Vrací `streams`: `index`, `label`, `source`, `quality`, `size_gb`, `bitrate`, `langs`, `channels`, `subs`, `direct` (hraje i mimo síť), `url`, `ws_url`, `subtitles`.
+
+### `nokturno.episodes` ↩
+Sezóny a epizody seriálu. `id` (povinné), volitelně `season`.
+
+### `nokturno.resolve` ↩
+Přímé HTTP URL streamu pro cizí přehrávač. Stejné parametry jako `streams` + `stream` (index) nebo `url`.
+
+### `nokturno.play`
+Přehraje. `id` nebo `query`, volitelně `entity_id` (přehrávač), `stream` (index; bez něj nejlepší podle předvoleb), `season`, `episode`, `alt`, `direct: true` (i pro Kodi přímé URL místo doplňku).
+
+### `nokturno.download`
+Stáhne do složky pro stahování. Parametry jako `resolve` + `name`. Odmítne soubor, který by se nevešel.
+
+### `nokturno.send_link`
+Pošle odkaz do mobilu. `notify_service` (povinné, `notify.mobile_app_…`), dál jako `resolve` + `name`, `title`.
+
+### `nokturno.cancel_download` / `nokturno.delete_file`
+Zruší stahování (`download_id`) / smaže stažený soubor (`path`, musí být ve složce pro stahování).
+
+### `nokturno.continue_watching` ↩
+Rozkoukané tituly ze všech Kodi (nebo z jednoho přes `entity_id`). U každé položky `entity_id` zdrojového Kodi a `file` (plugin odkaz, který pokračuje od uložené pozice).
+
+### `nokturno.watch_series` ↩ / `nokturno.check_series` ↩ / `nokturno.mark_seen` ↩
+Sledování seriálů: přidat (`id`, `title`, `alt`, `poster`) nebo odebrat (`remove: true`); ruční kontrola nových dílů; zhasnutí označení nového dílu (bez `id` u všech).
+
+### `nokturno.trakt_auth` ↩ / `nokturno.trakt_watched` ↩ / `nokturno.trakt_watchlist` ↩
+Propojení účtu kódem, zápis filmu nebo epizody do historie (`id`, `season`, `episode`, `remove`), načtení seznamu „k zhlédnutí" s kontrolou dostupnosti.
+
+### `nokturno.clear_history`
+Smaže historii hledání zobrazenou v kartě.
+
+## Události
+
+| Událost | Kdy | Data |
+|---|---|---|
+| `nokturno_download_done` | po dostažení | `name`, `path`, `size` |
+| `nokturno_new_episode` | nový díl sledovaného seriálu má stream | `id`, `title`, `season`, `episode`, `released` |
+| `nokturno_trakt_available` | titul z Traktu nově má stream | `id`, `title`, `type`, `streams` |
+
+## Příklady automatizací
+
+Hlasovka „pusť Matrix na televizi":
 
 ```yaml
 sequence:
@@ -94,28 +219,56 @@ sequence:
       entity_id: media_player.coreelec
 ```
 
-Pro jemnější řízení vracejí `search`, `streams` a `episodes` data přes `response_variable`:
+Jemnější řízení s výběrem streamu:
 
 ```yaml
 sequence:
-  - action: nokturno.search
+  - action: nokturno.streams
     data:
       query: "{{ nazev }}"
       type: movie
     response_variable: nalezeno
   - action: nokturno.play
     data:
-      id: "{{ nalezeno.results[0].id }}"
-      alt: "{{ nalezeno.results[0].alt }}"
+      id: "{{ nalezeno.streams[0].index is defined and nazev }}"
+      query: "{{ nazev }}"
+      stream: >-
+        {{ (nalezeno.streams | selectattr('direct') | list | first).index }}
       entity_id: media_player.coreelec
 ```
 
-Události pro automatizace: `nokturno_download_done` (název, cesta, velikost) a `nokturno_new_episode` (seriál, sezóna, díl).
+Když se objeví film ze seznamu Traktu, stáhni ho:
 
-## Entity
+```yaml
+triggers:
+  - trigger: event
+    event_type: nokturno_trakt_available
+actions:
+  - action: nokturno.download
+    data:
+      id: "{{ trigger.event.data.id }}"
+      type: "{{ trigger.event.data.type }}"
+```
 
-- `sensor.nokturno_stahovani` — počet běžících stahování; v atributech fronta, hotové soubory, volné místo, historie hledání a seznam telefonů, na které jde poslat odkaz.
-- `sensor.nokturno_nove_dily` — kolik sledovaných seriálů má nový díl; v atributech seznam seriálů s posledním známým a novým dílem.
+## Jak to funguje uvnitř
+
+- **Zdroje jsou rovnocenné** a žádný není povinný. Luna přidává katalogy a metadata, Sosáč české tituly, WebShare fulltext a přímé odkazy.
+- **Slučování titulů**: shoda názvu (i originálu) a roku ±1; id protějšku putuje dál jako `alt`, takže se u titulu nabídnou streamy z obou zdrojů.
+- **Odkazy mimo síť**: streamy z Luny míří na její adresu v LAN, proto se páruje s fulltextem WebShare podle velikosti (±0,25 GB) a kvality a k položce se přibalí přímý odkaz z CDN. Hledá se pod českým i originálním názvem (z Sosáče nebo z Cinemety). Zbytek se přepíše na `external_host`, pokud addon Tailscale běží.
+- **Náhledy Sosáče** jsou od září 2026 mrtvé (404), plakáty se dotahují z TMDB — podle IMDb id, a když chybí, podle názvu a roku.
+- **Nový díl seriálu** se hlásí až podle dostupnosti streamu; při zařazení se najde nejnovější sezóna se streamy, dál se sleduje jen posun dopředu.
+- Knihovny v `custom_components/nokturno/lib/` jsou kopie z Kodi doplňku, aby se obě aplikace chovaly stejně.
+
+## Řešení potíží
+
+| Problém | Co s tím |
+|---|---|
+| Karta hlásí chybu nastavení, na desktopu je v pořádku | mobilní aplikaci úplně zavři a otevři znovu (drží si stránku v cache) |
+| Karta se načte dvakrát / „already used" | odeber ruční záznam `/local/nokturno/…` ze zdrojů Lovelace |
+| Změny v integraci se neprojeví | po zásahu do Pythonu je nutný restart HA Core, reload integrace nestačí |
+| U titulu chybí plakát | Sosáč obrázky nemá; pokud nejde dohledat ani přes TMDB, zůstane podklad s ikonou |
+| Stream nejde pustit venku | vyber řádek s 🌐, nebo vyplň adresu Tailscale a zkontroluj, že addon běží |
+| Trakt hlásí „nepřihlášeno" | spusť `nokturno.trakt_auth` a zadej kód na trakt.tv/activate |
 
 ## Související projekty
 
@@ -125,11 +278,9 @@ Události pro automatizace: `nokturno_download_done` (název, cesta, velikost) a
 | [ha-addons](https://github.com/matata86/ha-addons) | addony pro HA: server Luna a proxy Sosáče pro Nuvio |
 | [fns-ha-tweaks](https://github.com/matata86/fns-ha-tweaks) | sdílený vzhled a karty pro Home Assistant |
 
-## Poznámky
+## Licence
 
-- Zdroje jsou rovnocenné, žádný není povinný — s vyplněným jen WebShare účtem funguje hledání i přehrávání, Luna přidává katalogy a metadata, Sosáč české tituly.
-- Knihovny v `custom_components/nokturno/lib/` jsou kopie z Kodi doplňku, aby se obě aplikace chovaly stejně.
-- Sosáč od září 2026 neposílá funkční náhledy; plakáty a fanart se k jeho titulům dohledávají z TMDB — podle IMDb id, a když chybí, podle názvu a roku. Totéž platí pro rozkoukané tituly z Kodi.
+MIT
 
 ---
 

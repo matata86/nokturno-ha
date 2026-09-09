@@ -391,15 +391,16 @@ class NokturnoCard extends HTMLElement {
                        padding:0; margin:0; width:100%; cursor:pointer; outline:none; appearance:none; }
         /* rozbalený seznam kreslí prohlížeč — bez těchhle barev je v tmavém motivu bílý na bílém */
         .pick option { background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color); }
-        /* štítek nad názvem, ikony vpravo přes obě řádky — stejné v široké i úzké kartě */
-        .stream, .stream.stacked { display:grid; grid-template-columns:minmax(0, 1fr) auto;
-                                   grid-template-areas:"tag icons" "label icons";
+        /* stream má tři řádky pod sebou: štítek, celý název souboru, tlačítka */
+        .stream, .stream.stacked { display:grid; grid-template-columns:minmax(0, 1fr);
+                                   grid-template-areas:"tag" "label" "icons";
                                    column-gap:8px; row-gap:2px; padding:8px 0;
                                    border-bottom:1px solid var(--divider-color); }
         .stream .tag { grid-area:tag; justify-self:start; }
+        /* celý název souboru na plnou šířku — tlačítka mu už nekrátí řádek */
         .stream .label { grid-area:label; font-size:.9rem; overflow-wrap:anywhere;
                          display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-        .stream .icons { grid-area:icons; align-self:center; display:flex; }
+        .stream .icons { grid-area:icons; display:flex; justify-content:flex-end; gap:2px; margin-top:2px; }
         .tag { font-size:.7rem; font-weight:600; padding:2px 6px; border-radius:6px; color:#fff; white-space:nowrap;
                display:inline-flex; align-items:center; gap:3px; }
         /* zeměkoule = odkaz vede přímo z WebShare, takže hraje i mimo domácí síť */
@@ -408,6 +409,7 @@ class NokturnoCard extends HTMLElement {
         /* v úvodních sekcích je název krátký, štítek se vejde vedle něj */
         .stream.stacked { grid-template-columns:auto minmax(0, 1fr) auto;
                           grid-template-areas:"tag label icons"; align-items:center; row-gap:0; }
+        .stream.stacked .icons { align-self:center; margin-top:0; }
         .stream.stacked .label { -webkit-line-clamp:2; }
         /* u sledovaných seriálů patří stav ("ke sledování 1x10, odvysíláno 2x10")
            na vlastní řádek pod název — proto o řádek vyšší clamp než u ostatních */

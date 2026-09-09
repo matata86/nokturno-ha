@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.22.1";
+const CARD_VERSION = "1.23.1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -33,13 +33,14 @@ class NokturnoCard extends HTMLElement {
       phones: config.phones || [],
       downloads: config.downloads || "sensor.nokturno_stahovani",
       title: config.title || "Nokturno",
+      show_header: config.show_header !== false,
       ...config,
     };
     this._state = {
       view: "search", type: "movie", query: "", results: [], streams: [], episodes: [],
       seasons: [], season: null, item: null, title: "", busy: false, loading: null, error: "",
       player: config.player || (config.players || [])[0] || "", phone: config.phone || "",
-      continueItems: null,
+      continueItems: null, stack: [],
     };
     this._started = false;
   }
@@ -122,6 +123,7 @@ class NokturnoCard extends HTMLElement {
   async _search() {
     const query = (this._state.query || this._readInput() || "").trim();
     if (!query) return;
+    this._state.stack = [];
     this._state.query = query;
     await this._guard(async () => {
       const res = await this._call("search", { query, type: this._state.type, limit: 24 });
@@ -145,6 +147,7 @@ class NokturnoCard extends HTMLElement {
       return;
     }
     if (item.type === "series") {
+      this._state.stack.push(this._state.view);
       await this._guard(async () => {
         const res = await this._call("episodes", { id: item.id });
         this._state.episodes = res.episodes || [];
@@ -158,6 +161,7 @@ class NokturnoCard extends HTMLElement {
   }
 
   async _loadStreams(data) {
+    this._state.stack.push(this._state.view);
     await this._guard(async () => {
       const res = await this._call("streams", data);
       this._state.streams = res.streams || [];
@@ -205,12 +209,8 @@ class NokturnoCard extends HTMLElement {
     await this._guard(async () => {
       const res = await this._call("resolve", this._target(stream));
       if (!res.url) return;
-      try {
-        await navigator.clipboard.writeText(res.url);
-        this._toast("Odkaz zkopírován — vlož ho do VLC nebo prohlížeče");
-      } catch (err) {
-        window.prompt("Odkaz na stream:", res.url);
-      }
+      this._toast(this._copy(res.url) ? "Odkaz zkopírován — vlož ho do VLC nebo prohlížeče"
+                                      : "Odkaz se nepodařilo zkopírovat");
     });
   }
 
@@ -225,6 +225,30 @@ class NokturnoCard extends HTMLElement {
       });
       this._toast(`Pokračuji na ${this._friendly(entityId)}: ${item.label}`);
     });
+  }
+
+  /** Kopírování do schránky. `navigator.clipboard` funguje jen přes https nebo localhost,
+   *  na `http://<ip>:8123` (typicky mobil v LAN) se musí přes skryté pole a execCommand. */
+  _copy(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).catch(() => this._copyFallback(text));
+      return true;
+    }
+    return this._copyFallback(text);
+  }
+
+  _copyFallback(text) {
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(field);
+    field.select();
+    field.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
+    field.remove();
+    return ok;
   }
 
   _toast(message) {
@@ -281,7 +305,10 @@ class NokturnoCard extends HTMLElement {
       <style>
         ha-card { padding: 12px 14px 16px; container-type: inline-size; }
         .head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+        .head[hidden] { display:none; }
         .head h2 { margin:0; font-size:1.15rem; font-weight:500; flex:1; }
+        .busy { position:absolute; right:16px; top:12px; }
+        ha-card { position:relative; }
         /* hledání pod sebou přes celou šířku karty */
         .bar { display:grid; grid-template-columns: 1fr; gap:8px; align-items:center; }
         .bar[hidden] { display:none; }  /* jinak by display:grid přebil atribut hidden */
@@ -290,8 +317,10 @@ class NokturnoCard extends HTMLElement {
         ha-control-select { --control-select-thickness:40px; }
         ha-control-select::part(label), ha-control-select { white-space:nowrap; }
         /* detail: [zpět][název] a pod tím dva výběry vedle sebe přes celou šířku */
-        .bar.detail { display:grid; grid-template-columns:auto 1fr; gap:8px; align-items:center; margin-top:10px; }
-        .picks { grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; }
+        .bar.detail { display:block; margin-top:10px; }
+        .titlerow { display:flex; align-items:center; gap:4px; }
+        .titlerow .name { flex:1; min-width:0; font-size:1.05rem; }
+        .picks { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin-top:8px; }
         ha-control-select-menu { width:100%; }
         .name { font-weight:500; }
         .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap:10px; margin-top:12px; align-items:start; }
@@ -375,11 +404,11 @@ class NokturnoCard extends HTMLElement {
         @keyframes sp { to { transform: rotate(360deg); } }
       </style>
       <ha-card>
-        <div class="head">
+        <div class="head"${this._config.show_header ? "" : " hidden"}>
           <ha-icon icon="mdi:movie-search"></ha-icon>
-          <h2>${this._config.title}</h2>
-          <span id="busy" class="muted"></span>
+          <h2>${this._esc(this._config.title)}</h2>
         </div>
+        <span id="busy" class="muted busy"></span>
         <div class="bar" id="search">
           <ha-input id="q" placeholder="Název filmu nebo seriálu" with-clear></ha-input>
           <ha-control-button id="go"><ha-icon icon="mdi:magnify"></ha-icon> Hledat</ha-control-button>
@@ -464,6 +493,7 @@ class NokturnoCard extends HTMLElement {
                   : "zatím bez streamu"}${w.latest && (!w.available || w.latest.episode !== w.available.episode || w.latest.season !== w.available.season)
                   ? `, odvysíláno ${w.latest.season}x${String(w.latest.episode).padStart(2, "0")}` : ""}</span>`}</span>
             <span class="icons">
+              ${w.new ? `<ha-icon-button data-wseen="${i}" title="Označit nový díl jako viděný"><ha-icon icon="mdi:check"></ha-icon></ha-icon-button>` : ""}
               <ha-icon-button data-wopen="${i}" title="Otevřít"><ha-icon icon="mdi:folder-play-outline"></ha-icon></ha-icon-button>
               <ha-icon-button data-wremove="${i}" title="Přestat sledovat"><ha-icon icon="mdi:eye-off-outline"></ha-icon></ha-icon-button>
             </span>
@@ -491,7 +521,7 @@ class NokturnoCard extends HTMLElement {
   _watchlist() {
     const list = [...(this._sensorAttr("series") || [])];
     const over = this._watchOverride || {};
-    const kept = list.filter((w) => over[w.id] !== false);
+    const kept = list.filter((w) => over[w.id] !== false).map((w) => (over[w.id] ? { ...w, ...over[w.id] } : w));
     Object.values(over).forEach((w) => { if (w && !kept.some((k) => k.id === w.id)) kept.push(w); });
     return kept;
   }
@@ -527,11 +557,13 @@ class NokturnoCard extends HTMLElement {
     const list = st.episodes.filter((e) => st.season === null || e.season === st.season);
     return this._hero() + `
       <div class="bar detail">
-        <ha-icon-button data-back="results" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
-        <span class="name">${this._esc(st.item.title)}${st.item.year ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
-        <ha-icon-button class="watch" data-watch="1" title="${this._isWatched(st.item.id) ? "Přestat sledovat" : "Sledovat nové díly"}">
-          <ha-icon icon="${this._isWatched(st.item.id) ? "mdi:eye-check" : "mdi:eye-plus-outline"}"></ha-icon>
-        </ha-icon-button>
+        <div class="titlerow">
+          <ha-icon-button data-back="back" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
+          <span class="name">${this._esc(st.item.title)}${st.item.year ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
+          <ha-icon-button data-watch="1" title="${this._isWatched(st.item.id) ? "Přestat sledovat" : "Sledovat nové díly"}">
+            <ha-icon icon="${this._isWatched(st.item.id) ? "mdi:eye-check" : "mdi:eye-plus-outline"}"></ha-icon>
+          </ha-icon-button>
+        </div>
         <span class="picks">
           ${this._pick("season", "Sezóna", st.seasons.map((n) => ({ value: String(n), label: n === 0 ? "Speciály" : "Sezóna " + n })), String(st.season))}
         </span>
@@ -550,11 +582,12 @@ class NokturnoCard extends HTMLElement {
     // v konfiguraci bývá `notify.sm_s921b`, služba se ale jmenuje `notify.mobile_app_sm_s921b`
     if (players.length) st.player = players.includes(st.player) ? st.player : players[0];
     if (phones.length) st.phone = phones.find((p) => this._short(p) === this._short(st.phone)) || phones[0];
-    const back = st.item && st.item.type === "series" ? "episodes" : "results";
     const head = this._hero() + `
       <div class="bar detail">
-        <ha-icon-button data-back="${back}" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
-        <span class="name">${this._esc(st.title)}${st.item && st.item.year && !st.episode ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
+        <div class="titlerow">
+          <ha-icon-button data-back="back" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
+          <span class="name">${this._esc(st.title)}${st.item && st.item.year && !st.episode ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
+        </div>
         <span class="picks">
           ${players.length > 1 ? this._pick("player", "Přehrávač", players.map((p) => ({ value: p, label: this._friendly(p) })), st.player) : ""}
           ${phones.length > 1 ? this._pick("phone", "Mobil", phones.map((p) => ({ value: p, label: this._phoneName(p) })), st.phone) : ""}
@@ -562,12 +595,11 @@ class NokturnoCard extends HTMLElement {
       </div>`;
     if (!st.streams.length) return head + `<div class="muted">Pro tento titul se nenašel žádný stream.</div>`;
     const legend = st.streams.some((s) => s.direct)
-      ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = přímý odkaz z WebShare (venku plnou rychlostí);
-           ostatní jdou venku přes Tailscale</div>` : "";
+      ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = hraje i mimo domácí síť</div>` : "";
     return head + legend + `<div>${st.streams.map((s, i) => `
       <div class="stream">
         <span class="tag" style="background:${SOURCE_COLORS[s.source] || "#777"}">${s.source || "?"}${
-          s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="Přímý odkaz z WebShare — venku jede plnou rychlostí"></ha-icon>` : ""}</span>
+          s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="Hraje i mimo domácí síť"></ha-icon>` : ""}</span>
         <span class="label">${this._esc(s.label.replace(s.source + "  ·  ", ""))}</span>
         <span class="icons">
           <ha-icon-button data-play="${i}" title="Přehrát"><ha-icon icon="mdi:play"></ha-icon></ha-icon-button>
@@ -691,7 +723,8 @@ class NokturnoCard extends HTMLElement {
   /** Jeden posluchač na celý obsah — přežije překreslení a funguje i uvnitř ha-icon-button. */
   _onClick(event) {
     const st = this._state;
-    const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont", "watch", "wopen", "wremove"];
+    const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
+                  "watch", "wopen", "wremove", "wseen"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -709,6 +742,12 @@ class NokturnoCard extends HTMLElement {
       const w = this._watchlist()[+data.wopen];
       return this._openItem({ id: w.id, type: "series", title: w.title, alt: w.alt, poster: w.poster });
     }
+    if (data.wseen !== undefined) {
+      const w = this._watchlist()[+data.wseen];
+      this._watchOverride = this._watchOverride || {};
+      this._watchOverride[w.id] = { ...w, new: null };  // zhasne hned
+      return this._guard(async () => { await this._call("mark_seen", { id: w.id }, false); });
+    }
     if (data.wremove !== undefined) {
       const w = this._watchlist()[+data.wremove];
       this._watchOverride = this._watchOverride || {};
@@ -719,7 +758,14 @@ class NokturnoCard extends HTMLElement {
       st.loading = +data.open;
       return this._openItem(st.results[+data.open]);
     }
-    if (data.back !== undefined) { st.view = data.back; if (data.back === "search") st.continueItems = null; this._paint(); return; }
+    if (data.back !== undefined) {
+      const target = data.back === "back" ? (st.stack.pop() || "search") : data.back;
+      if (data.back !== "back") st.stack = [];
+      st.view = target;
+      if (target === "search") st.continueItems = null;
+      this._paint();
+      return;
+    }
     if (data.ep !== undefined) {
       const list = st.episodes.filter((e) => st.season === null || e.season === st.season);
       const ep = list[+data.ep];
@@ -769,6 +815,7 @@ class NokturnoCardEditor extends HTMLElement {
     const phones = this._phoneOptions();
     return [
       { name: "title", selector: { text: {} } },
+      { name: "show_header", selector: { boolean: {} } },
       { name: "player", selector: { entity: { domain: "media_player" } } },
       { name: "players", selector: { entity: { domain: "media_player", multiple: true } } },
       phones.length
@@ -781,6 +828,7 @@ class NokturnoCardEditor extends HTMLElement {
   _label(schema) {
     return {
       title: "Nadpis karty",
+      show_header: "Zobrazit nadpis a ikonu",
       player: "Výchozí přehrávač",
       players: "Přehrávače na výběr",
       phone: "Výchozí mobil",

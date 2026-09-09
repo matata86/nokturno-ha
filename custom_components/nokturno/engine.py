@@ -480,9 +480,24 @@ class Engine:
             se, ep = int(video.get("season") or 0), int(video.get("episode") or 0)
             episode_re = re.compile(rf"s{se:02d}e{ep:02d}|(?<!\d){se:02d}?x{ep:02d}(?!\d)|(?<!\d){se}x{ep:02d}(?!\d)")
 
+        # rok v názvu souboru rozliší stejnojmenné filmy („pět švestek“ 1983 vs. 2026);
+        # roky, které patří k názvu titulu („Blade Runner 2049“), se ignorují
+        want_year = None if video else self._year(meta)
+        title_years = {int(y) for y in YEAR_RE.findall(_fold(title) + " " + " ".join(_fold(o) for o in origs))}
+
+        def year_ok(folded):
+            if not want_year:
+                return True
+            years = {int(y) for y in YEAR_RE.findall(folded)}
+            years -= title_years - {want_year}
+            # soubor bez roku v názvu propustíme, soubor s jiným rokem ne
+            return not years or any(abs(y - want_year) <= 1 for y in years)
+
         def relevant(name):
             folded = _fold(name)
             if wanted and not any(all(w in folded for w in group) for group in wanted):
+                return False
+            if not year_ok(folded):
                 return False
             return not episode_re or bool(episode_re.search(folded))
 

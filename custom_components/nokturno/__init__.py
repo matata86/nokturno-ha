@@ -491,6 +491,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise HomeAssistantError("Chybí `id` nebo `query`.")
         if call.data.get("remove"):
             data.pop(wid, None)
+            # senzor čte uloženou kontrolu, ne wantlist — bez tohohle by položka v kartě zůstala
+            cache = trakt_cache()
+            if cache.pop(wid, None) is not None:
+                await hass.async_add_executor_job(engine.store.save, "trakt_list", cache)
         else:
             item = data.get(wid) or {"id": wid, "added": dt_util.now().isoformat()}
             item.update({k: call.data[k] for k in ("type", "title", "year", "alt", "poster") if call.data.get(k)})
@@ -519,6 +523,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 except Exception as err:  # noqa: BLE001 – výpadek Traktu nesmí shodit kontrolu
                     _LOGGER.debug("trakt watchlist %s: %s", kind, err)
         if not items:
+            # i prázdný seznam se musí propsat — jinak by v kartě zůstala odebraná položka
+            if trakt_cache():
+                await hass.async_add_executor_job(engine.store.save, "trakt_list", {})
+                async_dispatcher_send(hass, SIGNAL_TRAKT)
             return {}
         known = trakt_cache()
         fresh, newly = {}, []

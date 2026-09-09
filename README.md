@@ -34,7 +34,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB.
 - **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Pozor: Trakt od července 2026 vydává API klíče jen pro VIP účty, takže bez VIP tuhle část nezapneš — vlastní seznam funguje i tak.
-- **Rok v dotazu je filtr** — „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere.
+- **Rok v dotazu je filtr** — „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere. Rok se hlídá i u souborů z fulltextu WebShare, takže se k titulu nepřimíchá stejnojmenný film z jiného roku.
 - **Databáze filmů po ruce vždycky** — tlačítko *Hledat v databázi filmů* je u každých výsledků, ne jen když zdroje nic nenajdou; hledá v IMDb/TMDB přes Cinemetu a titul odtud uložíš do seznamu k zhlédnutí.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
 
@@ -286,6 +286,7 @@ actions:
 | U titulu chybí plakát | Sosáč obrázky nemá; pokud nejde dohledat ani přes TMDB, zůstane podklad s ikonou |
 | Stream nejde pustit venku | vyber řádek s 🌐, nebo vyplň adresu Tailscale a zkontroluj, že addon běží |
 | Trakt hlásí „nepřihlášeno" | spusť `nokturno.trakt_auth` a zadej kód na trakt.tv/activate |
+| Odebraný titul zůstal v seznamu k zhlédnutí | opraveno v 1.8.8 — karta čte poslední kontrolu, ta se teď maže spolu s položkou |
 
 ## Související projekty
 

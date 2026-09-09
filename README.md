@@ -32,7 +32,8 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Odkazy použitelné mimo domácí síť** (ikona 🌐) — přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
 - **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat.
 - **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB.
-- **Trakt.tv** — propojení účtu, hlášení přehrávání, zápis do historie a hlídání seznamu „k zhlédnutí": jednou denně se kontroluje, co už má stream, a přijde oznámení.
+- **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Funguje samostatně, **Trakt k tomu není potřeba**.
+- **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Pozor: Trakt od července 2026 vydává API klíče jen pro VIP účty, takže bez VIP tuhle část nezapneš — vlastní seznam funguje i tak.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
 
 ## Instalace
@@ -75,7 +76,7 @@ Průvodce má dva kroky. **Účty** — vyplň jen zdroje, které chceš použí
 | Složka pro stahování | `/media/nokturno` | musí být uvnitř `media_dirs`, ať je vidět v Médiích |
 | Adresa mimo domácí síť | — | Tailscale/VPN adresa HA (např. `100.94.191.65`); použije se jen když addon Tailscale běží |
 | Oznámení | — | notify služba telefonu (`notify.mobile_app_…`); prázdné = oznámení v HA |
-| Trakt.tv — Client ID, Secret | — | z [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications), redirect URI `urn:ietf:wg:oauth:2.0:oob` |
+| Trakt.tv — Client ID, Secret | — | volitelné; z [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications). **Trakt od 7/2026 vydává API klíče jen s VIP** — bez nich funguje vlastní seznam k zhlédnutí. |
 
 Po vyplnění Traktu spusť službu `nokturno.trakt_auth` — přijde oznámení s kódem, který zadáš na [trakt.tv/activate](https://trakt.tv/activate).
 
@@ -118,7 +119,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 - **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
 - **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
 - **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
-- **K zhlédnutí (Trakt)** — seznam z Traktu; zelené „lze pustit" u titulů, které už mají stream, jinak „zatím ne". Klepnutí otevře streamy.
+- **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Zelené „lze pustit" u těch, které už mají stream, jinak „zatím ne"; klepnutí otevře streamy.
 - Dole **Stahování** (fronta s procenty) a **Stažené** — u každého souboru počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
 
 ### Výsledky hledání
@@ -131,7 +132,7 @@ Mřížka plakátů s názvem a rokem. Titul, který má jen Sosáč, dostane pl
 
 <img src="docs/04-epizody.png" width="420" alt="Epizody seriálu">
 
-Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, šipka zpět a **oko** pro sledování nových dílů. Výběr sezóny je pod názvem, epizody se pak vypíšou jako seznam.
+Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, šipka zpět, **záložka** (přidá do seznamu k zhlédnutí) a u seriálu **oko** pro sledování nových dílů. Výběr sezóny je pod názvem, epizody se pak vypíšou jako seznam.
 
 ### Streamy
 
@@ -154,7 +155,7 @@ Nad seznamem jsou výběry **Přehrávač** a **Mobil** — platí pro všechny 
 |---|---|---|
 | `sensor.nokturno_stahovani` | počet běžících stahování | `downloads` (fronta), `files` (hotové soubory), `free_gb`, `directory`, `search_history`, `notify_targets` |
 | `sensor.nokturno_nove_dily` | kolik sledovaných seriálů má nový díl | `series` — u každého `latest` (odvysíláno), `available` (nejnovější se streamem), `new`, `checked` |
-| `sensor.nokturno_k_zhlednuti` | kolik titulů z Traktu už má stream | `total`, `items` (id, název, rok, počet streamů, nejlepší stream) |
+| `sensor.nokturno_k_zhlednuti` | kolik titulů ze seznamu k zhlédnutí už má stream | `total`, `items` (id, název, rok, počet streamů, nejlepší stream) |
 
 ## Služby
 
@@ -194,6 +195,9 @@ Rozkoukané tituly ze všech Kodi (nebo z jednoho přes `entity_id`). U každé 
 
 ### `nokturno.watch_series` ↩ / `nokturno.check_series` ↩ / `nokturno.mark_seen` ↩
 Sledování seriálů: přidat (`id`, `title`, `alt`, `poster`) nebo odebrat (`remove: true`); ruční kontrola nových dílů; zhasnutí označení nového dílu (bez `id` u všech).
+
+### `nokturno.want_to_watch` ↩
+Přidá titul do seznamu k zhlédnutí (`id`, `type`, `title`, `year`, `alt`, `poster`) nebo ho odebere (`remove: true`). Seznam se kontroluje jednou denně a při přidání.
 
 ### `nokturno.trakt_auth` ↩ / `nokturno.trakt_watched` ↩ / `nokturno.trakt_watchlist` ↩
 Propojení účtu kódem, zápis filmu nebo epizody do historie (`id`, `season`, `episode`, `remove`), načtení seznamu „k zhlédnutí" s kontrolou dostupnosti.

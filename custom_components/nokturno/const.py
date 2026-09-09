@@ -49,6 +49,7 @@ SERVICE_SEEN = "mark_seen"
 SERVICE_TRAKT_AUTH = "trakt_auth"
 SERVICE_TRAKT_WATCHED = "trakt_watched"
 SERVICE_TRAKT_LIST = "trakt_watchlist"
+SERVICE_WANT = "want_to_watch"
 
 SIGNAL_DOWNLOADS = f"{DOMAIN}_downloads_updated"
 SIGNAL_WATCHLIST = f"{DOMAIN}_watchlist_updated"

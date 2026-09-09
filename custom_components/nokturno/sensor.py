@@ -95,11 +95,14 @@ class NokturnoDownloadsSensor(SensorEntity):
         running = next((j for j in jobs if j["status"] == "running"), None)
         return {
             "downloads": [
-                {k: job[k] for k in ("id", "name", "status", "percent", "done", "size", "path", "error")}
+                {k: job.get(k) for k in ("id", "name", "status", "percent", "done", "size",
+                                         "path", "error", "speed", "eta")}
                 for job in jobs[:20]
             ],
             "current": running["name"] if running else "",
             "percent": running["percent"] if running else 0,
+            "speed": running.get("speed") if running else 0,
+            "eta": running.get("eta") if running else None,
             "directory": self._downloader.directory,
             "files": self._downloader.files,
             "free_gb": round(self._downloader.free_gb, 1),

@@ -129,6 +129,8 @@ class Downloader:
             "percent": 0,
             "path": os.path.join(self.directory, safe_name(name, url)),
             "started": time.time(),
+            "speed": 0.0,          # B/s z posledního úseku
+            "eta": None,           # sekundy do konce, když je známá velikost
             "error": "",
             "subtitles": list(subtitles or []),
             **(meta or {}),
@@ -201,7 +203,8 @@ class Downloader:
         self._notify()
         session = async_get_clientsession(self.hass)
         tmp = job["path"] + ".part"
-        last = 0.0
+        last = time.time()
+        last_done = job["done"]
         async with session.get(job["url"], timeout=None) as resp:
             resp.raise_for_status()
             job["size"] = int(resp.headers.get("Content-Length") or 0)
@@ -211,13 +214,18 @@ class Downloader:
                     job["done"] += len(chunk)
                     if job["size"]:
                         job["percent"] = round(job["done"] / job["size"] * 100, 1)
-                    if time.time() - last > 2:  # stav ven jen občas, ne u každého chunku
-                        last = time.time()
+                    now = time.time()
+                    if now - last > 2:  # stav ven jen občas, ne u každého chunku
+                        # rychlost z posledního úseku, ne průměr od začátku — ať reaguje na zpomalení
+                        job["speed"] = (job["done"] - last_done) / (now - last)
+                        job["eta"] = round((job["size"] - job["done"]) / job["speed"]) \
+                            if job["size"] and job["speed"] > 0 else None
+                        last, last_done = now, job["done"]
                         self._notify()
         await self.hass.async_add_executor_job(os.replace, tmp, job["path"])
         for index, sub_url in enumerate(job.get("subtitles") or []):
             await self._download_subtitle(job, sub_url, index)
-        job.update(status="done", percent=100)
+        job.update(status="done", percent=100, speed=0.0, eta=0)
         await self.async_refresh_files()
         _LOGGER.info("staženo: %s", job["path"])
         if self.on_done:

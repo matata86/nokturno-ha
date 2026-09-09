@@ -277,12 +277,39 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
+  /** Schránka: clipboard API běží jen na https, přes http zbývá execCommand. */
+  _copy(text) {
+    try {
+      if (window.isSecureContext && navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (err) { /* v iframe bez oprávnění spadne — zkusíme starou cestu */ }
+    try {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(area);
+      area.select();
+      area.setSelectionRange(0, text.length);
+      const ok = document.execCommand("copy");
+      area.remove();
+      return ok;
+    } catch (err) {
+      return false;
+    }
+  }
+
   async _openLink(stream) {
     await this._guard(async () => {
       const res = await this._call("resolve", this._target(stream));
       if (!res.url) return;
-      this._toast(this._copy(res.url) ? "Odkaz zkopírován — vlož ho do VLC nebo prohlížeče"
-                                      : "Odkaz se nepodařilo zkopírovat");
+      if (this._copy(res.url)) {
+        this._toast("Odkaz zkopírován — vlož ho do VLC nebo prohlížeče");
+      } else {
+        window.prompt("Zkopíruj odkaz (Ctrl+C):", res.url);
+      }
     });
   }
 
@@ -413,7 +440,7 @@ class NokturnoCard extends HTMLElement {
         .poster .y { font-size:.72rem; color: var(--secondary-text-color); }
         .poster .year { color: var(--secondary-text-color); }
         .hero { margin-top:10px; }
-        .hero { position:relative; }
+        .heroart { position:relative; display:block; }
         .hero img { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; display:block;
                     background: var(--secondary-background-color); }
         .desc { margin-top:8px; font-size:.85rem; line-height:1.35; color: var(--secondary-text-color); cursor:pointer;
@@ -484,7 +511,11 @@ class NokturnoCard extends HTMLElement {
         .ep { display:flex; gap:8px; align-items:center; padding:9px 0; border-bottom:1px solid var(--divider-color); cursor:pointer; }
         .ep .n { color: var(--secondary-text-color); min-width:46px; font-variant-numeric: tabular-nums; }
         .dl { margin-top:4px; }
-        .dlrow { display:flex; justify-content:space-between; gap:8px; }
+        .dlrow { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+        .dljob { margin:6px 0 10px; }
+        /* druhý řádek s rychlostí a časem — menší písmo, tlačítko křížku vpravo */
+        .dlinfo { margin-top:2px; font-size:.78rem; }
+        .dlinfo ha-icon-button { --mdc-icon-button-size:28px; --mdc-icon-size:16px; }
         /* oddělovače patří mezi položky, ne nad nadpis sekce */
         .file { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--divider-color); }
         .file:last-child { border-bottom:none; }
@@ -828,8 +859,10 @@ class NokturnoCard extends HTMLElement {
     if (!art && !text) return "";
     return `
       <div class="hero">
-        ${art ? `<img src="${this._esc(art)}" referrerpolicy="no-referrer" />` : ""}
-        ${st.busy && art ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon></span>` : ""}
+        ${art ? `<span class="heroart">
+          <img src="${this._esc(art)}" referrerpolicy="no-referrer" />
+          ${st.busy ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon></span>` : ""}
+        </span>` : ""}
         ${text ? `<div class="desc${st.descOpen ? " open" : ""}" data-toggle="desc" title="Klepnutím rozbalíš">${this._esc(text)}</div>` : ""}
       </div>`;
   }
@@ -842,16 +875,24 @@ class NokturnoCard extends HTMLElement {
     const files = (sensor && sensor.attributes.files) || [];
     const active = jobs.filter((j) => j.status === "running" || j.status === "queued");
     this._files = files;
+    this._active = active;
     if (!active.length && !files.length) { box.hidden = true; box.innerHTML = ""; return; }
     box.hidden = false;
     box.innerHTML = (active.length ? `<div class="section"><ha-icon icon="mdi:progress-download"></ha-icon> Stahování</div>` : "")
-      + active.map((j) => `
-      <div style="margin:6px 0">
+      + active.map((j, i) => `
+      <div class="dljob">
         <div class="dlrow">
           <span class="muted">${this._esc(j.name)}</span>
           <span class="muted">${j.status === "queued" ? "ve frontě" : j.percent + " %"}</span>
         </div>
         <div class="prog"><div style="width:${j.percent || 0}%"></div></div>
+        <div class="dlrow dlinfo">
+          <span class="muted">${j.status === "queued" ? "čeká na svoje místo ve frontě"
+            : [this._speed(j.speed), this._eta(j.eta),
+               j.size ? `${this._size(j.done)} z ${this._size(j.size)}` : ""].filter(Boolean).join(" · ")}</span>
+          <ha-icon-button data-dlcancel="${i}" title="Zrušit stahování">
+            <ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
+        </div>
       </div>`).join("") + (files.length ? `
       <div class="section"><ha-icon icon="mdi:folder-download-outline"></ha-icon> Stažené
         ${sensor && sensor.attributes.free_gb != null ? `<span class="muted" style="font-weight:400">· volných ${sensor.attributes.free_gb} GB</span>` : ""}</div>
@@ -869,12 +910,22 @@ class NokturnoCard extends HTMLElement {
   }
 
   _bindFiles(box) {
+    box.querySelectorAll("[data-dlcancel]").forEach((el) =>
+      el.addEventListener("click", () => this._cancelDownload(this._active[+el.dataset.dlcancel])));
     box.querySelectorAll("[data-fileplay]").forEach((el) =>
       el.addEventListener("click", () => this._playFile(this._files[+el.dataset.fileplay])));
     box.querySelectorAll("[data-fileshare]").forEach((el) =>
       el.addEventListener("click", () => this._shareFile(this._files[+el.dataset.fileshare])));
     box.querySelectorAll("[data-filedel]").forEach((el) =>
       el.addEventListener("click", () => this._deleteFile(this._files[+el.dataset.filedel])));
+  }
+
+  async _cancelDownload(job) {
+    if (!job) return;
+    await this._guard(async () => {
+      await this._call("cancel_download", { download_id: job.id }, false);
+      this._toast(`Stahování „${job.name}" zrušeno`);
+    });
   }
 
   async _playFile(file) {
@@ -913,6 +964,22 @@ class NokturnoCard extends HTMLElement {
       await this._call("delete_file", { path: file.path }, false);
       this._toast("Smazáno");
     });
+  }
+
+  _speed(bytesPerSecond) {
+    const mb = (bytesPerSecond || 0) / 1024 ** 2;
+    if (!mb) return "";
+    return mb >= 1 ? `${mb.toFixed(1)} MB/s` : `${Math.round(mb * 1024)} kB/s`;
+  }
+
+  /** Zbývající čas — u dlouhých stahování stačí minuty, sekundy jen na konci. */
+  _eta(seconds) {
+    if (seconds == null || seconds < 0) return "";
+    if (seconds < 60) return `zbývá ${Math.round(seconds)} s`;
+    const min = Math.round(seconds / 60);
+    if (min < 60) return `zbývá ${min} min`;
+    const h = Math.floor(min / 60);
+    return `zbývá ${h} h ${String(min % 60).padStart(2, "0")} min`;
   }
 
   _size(bytes) {

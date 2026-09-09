@@ -219,7 +219,7 @@ class Engine:
             "year": self._year(meta),
             "poster": self._art(meta.get("poster")),
             "background": self._art(meta.get("background")),
-            "description": (meta.get("description") or "")[:600],
+            "description": (meta.get("description") or "")[:4000],
             "rating": meta.get("imdbRating") or "",
             "source": "sosac" if is_sosac_id(meta.get("id")) else "luna",
             "alt": alt,
@@ -295,7 +295,7 @@ class Engine:
                 "year": int(year) if year.isdigit() else None,
                 "poster": meta.get("poster") or "",
                 "background": meta.get("background") or "",
-                "description": (meta.get("description") or "")[:600],
+                "description": (meta.get("description") or "")[:4000],
                 "source": "katalog",
                 "alt": None,
             })
@@ -339,7 +339,7 @@ class Engine:
             "year": year_num,
             "poster": meta.get("poster") or "",
             "background": meta.get("background") or "",
-            "description": (meta.get("description") or self._summary(meta))[:900],
+            "description": (meta.get("description") or self._summary(meta))[:4000],
             "rating": meta.get("imdbRating") or "",
             "genres": meta.get("genres") or [],
             "runtime": meta.get("runtime") or "",
@@ -435,7 +435,7 @@ class Engine:
                 "title": video.get("title") or "",
                 "thumbnail": video.get("thumbnail") or "",
                 "released": video.get("released") or "",
-                "description": (video.get("overview") or video.get("description") or "")[:600],
+                "description": (video.get("overview") or video.get("description") or "")[:4000],
             })
         out.sort(key=lambda v: (v["season"] == 0, v["season"], v["episode"]))
         return out

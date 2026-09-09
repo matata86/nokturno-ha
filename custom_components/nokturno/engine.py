@@ -318,6 +318,14 @@ class Engine:
             _LOGGER.debug("detail %s: %s", item_id, err)
         year = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
         year_num = int(year) if year.isdigit() else None
+        if self.luna:  # TMDB podle IMDb id zná český název („Sunday League…“ → „Okresní přebor…“)
+            try:
+                by_id = self.store.cached(f"lunameta:{kind}:{item_id}", 30 * 86400,
+                                          lambda: self.luna.meta(kind, item_id) or {})
+                if by_id.get("name"):
+                    meta = {**meta, **{k: v for k, v in by_id.items() if v}}
+            except Exception as err:  # noqa: BLE001 – Luna nemusí běžet
+                _LOGGER.debug("meta z Luny %s: %s", item_id, err)
         if not meta.get("description"):  # čerstvý film — zkusit TMDB ještě podle názvu a roku
             try:
                 by_name = _fetch_title(self.luna, self.store, kind, meta.get("name") or "", year_num)
@@ -433,6 +441,19 @@ class Engine:
         return out
 
     # --- streamy ------------------------------------------------------------
+
+    def _with_local_title(self, ctype, base_id, meta):
+        """Doplní do metadat český název podle IMDb id (TMDB přes Lunu, jinak databáze filmů)."""
+        kind = ctype if ctype in ("movie", "series") else "movie"
+        try:
+            title = self.catalog_detail(kind, base_id).get("title") or ""
+        except NokturnoError as err:
+            _LOGGER.debug("název podle %s: %s", base_id, err)
+            return meta
+        if not title or names_match(title, meta.get("name") or ""):
+            return meta
+        return {**meta, "name": title, "_title": title,
+                "_orig": meta.get("_orig") or meta.get("name") or ""}
 
     def _cross_streams(self, ctype, item_id, meta, alt=None):
         """Streamy z druhého zdroje pro stejný titul (Luna ↔ Sosáč)."""
@@ -703,6 +724,10 @@ class Engine:
         except Exception as err:  # noqa: BLE001 – výpadek zdroje = prázdno, ne chyba služby
             _LOGGER.warning("streamy %s: %s", item_id, err)
             found = []
+        # titul otevřený jen podle IMDb id (z databáze filmů) má v metadatech mezinárodní přepis
+        # („Sunday League…“), pod kterým Sosáč nic nenajde — podstrčíme mu český název z TMDB
+        if not found and not alt and not is_sosac_id(base_id) and str(base_id).startswith("tt"):
+            meta = self._with_local_title(ctype, base_id, meta)
         found += self._cross_streams(ctype, item_id, meta, alt)
         found += self._webshare_streams(meta, video, ctype, alt)
         for stream in found:

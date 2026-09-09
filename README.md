@@ -162,7 +162,7 @@ Tlačítko **Hledat v databázi filmů** se ptá Cinemety (IMDb/TMDB), takže na
 - **streamy**, pokud už nějaké existují, jinak hláška, že žádný není;
 - **záložka** vpravo nahoře uloží titul do seznamu k zhlédnutí — pak se jednou denně kontroluje a jakmile se stream objeví, přijde oznámení.
 
-Názvy jsou v databázi vedené mezinárodním přepisem („Pet svestek"). Karta se pokouší dohledat český název přes TMDB; u úplně čerstvých titulů, které TMDB ještě nezná, zůstane přepis.
+Názvy jsou v databázi vedené mezinárodním přepisem („Sunday League - Pepik Hnatek's Final Match"). Podle IMDb id se k nim dohledá český název z TMDB a pod ním se pak hledají streamy — jinak by u českých filmů z databáze žádné nebyly. U úplně čerstvých titulů, které TMDB ještě nezná, zůstane přepis.
 
 ### Seriál a epizody
 
@@ -310,7 +310,7 @@ actions:
 ## Jak to funguje uvnitř
 
 - **Zdroje jsou rovnocenné** a žádný není povinný. Luna přidává katalogy a metadata, Sosáč české tituly, WebShare fulltext a přímé odkazy.
-- **Slučování titulů**: shoda názvu (i originálu) a roku ±1; id protějšku putuje dál jako `alt`, takže se u titulu nabídnou streamy z obou zdrojů.
+- **Slučování titulů**: shoda názvu (i originálu) a roku ±1; u dlouhých názvů s podtitulem se zkouší i část před pomlčkou, protože fulltext Sosáče na celý název nic nenajde; id protějšku putuje dál jako `alt`, takže se u titulu nabídnou streamy z obou zdrojů.
 - **Odkazy mimo síť**: streamy z Luny míří na její adresu v LAN, proto se páruje s fulltextem WebShare podle velikosti (±0,25 GB) a kvality a k položce se přibalí přímý odkaz z CDN. Hledá se pod českým i originálním názvem (z Sosáče nebo z Cinemety). Zbytek se přepíše na `external_host`, pokud addon Tailscale běží.
 - **Jazyk zvuku** se bere z metadat zdroje a doplňuje z názvu souboru — Luna občas hlásí `EN` u souboru, který má v názvu `cz`. Značky pro titulky (`cz tit`, `cztit`) se do zvuku nepočítají.
 - **Hlášky WebShare** se překládají do srozumitelné podoby: „File temporarily unavailable" se ukáže jako doporučení zkusit jiný stream.

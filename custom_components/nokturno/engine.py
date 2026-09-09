@@ -21,7 +21,7 @@ from .lib.sosac_api import SosacError, names_match
 from .lib.sosac_api import is_sosac_id as _is_legacy_sosac_id
 from .lib.sosac_direct import SosacDirect, is_direct_id
 from .lib.store import Store
-from .lib.streams import arrange, estimate_rank, parse_stream
+from .lib.streams import arrange, estimate_rank, langs_from_name, parse_stream
 from .lib.webshare_api import WebshareApi, WebshareError, human_size
 
 WS_LIMIT = 25    # kolik souborů brát z fulltextu WebShare
@@ -478,14 +478,20 @@ class Engine:
         """Stream do podoby vhodné pro HA (dashboard, hlasovka, automatizace)."""
         parse_stream(stream)
         channels = stream.get("channels") or {}
-        langs = [f"{code} {channels[code]:g}" if code in channels else code for code in stream.get("langs") or []]
+        # pevné pořadí: zdroj · kvalita · název souboru · zvuk · titulky · velikost
+        full = clean_label(stream.get("label") if stream.get("_direct") else stream.get("_ws_name", ""))
+        # metadata zdroje nemusí sedět na soubor (Luna hlásila „EN 5.1“ u souboru „…_cz_…“),
+        # takže jazyk z názvu souboru se přidá k tomu, co uvádí zdroj
+        codes = list(stream.get("langs") or [])
+        for code in sorted(langs_from_name(full)):
+            if code not in codes:
+                codes.append(code)
+        langs = [f"{code} {channels[code]:g}" if code in channels else code for code in codes]
         quality = QUALITY_NAMES.get(stream.get("quality_rank") or 0, "")
         if quality and stream.get("_estimated"):
             quality = "~" + quality  # odhad z velikosti, ne údaj ze zdroje
         source = SOURCE_NAMES.get(stream.get("source"), "")
         size = stream.get("size_gb") or 0
-        # pevné pořadí: zdroj · kvalita · název souboru · zvuk · titulky · velikost
-        full = clean_label(stream.get("label") if stream.get("_direct") else stream.get("_ws_name", ""))
         name = full[:51] + "…" if len(full) > 52 else full
         parts = [p for p in (
             source,
@@ -509,7 +515,7 @@ class Engine:
             "quality_rank": stream.get("quality_rank") or 0,
             "size_gb": round(size, 2) if size else None,
             "bitrate": stream.get("bitrate") or None,
-            "langs": stream.get("langs") or [],
+            "langs": codes,
             "channels": channels,
             "subs": stream.get("subs") or [],
             "url": stream.get("url") or "",
@@ -731,10 +737,28 @@ class Engine:
         )
         return [self._describe(s, i) for i, s in enumerate(ordered)]
 
+    # co WebShare vrací u nedostupných souborů — hlášky jsou anglické a nic neříkající
+    WS_ERRORS = {
+        "temporarily unavailable": "WebShare tenhle soubor teď nevydá (bývá to dočasné). "
+                                   "Zkus jiný stream ze seznamu.",
+        "file not found": "Soubor už na WebShare není. Zkus jiný stream ze seznamu.",
+        "file password": "Soubor na WebShare je chráněný heslem.",
+    }
+
     def webshare_link(self, ident):
         if not self.ws:
             raise NokturnoError("WebShare účet není nastavený.")
-        return self.ws.file_link(ident)
+        try:
+            link = self.ws.file_link(ident)
+        except WebshareError as err:
+            text = str(err).lower()
+            for needle, message in self.WS_ERRORS.items():
+                if needle in text:
+                    raise NokturnoError(message) from err
+            raise NokturnoError(f"WebShare: {err}") from err
+        if not link:
+            raise NokturnoError("WebShare nevrátil odkaz na soubor. Zkus jiný stream ze seznamu.")
+        return link
 
     def external_url(self, url):
         """Odkaz na Lunu přepsaný na adresu dostupnou mimo domácí síť (Tailscale).

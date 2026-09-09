@@ -130,7 +130,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 - **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
 - **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
 - **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Zelené „lze pustit" u těch, které už mají stream, „hlídám" u těch, které zatím nikde nejsou; klepnutí otevře streamy. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.
-- Dole **Stahování** (fronta s procenty) a **Stažené** — u každého souboru počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
+- Dole **Stahování** — u běžícího souboru procenta, rychlost, odhad zbývajícího času, kolik už je staženo z celku a křížek, kterým se stahování zruší. Pod tím **Stažené** — u každého souboru počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
 
 ### Výsledky hledání
 
@@ -180,8 +180,8 @@ Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Lu
 |---|---|
 | ▶ | pustí stream na vybraném přehrávači (Kodi přes doplněk, ostatní přímým odkazem) |
 | 📱 | pošle odkaz do vybraného mobilu jako notifikaci; klepnutím se otevře ve VLC |
-| ⬇ | stáhne do složky pro stahování (i s titulky) |
-| 🔗 | zkopíruje přímý odkaz do schránky |
+| ⬇ | stáhne do složky pro stahování (i s titulky); průběh je vidět dole v kartě i s rychlostí a odhadem času |
+| 🔗 | zkopíruje přímý odkaz do schránky (na `http` schránka přes prohlížeč nejde, tak se odkaz nabídne v okně k ručnímu zkopírování) |
 
 Nad seznamem jsou výběry **Přehrávač** a **Mobil** — platí pro všechny akce v seznamu.
 
@@ -312,6 +312,8 @@ actions:
 - **Zdroje jsou rovnocenné** a žádný není povinný. Luna přidává katalogy a metadata, Sosáč české tituly, WebShare fulltext a přímé odkazy.
 - **Slučování titulů**: shoda názvu (i originálu) a roku ±1; id protějšku putuje dál jako `alt`, takže se u titulu nabídnou streamy z obou zdrojů.
 - **Odkazy mimo síť**: streamy z Luny míří na její adresu v LAN, proto se páruje s fulltextem WebShare podle velikosti (±0,25 GB) a kvality a k položce se přibalí přímý odkaz z CDN. Hledá se pod českým i originálním názvem (z Sosáče nebo z Cinemety). Zbytek se přepíše na `external_host`, pokud addon Tailscale běží.
+- **Jazyk zvuku** se bere z metadat zdroje a doplňuje z názvu souboru — Luna občas hlásí `EN` u souboru, který má v názvu `cz`. Značky pro titulky (`cz tit`, `cztit`) se do zvuku nepočítají.
+- **Hlášky WebShare** se překládají do srozumitelné podoby: „File temporarily unavailable" se ukáže jako doporučení zkusit jiný stream.
 - **Náhledy Sosáče** jsou od září 2026 mrtvé (404), plakáty se dotahují z TMDB — podle IMDb id, a když chybí, podle názvu a roku.
 - **Nový díl seriálu** se hlásí až podle dostupnosti streamu; při zařazení se najde nejnovější sezóna se streamy, dál se sleduje jen posun dopředu.
 - **Jedno hledání pro oba typy**: karta se ptá na filmy i seriály naráz a drží si obojí; přepínač se ukáže, jen když obojí něco našlo, a přepnutí pak jen prohodí už načtený seznam.

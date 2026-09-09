@@ -607,6 +607,7 @@ class NokturnoCard extends HTMLElement {
         el.addEventListener("selected", apply);
       }
     });
+    this._applyTooltips(body);
     this._retryImages(body);
     this._renderDownloads();
   }
@@ -926,7 +927,17 @@ class NokturnoCard extends HTMLElement {
             <ha-icon-button data-filedel="${i}" title="Smazat i s titulky"><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
           </span>
         </div>`).join("")}` : "");
+    this._applyTooltips(box);
     this._bindFiles(box);
+  }
+
+  /** `ha-icon-button` si dovnitř dává prázdný `title`, který ten náš přebije —
+   *  bublina se objeví, až když se text předá jako `label`. */
+  _applyTooltips(root) {
+    root.querySelectorAll("ha-icon-button[title]").forEach((el) => {
+      const text = el.getAttribute("title");
+      if (text && el.label !== text) el.label = text;
+    });
   }
 
   _bindFiles(box) {

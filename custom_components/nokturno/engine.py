@@ -278,7 +278,7 @@ class Engine:
             try:
                 target = alt if season is None else self.sosac.episode_id(alt, season, episode)
                 return self.sosac.streams(ctype, target) if target else []
-            except SosacError as err:
+            except Exception as err:  # noqa: BLE001 – nedostupný Sosáč nesmí shodit výpis
                 _LOGGER.debug("cross-search (alt): %s", err)
                 return []
         title = meta.get("_title") or meta.get("name") or ""
@@ -307,7 +307,7 @@ class Engine:
             # find_match vrací celé meta, ne id — do streams/episode_id patří match["id"]
             target = match["id"] if season is None else self.sosac.episode_id(match["id"], season, episode)
             return self.sosac.streams(ctype, target) if target else []
-        except (LunaError, SosacError) as err:
+        except Exception as err:  # noqa: BLE001 – výpadek druhého zdroje jen zaloguj
             _LOGGER.debug("cross-search: %s", err)
             return []
 
@@ -322,14 +322,10 @@ class Engine:
         parts = [p for p in (source, quality, ("zvuk " + " ".join(langs)) if langs else "",
                              ("tit. " + " ".join(stream.get("subs") or [])) if stream.get("subs") else "",
                              f"{size:.1f} GB" if size else "") if p]
-        if stream.get("_direct"):
-            # soubor z fulltextu WebShare: kvalitu ani jazyky Luna nedodá, ale název souboru
-            # („Matrix 1999 2160p cz dabing.mkv“) řekne víc než samotná velikost
-            name = clean_label(stream.get("label") or "")
-            if len(name) > 52:
-                name = name[:51] + "…"
-            if name:
-                parts.insert(2, name)
+        name = clean_label(stream.get("label") if stream.get("_direct") else stream.get("_ws_name", ""))
+        if name:
+            # název souboru řekne o kvalitě zdroje víc než samotná velikost
+            parts.insert(2 if len(parts) > 2 else len(parts), name[:51] + "…" if len(name) > 52 else name)
         return {
             "index": index,
             "direct": bool(stream.get("_direct")) or bool(stream.get("_ws_url")),
@@ -496,6 +492,8 @@ class Engine:
                         best, closest = cand, delta
                 if best is not None:
                     stream["_ws_url"] = best["url"]
+                    # název souboru zná jen WebShare (Luna posílá jen popis) — přebalit do páru
+                    stream["_ws_name"] = best.get("label") or ""
                     used.add(id(best))
             out.append(stream)
         solo = [s for s in streams if s.get("_direct") and id(s) not in used]
@@ -510,7 +508,7 @@ class Engine:
         try:
             found = api.streams(ctype, item_id, include_search=True) if isinstance(api, LunaApi) \
                 else api.streams(ctype, item_id)
-        except (LunaError, SosacError) as err:
+        except Exception as err:  # noqa: BLE001 – výpadek zdroje = prázdno, ne chyba služby
             _LOGGER.warning("streamy %s: %s", item_id, err)
             found = []
         found += self._cross_streams(ctype, item_id, meta, alt)

@@ -510,3 +510,66 @@ want_to_watch:
       default: false
       selector:
         boolean:
+
+download_torrent:
+  name: Stáhnout torrent
+  description: >-
+    Předá torrent qBittorrentu. Stažený soubor skončí ve složce stahování,
+    odkud ho Nokturno nabídne k přehrání jako každé jiné stažené video.
+  fields:
+    url:
+      name: Odkaz
+      description: Magnet nebo adresa .torrent souboru z výsledků hledání.
+      required: true
+      selector:
+        text:
+    name:
+      name: Název
+      description: Pod jakým názvem se soubor uloží.
+      selector:
+        text:
+
+torrents:
+  name: Torrenty titulu
+  description: >-
+    Vyhledá titul na torrentových trackerech přes Prowlarr. Odděleno od streamů
+    schválně — trackery odpovídají v řádu sekund, takže se hledá až na vyžádání.
+  fields:
+    id:
+      name: ID titulu
+      selector:
+        text:
+    query:
+      name: Název
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options: [movie, series]
+    series:
+      name: ID seriálu
+      selector:
+        text:
+    season:
+      name: Série
+      selector:
+        number:
+          min: 0
+          max: 100
+    episode:
+      name: Díl
+      selector:
+        number:
+          min: 0
+          max: 1000
+    offset:
+      name: Posun číslování
+      description: Kolik streamů je už v seznamu — torrenty na ně navážou.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 500

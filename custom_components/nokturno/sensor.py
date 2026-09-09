@@ -107,6 +107,9 @@ class NokturnoDownloadsSensor(SensorEntity):
             "files": self._downloader.files,
             "free_gb": round(self._downloader.free_gb, 1),
             "search_history": self._engine.history(),
+            # karta podle toho pozná, co má nabízet — bez Prowlarru neukazuje
+            # tlačítko na hledání torrentů
+            "sources": self._engine.sources(),
             # karta z toho plní výběr mobilu (u koho který telefon je)
             "notify_targets": self.notify_targets,
         }

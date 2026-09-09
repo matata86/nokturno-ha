@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.43.4";
+const CARD_VERSION = "1.45.1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c", "Torrent": "#3f9e6f" };
@@ -250,11 +250,38 @@ class NokturnoCard extends HTMLElement {
   }
 
   async _play(stream) {
-    const entityId = this._state.player || this._players()[0];
-    if (!entityId) { this._toast("Není nastavený žádný přehrávač."); return; }
+    const entityId = await this._choose("player");
+    if (!entityId) { if (!this._players().length) this._toast("Není nastavený žádný přehrávač."); return; }
+    this._state.player = entityId;
     await this._guard(async () => {
       await this._call("play", { ...this._target(stream), entity_id: entityId }, false);
       this._toast(`Spouštím na ${this._friendly(entityId)}`);
+    });
+  }
+
+  /** Vybere přehrávač nebo mobil. S jedinou možností se neptá, jinak ukáže
+      malý výběr — dva rozbalovací seznamy natrvalo v kartě zabíraly víc místa,
+      než kolik se jich reálně používá. */
+  _choose(kind) {
+    const list = kind === "phone" ? this._phones() : this._players();
+    const name = (v) => (kind === "phone" ? this._phoneName(v) : this._friendly(v));
+    if (!list.length) return Promise.resolve(null);
+    if (list.length === 1) return Promise.resolve(list[0]);
+    const box = this._root.querySelector("#chooser");
+    return new Promise((resolve) => {
+      const close = (value) => { box.hidden = true; box.innerHTML = ""; resolve(value); };
+      box.hidden = false;
+      box.innerHTML = `<div class="chooser"><div class="panel">
+        <div class="ptitle">${kind === "phone" ? "Do kterého mobilu?" : "Kde přehrát?"}</div>
+        ${list.map((v, i) => `<button data-pickone="${i}">
+          <ha-icon icon="${kind === "phone" ? "mdi:cellphone" : "mdi:cast"}"></ha-icon>
+          <span>${this._esc(name(v))}</span></button>`).join("")}
+      </div></div>`;
+      box.querySelector(".chooser").addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) close(null);   // klepnutí vedle zavře
+      });
+      box.querySelectorAll("[data-pickone]").forEach((el) =>
+        el.addEventListener("click", () => close(list[+el.dataset.pickone])));
     });
   }
 
@@ -275,9 +302,9 @@ class NokturnoCard extends HTMLElement {
       a u titulu, na který stream je, by to jen zdržovalo otevření detailu. */
   async _findTorrents() {
     await this._guard(async () => {
-      const res = await this._call("torrents", {
-        ...this._state.streamTarget, offset: this._state.streams.length });
-      this._state.streams = this._state.streams.concat(res.streams || []);
+      const res = await this._call("torrents", { ...this._state.streamTarget });
+      // torrenty patří nad streamy — kvůli nim se hledalo, tak ať jsou hned vidět
+      this._state.streams = (res.streams || []).concat(this._state.streams);
       this._state.torrents = true;
       if (!(res.streams || []).length) this._toast("Na trackerech nic nenašel");
     });
@@ -291,8 +318,9 @@ class NokturnoCard extends HTMLElement {
   }
 
   async _toPhone(stream) {
-    const target = this._state.phone || this._phones()[0];
-    if (!target) { this._toast("Nenašel jsem žádný mobil s aplikací Home Assistant."); return; }
+    const target = await this._choose("phone");
+    if (!target) { if (!this._phones().length) this._toast("Nenašel jsem žádný mobil s aplikací Home Assistant."); return; }
+    this._state.phone = target;
     await this._guard(async () => {
       await this._call("send_link", {
         ...this._target(stream),
@@ -530,6 +558,20 @@ class NokturnoCard extends HTMLElement {
         .where { position:absolute; left:6px; bottom:6px; font-size:.68rem; font-weight:600; padding:2px 6px;
                  border-radius:6px; background:rgba(0,0,0,.65); color:#fff; }
         .icons ha-icon-button { --mdc-icon-button-size:40px; --mdc-icon-size:20px; }
+        /* malý výběr cíle — otevře se až po klepnutí na ikonu, aby karta
+           nemusela trvale nést dva rozbalovací seznamy */
+        .chooser { position:fixed; inset:0; z-index:9; display:flex; align-items:center;
+                   justify-content:center; background:rgba(0,0,0,.45); }
+        .chooser .panel { background: var(--card-background-color); border-radius:14px;
+                          padding:8px; min-width:230px; max-width:min(90vw,340px);
+                          box-shadow:0 8px 32px rgba(0,0,0,.45); }
+        .chooser .ptitle { font-size:.8rem; font-weight:600; color: var(--secondary-text-color);
+                           padding:6px 10px 8px; }
+        .chooser button { display:flex; align-items:center; gap:8px; width:100%; border:none;
+                          background:none; color: var(--primary-text-color); font:inherit;
+                          text-align:left; padding:10px; border-radius:8px; cursor:pointer; }
+        .chooser button:hover { background: var(--secondary-background-color); }
+        .chooser button ha-icon { --mdc-icon-size:18px; color: var(--secondary-text-color); }
         .legend { margin-top:8px; font-size:.75rem; color: var(--secondary-text-color); display:flex;
                   align-items:center; gap:4px; }
         .legend ha-icon { --mdc-icon-size:14px; }
@@ -566,6 +608,7 @@ class NokturnoCard extends HTMLElement {
         </div>
         <div id="body"></div>
         <div id="downloads" class="dl" hidden></div>
+        <div id="chooser" hidden></div>
       </ha-card>`;
     this._root = this.shadowRoot;
     this._input = this._root.querySelector("#q");
@@ -609,7 +652,16 @@ class NokturnoCard extends HTMLElement {
     else html = this._home();
     if (st.error) html += `<div class="err">${this._esc(st.error)}</div>`;
     body.innerHTML = html;
-    body.querySelectorAll("[data-pick]").forEach((el) => {
+    this._wirePicks(body);
+    this._applyTooltips(body);
+    this._retryImages(body);
+    this._renderDownloads();
+  }
+
+  /** ha-select se plní z JS, ne z HTML — a je potřeba to udělat všude, kde vznikne. */
+  _wirePicks(root) {
+    const st = this._state;
+    root.querySelectorAll("[data-pick]").forEach((el) => {
       // ha-select hodnotu sám nemění — pošle jen `selected` s novou hodnotou a čeká, až ji nastavíme
       const apply = (event) => {
         const id = el.dataset.pick;
@@ -617,8 +669,8 @@ class NokturnoCard extends HTMLElement {
         if (value == null || value === "") return;
         if (el.value !== value) el.value = value;
         if (id === "season") { st.season = +value; this._paint(); }
-        else if (id === "player") { st.player = value; }
-        else if (id === "phone") { st.phone = value; }
+        else if (id === "player" || id === "fplayer") { st.player = value; }
+        else if (id === "phone" || id === "fphone") { st.phone = value; }
       };
       // nativní select hlásí „change“, ha-select „selected“ (mwc) i „closed“
       el.addEventListener("change", apply);
@@ -634,9 +686,6 @@ class NokturnoCard extends HTMLElement {
         el.addEventListener("selected", apply);
       }
     });
-    this._applyTooltips(body);
-    this._retryImages(body);
-    this._renderDownloads();
   }
 
   /** Úvodní obrazovka: poslední dotazy, rozkoukané z Kodi, sledované seriály. */
@@ -862,10 +911,6 @@ class NokturnoCard extends HTMLElement {
             <ha-icon icon="${this._isWanted(st.item.id) ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
           </ha-icon-button>` : ""}
         </div>
-        <span class="picks">
-          ${players.length > 1 ? this._pick("player", "Přehrávač", players.map((p) => ({ value: p, label: this._friendly(p) })), st.player) : ""}
-          ${phones.length > 1 ? this._pick("phone", "Mobil", phones.map((p) => ({ value: p, label: this._phoneName(p) })), st.phone) : ""}
-        </span>
       </div>`;
     // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání.
     // Hledání trvá pár sekund, takže se točí kolečko i v tlačítku, nejen přes fotku.
@@ -931,9 +976,12 @@ class NokturnoCard extends HTMLElement {
     const jobs = (sensor && sensor.attributes.downloads) || [];
     const files = (sensor && sensor.attributes.files) || [];
     const active = jobs.filter((j) => j.status === "running" || j.status === "queued");
-    this._files = files;
+    // Stažené patří na úvod; v detailu titulu by jen odváděly pozornost od streamů.
+    const home = !["results", "episodes", "streams"].includes(this._state.view);
+    const shown = home ? files : [];
+    this._files = shown;
     this._active = active;
-    if (!active.length && !files.length) { box.hidden = true; box.innerHTML = ""; return; }
+    if (!active.length && !shown.length) { box.hidden = true; box.innerHTML = ""; return; }
     box.hidden = false;
     box.innerHTML = (active.length ? `<div class="section"><ha-icon icon="mdi:progress-download"></ha-icon> Stahování</div>` : "")
       + active.map((j, i) => `
@@ -950,10 +998,10 @@ class NokturnoCard extends HTMLElement {
           <ha-icon-button data-dlcancel="${i}" title="Zrušit stahování">
             <ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
         </div>
-      </div>`).join("") + (files.length ? `
+      </div>`).join("") + (shown.length ? `
       <div class="section"><ha-icon icon="mdi:folder-download-outline"></ha-icon> Stažené
         ${sensor && sensor.attributes.free_gb != null ? `<span class="muted" style="font-weight:400">· volných ${sensor.attributes.free_gb} GB</span>` : ""}</div>
-      ${files.map((f, i) => `
+      ${shown.map((f, i) => `
         <div class="file" title="${this._esc(f.path)}">
           <span class="label">${this._esc(f.name)}${f.subtitles ? ` <span class="muted">· ${f.subtitles}× titulky</span>` : ""}</span>
           <span class="muted">${this._size(f.size)}</span>
@@ -963,6 +1011,8 @@ class NokturnoCard extends HTMLElement {
             <ha-icon-button data-filedel="${i}" title="Smazat i s titulky"><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
           </span>
         </div>`).join("")}` : "");
+    // ha-select vzniká i tady, takže se musí naplnit stejně jako v těle karty
+    this._wirePicks(box);
     this._applyTooltips(box);
     this._bindFiles(box);
   }
@@ -996,8 +1046,9 @@ class NokturnoCard extends HTMLElement {
   }
 
   async _playFile(file) {
-    const entityId = this._state.player || this._players()[0];
-    if (!entityId) { this._toast("Není nastavený žádný přehrávač."); return; }
+    const entityId = await this._choose("player");
+    if (!entityId) { if (!this._players().length) this._toast("Není nastavený žádný přehrávač."); return; }
+    this._state.player = entityId;
     await this._guard(async () => {
       await this._hass.callService("media_player", "play_media", {
         entity_id: entityId,
@@ -1018,7 +1069,9 @@ class NokturnoCard extends HTMLElement {
 
   /** Odkaz na stažený soubor přes veřejnou adresu HA (venku Nabu Casa) rovnou do mobilu. */
   async _shareFile(file) {
-    const target = this._state.phone || this._phones()[0];
+    const target = await this._choose("phone");
+    if (!target && this._phones().length) return;   // výběr zavřený bez volby
+    this._state.phone = target || this._state.phone;
     await this._guard(async () => {
       const res = await this._call("share_file", { path: file.path, notify_service: target || undefined });
       this._toast(res.url ? `Odkaz odeslán: ${this._phoneName(target)}` : "Odkaz se nepodařilo vytvořit");

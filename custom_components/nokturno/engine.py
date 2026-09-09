@@ -802,6 +802,59 @@ class Engine:
         rows = self._torrent_streams(meta, video, ctype)
         return [self._describe_torrent(row, offset + i) for i, row in enumerate(rows)]
 
+    # stavy qBittorrentu → co z toho má karta ukázat
+    QBIT_STATES = {
+        "downloading": "running", "forcedDL": "running", "metaDL": "running",
+        "forcedMetaDL": "running", "allocating": "running", "checkingDL": "running",
+        "stalledDL": "queued", "queuedDL": "queued", "stoppedDL": "queued", "pausedDL": "queued",
+        "error": "error", "missingFiles": "error",
+    }
+
+    def torrent_jobs(self):
+        """Rozdělané torrenty jako položky fronty stahování.
+
+        Tvar je stejný jako u vlastního stahování, aby je karta uměla vykreslit
+        beze změny. Hotové torrenty se nevracejí — ty už leží ve složce a karta
+        je ukáže mezi staženými soubory."""
+        api = self.qbit
+        if api is None:
+            return []
+        try:
+            rows = api.torrents()
+        except QbitError as err:  # noqa: BLE001 – klient nemusí běžet, to není chyba integrace
+            _LOGGER.debug("qBittorrent: %s", err)
+            return []
+        out = []
+        for t in rows:
+            state = self.QBIT_STATES.get(t.get("state") or "")
+            if state is None:      # uploading, stalledUP, checkingUP… = staženo
+                continue
+            size = t.get("size_gb") or 0
+            out.append({
+                "id": "qb:" + str(t.get("hash") or ""),
+                "name": t.get("name") or "",
+                "status": state,
+                "percent": t.get("progress") or 0,
+                "size": int(size * 1073741824),
+                "done": int(size * 1073741824 * (t.get("progress") or 0) / 100),
+                "speed": t.get("speed") or 0,
+                "eta": t.get("eta") if (t.get("eta") or 0) < 8640000 else None,
+                "path": t.get("path") or "",
+                "error": "",
+                "torrent": True,
+            })
+        return out
+
+    def cancel_torrent(self, torrent_hash):
+        api = self.qbit
+        if api is None:
+            raise NokturnoError("qBittorrent není nastavený.")
+        try:
+            api.delete(torrent_hash, with_files=True)
+        except QbitError as err:
+            raise NokturnoError(str(err)) from err
+        return True
+
     def download_torrent(self, url, name=""):
         """Předá torrent qBittorrentu. Stažený soubor skončí ve složce stahování."""
         api = self.qbit

@@ -18,6 +18,10 @@ CAT_SERIES = 5000
 # „Na.samote.u.lesa.1976.1080p.BluRay.x264-SKUPINA“ → rok, kvalita, velikost
 YEAR_RE = re.compile(r"(?:^|[.\s(\[_-])(19\d{2}|20\d{2})(?:[.\s)\]_-]|$)")
 QUALITY_RE = re.compile(r"\b(2160p|1080p|720p|480p|4K|UHD)\b", re.I)
+# Trackery hledají fulltextem přes celý název souboru, takže interpunkce z názvu
+# titulu („Okresní přebor – Poslední zápas…“) dotaz spolehlivě zabije.
+PUNCT_RE = re.compile(r"[\u2010-\u2015\-:;,.!?()\[\]{}\"'/\\|]+")
+WORDS_SHORT = 3
 
 
 class ProwlarrError(Exception):
@@ -60,16 +64,40 @@ class ProwlarrApi:
         return [{"id": i.get("id"), "name": i.get("name"), "enable": bool(i.get("enable"))}
                 for i in (self._get("/api/v1/indexer") or [])]
 
-    def search(self, query, ctype="movie", limit=30):
-        """Výsledky trackerů seřazené podle seedů (nejlíp dostupné první)."""
-        if not (query or "").strip():
-            return []
-        found = self._get("/api/v1/search", {
-            "query": query.strip(),
+    @staticmethod
+    def clean(query):
+        """Dotaz bez interpunkce — pomlčka v názvu titulu jinak nenajde nic."""
+        return " ".join(PUNCT_RE.sub(" ", query or "").split())
+
+    @staticmethod
+    def shorten(query):
+        """Kratší dotaz pro druhý pokus: pár prvních slov a rok, pokud v dotazu je.
+
+        Dlouhé podtituly („… Poslední zápas Pepika Hnátka“) se v názvech souborů
+        na trackerech často zkracují nebo píšou jinak."""
+        words = query.split()
+        year = words[-1] if words and words[-1].isdigit() and len(words[-1]) == 4 else ""
+        head = [w for w in words if w != year][:WORDS_SHORT]
+        return " ".join(head + ([year] if year else []))
+
+    def _raw(self, query, ctype, limit):
+        return self._get("/api/v1/search", {
+            "query": query,
             "categories": CAT_SERIES if ctype == "series" else CAT_MOVIE,
             "type": "search",
             "limit": max(1, min(int(limit), 100)),
         }) or []
+
+    def search(self, query, ctype="movie", limit=30):
+        """Výsledky trackerů seřazené podle seedů (nejlíp dostupné první)."""
+        query = self.clean(query)
+        if not query:
+            return []
+        found = self._raw(query, ctype, limit)
+        if not found:
+            short = self.shorten(query)
+            if short and short != query:
+                found = self._raw(short, ctype, limit)
         out = [self._item(row) for row in found if isinstance(row, dict)]
         out = [row for row in out if row["url"]]
         out.sort(key=lambda r: (r["seeders"], r["size_gb"] or 0), reverse=True)

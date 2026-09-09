@@ -138,7 +138,7 @@ Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, 
 
 <img src="docs/03-streamy.png" width="420" alt="Streamy">
 
-Každý řádek: **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová) s 🌐 u odkazů, které hrají i mimo domácí síť, a popis `kvalita · název souboru · zvuk · titulky · velikost`. Kvalita s vlnovkou (`~4K`) je odhad z velikosti souboru — zdroj ji v názvu neuvedl. Vpravo čtyři akce:
+Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová) s 🌐 u odkazů, které hrají i mimo domácí síť, **nad** popisem `kvalita · název souboru · zvuk · titulky · velikost`. Po najetí myší se v bublině ukáže celý název souboru, titulky, bitrate a jestli hraje venku. Kvalita s vlnovkou (`~4K`) je odhad z velikosti souboru — zdroj ji v názvu neuvedl. Vpravo čtyři akce:
 
 | Ikona | Co udělá |
 |---|---|

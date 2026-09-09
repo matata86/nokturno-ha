@@ -358,9 +358,8 @@ class Engine:
         source = SOURCE_NAMES.get(stream.get("source"), "")
         size = stream.get("size_gb") or 0
         # pevné pořadí: zdroj · kvalita · název souboru · zvuk · titulky · velikost
-        name = clean_label(stream.get("label") if stream.get("_direct") else stream.get("_ws_name", ""))
-        if len(name) > 52:
-            name = name[:51] + "…"
+        full = clean_label(stream.get("label") if stream.get("_direct") else stream.get("_ws_name", ""))
+        name = full[:51] + "…" if len(full) > 52 else full
         parts = [p for p in (
             source,
             quality,
@@ -377,6 +376,7 @@ class Engine:
             "ws_url": stream.get("_ws_url", ""),
             "label": "  ·  ".join(parts) or clean_label(stream.get("label") or ""),
             "raw_label": clean_label(stream.get("label") or ""),
+            "file": full,  # nezkrácený název souboru — karta ho dává do tooltipu
             "source": source,
             "quality": quality,
             "quality_rank": stream.get("quality_rank") or 0,

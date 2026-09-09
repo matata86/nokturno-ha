@@ -762,6 +762,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.async_add_executor_job(engine.clear_history)
         async_dispatcher_send(hass, SIGNAL_WATCHLIST)
 
+    async def poll_torrents(_now=None):
+        """Průběh torrentů z qBittorrentu do fronty stahování.
+
+        Klient o sobě sám nedá vědět, takže se na něj ptáme — ale jen když je
+        co sledovat, jinak by to zbytečně tikalo každých pár sekund navěky."""
+        rows = await hass.async_add_executor_job(engine.torrent_jobs)
+        if rows == downloader.torrents:
+            return
+        downloader.torrents = rows
+        async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
+        # dokončený torrent zmizí z fronty a objeví se jako soubor ve složce
+        await downloader.async_refresh_files()
+
+    entry.async_on_unload(async_track_time_interval(hass, poll_torrents, timedelta(seconds=5)))
     entry.async_on_unload(async_track_time_interval(hass, check_series, timedelta(hours=WATCH_INTERVAL_HOURS)))
     entry.async_on_unload(async_track_time_interval(hass, check_trakt, timedelta(hours=TRAKT_INTERVAL_HOURS)))
 
@@ -947,7 +961,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"url": url, "notify_service": entity_id}
 
     async def handle_cancel(call: ServiceCall):
-        downloader.remove(call.data["download_id"])
+        job_id = call.data["download_id"]
+        # torrent nedrží fronta integrace, ale qBittorrent — zrušit ho znamená
+        # odebrat ho z klienta i s rozdělanými daty
+        if str(job_id).startswith("qb:"):
+            await hass.async_add_executor_job(engine.cancel_torrent, str(job_id)[3:])
+            downloader.torrents = [t for t in downloader.torrents if t["id"] != job_id]
+            async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
+            return
+        downloader.remove(job_id)
 
     async def handle_share_file(call: ServiceCall):
         """Odkaz na stažený soubor přes veřejnou adresu HA (Nabu Casa), volitelně rovnou do mobilu."""

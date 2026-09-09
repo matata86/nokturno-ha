@@ -87,18 +87,21 @@ class NokturnoDownloadsSensor(SensorEntity):
 
     @property
     def native_value(self) -> int:
-        return sum(1 for job in self._downloader.jobs.values() if job["status"] in ("queued", "running"))
+        own = sum(1 for job in self._downloader.jobs.values() if job["status"] in ("queued", "running"))
+        return own + len(self._downloader.torrents)
 
     @property
     def extra_state_attributes(self) -> dict:
         jobs = sorted(self._downloader.jobs.values(), key=lambda j: j.get("started") or 0, reverse=True)
         running = next((j for j in jobs if j["status"] == "running"), None)
+        # torrenty jdou před vlastní frontu — jsou to ty, které zrovna běží
+        rows = self._downloader.torrents + [
+            {k: job.get(k) for k in ("id", "name", "status", "percent", "done", "size",
+                                     "path", "error", "speed", "eta")}
+            for job in jobs[:20]
+        ]
         return {
-            "downloads": [
-                {k: job.get(k) for k in ("id", "name", "status", "percent", "done", "size",
-                                         "path", "error", "speed", "eta")}
-                for job in jobs[:20]
-            ],
+            "downloads": rows,
             "current": running["name"] if running else "",
             "percent": running["percent"] if running else 0,
             "speed": running.get("speed") if running else 0,

@@ -101,6 +101,13 @@ class QbitApi:
         } for t in rows if isinstance(t, dict)]
 
 
+    def delete(self, torrent_hash, with_files=True):
+        """Odebere torrent z klienta. `with_files` smaže i rozdělaná data."""
+        self._call("/api/v2/torrents/delete",
+                   {"hashes": torrent_hash, "deleteFiles": "true" if with_files else "false"})
+        return True
+
+
 if __name__ == "__main__":
     import sys
     api = QbitApi(sys.argv[1], *(sys.argv[2:4]))

@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import shutil
+import unicodedata
 import time
 import uuid
 
@@ -52,6 +53,11 @@ def safe_name(name, url=""):
     return base
 
 
+def _key(path):
+    """Název souboru srovnaný na jednu podobu — pro porovnání napříč zdroji."""
+    return unicodedata.normalize("NFC", os.path.basename(path or "")).casefold()
+
+
 class Downloader:
     """Fronta stahování — jedno běží, ostatní čekají."""
 
@@ -62,6 +68,9 @@ class Downloader:
         self.resolver = None        # callback(source_url) → čerstvá adresa (odkazy WebShare expirují)
         self.jobs: dict[str, dict] = {}
         self.files: list[dict] = []
+        # rozdělané torrenty z qBittorrentu — vlastní fronta to není, ale karta
+        # obojí ukazuje na jednom místě
+        self.torrents: list[dict] = []
         self.free_gb: float = 0.0
         self.on_done = None  # callback(job) po dokončení – notifikace
         self._queue: asyncio.Queue = asyncio.Queue()
@@ -78,6 +87,8 @@ class Downloader:
         """Co ve složce opravdu leží — přežije to restart HA, na rozdíl od fronty.
 
         Titulky se do seznamu nedávají zvlášť, patří k videu (počítají se u něj).
+        Rozdělané torrenty se vynechají: qBittorrent zapisuje rovnou pod finálním
+        názvem, takže by se soubor tvářil jako hotový, dokud se stahuje.
         """
         try:
             entries = [e for e in os.scandir(self.directory) if e.is_file() and not e.name.endswith(".part")]
@@ -91,9 +102,12 @@ class Downloader:
                 subs[stem] = subs.get(stem, 0) + 1
             else:
                 videos.append(entry)
+        # qBittorrent hlásí názvy tak, jak jsou v torrentu; souborový systém je
+        # může vrátit v jiné normalizaci Unicode, takže se porovnávají srovnané
+        pending = {_key(t["path"]) for t in self.torrents if t.get("path")}
         out = [{"name": e.name, "path": e.path, "size": e.stat().st_size, "modified": e.stat().st_mtime,
                 "subtitles": subs.get(os.path.splitext(e.name)[0], 0)}
-               for e in videos]
+               for e in videos if _key(e.path) not in pending]
         out.sort(key=lambda f: f["modified"], reverse=True)
         return out
 

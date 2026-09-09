@@ -18,7 +18,7 @@ from .lib.sosac_api import SosacError, names_match
 from .lib.sosac_api import is_sosac_id as _is_legacy_sosac_id
 from .lib.sosac_direct import SosacDirect, is_direct_id
 from .lib.store import Store
-from .lib.streams import arrange, parse_stream
+from .lib.streams import arrange, estimate_rank, parse_stream
 from .lib.webshare_api import WebshareApi, WebshareError, human_size
 
 WS_LIMIT = 25    # kolik souborů brát z fulltextu WebShare
@@ -317,6 +317,8 @@ class Engine:
         channels = stream.get("channels") or {}
         langs = [f"{code} {channels[code]:g}" if code in channels else code for code in stream.get("langs") or []]
         quality = QUALITY_NAMES.get(stream.get("quality_rank") or 0, "")
+        if quality and stream.get("_estimated"):
+            quality = "~" + quality  # odhad z velikosti, ne údaj ze zdroje
         source = SOURCE_NAMES.get(stream.get("source"), "")
         size = stream.get("size_gb") or 0
         # pevné pořadí: zdroj · kvalita · název souboru · zvuk · titulky · velikost
@@ -521,6 +523,13 @@ class Engine:
         found += self._webshare_streams(meta, video, ctype, alt)
         for stream in found:
             parse_stream(stream)
+            # bez kvality v názvu („Matrix (1999).mkv") by soubor spadl na konec seznamu,
+            # i když je podle velikosti zjevně 4K — odhadneme ji, ale přiznaně (~)
+            if not stream.get("quality_rank"):
+                guess = estimate_rank(stream.get("size_gb"))
+                if guess:
+                    stream["quality_rank"] = guess
+                    stream["_estimated"] = True
         found = self._merge_direct(found)
         # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
         subs = self._webshare_subtitles(meta, video, ctype, alt)

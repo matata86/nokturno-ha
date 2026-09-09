@@ -47,9 +47,13 @@ SERVICE_CLEAR_HISTORY = "clear_history"
 SERVICE_SEEN = "mark_seen"
 SERVICE_TRAKT_AUTH = "trakt_auth"
 SERVICE_TRAKT_WATCHED = "trakt_watched"
+SERVICE_TRAKT_LIST = "trakt_watchlist"
 
 SIGNAL_DOWNLOADS = f"{DOMAIN}_downloads_updated"
 SIGNAL_WATCHLIST = f"{DOMAIN}_watchlist_updated"
 EVENT_DOWNLOAD_DONE = f"{DOMAIN}_download_done"
 EVENT_NEW_EPISODE = f"{DOMAIN}_new_episode"
 WATCH_INTERVAL_HOURS = 6
+TRAKT_INTERVAL_HOURS = 24
+SIGNAL_TRAKT = f"{DOMAIN}_trakt_updated"
+EVENT_TRAKT_AVAILABLE = f"{DOMAIN}_trakt_available"

@@ -11,7 +11,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
-from .const import DOMAIN, SIGNAL_DOWNLOADS, SIGNAL_WATCHLIST
+from .const import DOMAIN, SIGNAL_DOWNLOADS, SIGNAL_TRAKT, SIGNAL_WATCHLIST
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
@@ -19,6 +19,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entitie
     add_entities([
         NokturnoDownloadsSensor(entry, data["downloader"], data.get("owners") or {}, data["engine"]),
         NokturnoEpisodesSensor(entry, data["engine"]),
+        NokturnoTraktSensor(entry, data["engine"]),
     ])
 
 
@@ -148,3 +149,38 @@ class NokturnoEpisodesSensor(SensorEntity):
                 for item in items
             ],
         }
+
+
+class NokturnoTraktSensor(SensorEntity):
+    """Seznam „k zhlédnutí" z Traktu — kolik titulů už má stream."""
+
+    _attr_has_entity_name = True
+    _attr_name = "K zhlédnutí"
+    _attr_icon = "mdi:bookmark-check-outline"
+    _attr_should_poll = False
+    _attr_native_unit_of_measurement = "titulů"
+
+    def __init__(self, entry: ConfigEntry, engine):
+        self._engine = engine
+        self._attr_unique_id = f"{entry.entry_id}_trakt"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_TRAKT, self._updated))
+
+    @callback
+    def _updated(self) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def _items(self) -> list[dict]:
+        data = self._engine.store.load("trakt_list", {})
+        return sorted(data.values(), key=lambda i: (not i.get("streams"), i.get("title") or ""))
+
+    @property
+    def native_value(self) -> int:
+        return sum(1 for item in self._items if item.get("streams"))
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"total": len(self._items), "items": self._items[:60]}

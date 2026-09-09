@@ -412,3 +412,7 @@ trakt_watched:
       default: false
       selector:
         boolean:
+
+trakt_watchlist:
+  name: Trakt — seznam k zhlédnutí
+  description: Načte seznam k zhlédnutí z Trakt.tv a zjistí, které tituly už mají stream (jinak běží jednou denně).

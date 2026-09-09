@@ -301,6 +301,27 @@ cancel_download:
       selector:
         text:
 
+detail:
+  name: Detail titulu z databáze filmů
+  description: >-
+    Popis, plakát, hodnocení a žánry titulu podle IMDb id (Cinemeta). Slouží
+    titulům, které zatím žádný zdroj nemá.
+  fields:
+    id:
+      name: IMDb id
+      description: Například tt41126967 (z hledání s typem „catalog").
+      required: true
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - series
+
 episodes:
   name: Epizody seriálu
   description: Vrátí seznam epizod (a sezón) seriálu z hledání.

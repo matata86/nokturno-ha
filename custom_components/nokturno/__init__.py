@@ -70,7 +70,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .downloader import Downloader
-from .engine import Engine, NokturnoError, split_episode_id
+from .engine import Engine, NokturnoError, _fold, split_episode_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ CARD_URL = "/nokturno/nokturno-card.js"
 
 SEARCH_SCHEMA = vol.Schema({
     vol.Required("query"): cv.string,
-    vol.Optional("type", default="movie"): vol.In(["movie", "series", "webshare"]),
+    vol.Optional("type", default="movie"): vol.In(["movie", "series", "webshare", "catalog", "catalog_series"]),
     vol.Optional("limit", default=20): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
 })
 
@@ -138,7 +138,8 @@ SHARE_SCHEMA = vol.Schema({
 })
 
 WANT_SCHEMA = vol.Schema({
-    vol.Required("id"): cv.string,
+    vol.Optional("id"): cv.string,
+    vol.Optional("query"): cv.string,
     vol.Optional("type", default="movie"): vol.In(["movie", "series"]),
     vol.Optional("title"): vol.Any(cv.string, None),
     vol.Optional("year"): vol.Any(vol.Coerce(int), None),
@@ -476,14 +477,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return engine.store.load("wantlist", {})
 
     async def handle_want(call: ServiceCall):
+        """Titul do seznamu k zhlédnutí. Bez `id` stačí `query` — název se hlídá,
+        dokud se titul v některém zdroji neobjeví (film, který ještě nikde není)."""
         data = wantlist()
-        wid = call.data["id"]
+        query = (call.data.get("query") or "").strip()
+        wid = call.data.get("id") or (f"q:{query.lower()}" if query else "")
+        if not wid:
+            raise HomeAssistantError("Chybí `id` nebo `query`.")
         if call.data.get("remove"):
             data.pop(wid, None)
         else:
             item = data.get(wid) or {"id": wid, "added": dt_util.now().isoformat()}
             item.update({k: call.data[k] for k in ("type", "title", "year", "alt", "poster") if call.data.get(k)})
             item.setdefault("type", "movie")
+            if query:
+                item["query"] = query
+                item.setdefault("title", query)
             data[wid] = item
         await hass.async_add_executor_job(engine.store.save, "wantlist", data)
         async_dispatcher_send(hass, SIGNAL_TRAKT)
@@ -514,9 +523,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 continue
             seen_ids.add(item["id"])
             before = known.get(item["id"]) or {}
+            target, alt = item["id"], item.get("alt")
+            if str(target).startswith("q:"):
+                # ruční položka — zkusit, jestli už titul některý zdroj zná
+                try:
+                    found = await hass.async_add_executor_job(
+                        engine.search, item.get("type", "movie"), item.get("query") or item.get("title") or "", 5)
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug("hledání %s: %s", item.get("query"), err)
+                    found = []
+                # hledání vrací i nepodobné tituly („Duna 3" → „Vánoční prázdniny"),
+                # takže bereme jen shodu, kde jsou všechna slova dotazu v názvu
+                wanted = [w for w in re.split(r"[^\w]+", _fold(item.get("query") or "")) if len(w) > 2]
+                hit = next((f for f in found
+                            if not wanted or all(w in _fold(f.get("title") or "") for w in wanted)), None)
+                if hit is None:
+                    fresh[item["id"]] = {**item, "streams": 0, "best": "", "pending": True,
+                                         "checked": dt_util.now().isoformat()}
+                    continue
+                target, alt = hit["id"], hit.get("alt")
+                item = {**item, "title": hit.get("title") or item.get("title"), "year": hit.get("year") or item.get("year"),
+                        "poster": hit.get("poster") or item.get("poster"), "found_id": hit["id"], "alt": alt}
             try:
                 streams = await hass.async_add_executor_job(
-                    engine.streams, item["type"], item["id"], None, None)
+                    engine.streams, item["type"], target, alt, None)
             except Exception as err:  # noqa: BLE001
                 _LOGGER.debug("trakt streamy %s: %s", item["id"], err)
                 streams = []
@@ -751,6 +781,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         limit = call.data.get("limit", 20)
         if kind == "webshare":
             results = await _in_executor(engine.search_webshare, call.data["query"], limit)
+        elif kind.startswith("catalog"):
+            # databáze filmů — najde i tituly, které zatím žádný zdroj nemá
+            results = await _in_executor(engine.search_catalog,
+                                         "series" if kind == "catalog_series" else "movie", call.data["query"], limit)
         else:
             results = await _in_executor(engine.search, kind, call.data["query"], limit)
         if results:

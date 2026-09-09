@@ -6,10 +6,12 @@ ale bez Kodi: volání jsou synchronní a HA je pouští v executoru.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import unicodedata
 import urllib.parse
+import urllib.request
 
 from .const import LANGS, SORT_ORDERS
 from .lib.enrich import DEAD_IMAGES, _cinemeta, enrich, enrich_one
@@ -216,6 +218,40 @@ class Engine:
 
     def clear_history(self):
         self.store.save("history", [])
+
+    def search_catalog(self, ctype="movie", query="", limit=10):
+        """Hledání v databázi filmů (Cinemeta = IMDb/TMDB) — najde i tituly, které zatím
+        žádný ze zdrojů nemá, třeba chystané filmy. Slouží pro seznam „k zhlédnutí"."""
+        query = (query or "").strip()
+        if not query:
+            raise NokturnoError("Prázdný dotaz.")
+        url = (f"https://v3-cinemeta.strem.io/catalog/{'series' if ctype == 'series' else 'movie'}"
+               f"/top/search={urllib.parse.quote(query)}.json")
+
+        def load():
+            req = urllib.request.Request(url, headers={"User-Agent": "Home Assistant Nokturno"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+
+        try:
+            data = self.store.cached(url, 3600, load)
+        except Exception as err:  # noqa: BLE001
+            raise NokturnoError(f"Databáze filmů neodpověděla: {err}") from err
+        out = []
+        for meta in (data.get("metas") or [])[: int(limit or 10)]:
+            year = str(meta.get("releaseInfo") or meta.get("year") or "")[:4]
+            out.append({
+                "id": meta.get("id"),
+                "type": ctype,
+                "title": meta.get("name") or "",
+                "year": int(year) if year.isdigit() else None,
+                "poster": meta.get("poster") or "",
+                "background": meta.get("background") or "",
+                "description": (meta.get("description") or "")[:600],
+                "source": "katalog",
+                "alt": None,
+            })
+        return out
 
     def search_webshare(self, query, limit=20):
         """Soubory přímo z WebShare (fulltext), bez metadat titulu."""

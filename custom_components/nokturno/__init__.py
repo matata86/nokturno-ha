@@ -369,30 +369,35 @@ async def async_register_card(hass: HomeAssistant) -> None:
         _LOGGER.debug("statická cesta %s: %s", CARD_URL, err)
     # verze v dotazu shodí cache prohlížeče, jakmile se integrace aktualizuje
     url = f"{CARD_URL}?v={version}"
-    add_extra_js_url(hass, url)
-    # extra_module_url žije v index.html, který si mobilní aplikace drží v cache;
-    # Lovelace resources čte frontend živě — proto kartu zapíšeme i tam (stejná URL = modul se načte jednou)
+    # Karta patří do Lovelace resources, ne do extra_module_url: to se vyhodnotí ještě
+    # před tím, než si frontend nasadí vlastní registr prvků (scoped custom elements),
+    # a taková karta pak pro HA „neexistuje“ (hui-error-card: Custom element doesn't exist).
     try:
-        await async_register_resource(hass, url)
+        registered = await async_register_resource(hass, url)
     except Exception as err:  # noqa: BLE001 – YAML mód Lovelace nebo starší HA
         _LOGGER.debug("Lovelace resource: %s", err)
+        registered = False
+    if not registered:  # YAML mód Lovelace – jiná cesta ke kartě není
+        add_extra_js_url(hass, url)
 
 
-async def async_register_resource(hass: HomeAssistant, url: str) -> None:
+async def async_register_resource(hass: HomeAssistant, url: str) -> bool:
+    """Zapíše kartu mezi Lovelace resources; False = nejde to (YAML mód)."""
     lovelace = hass.data.get("lovelace")
     resources = getattr(lovelace, "resources", None)
     if resources is None and isinstance(lovelace, dict):
         resources = lovelace.get("resources")
     if resources is None:
-        return
+        return False
     if not getattr(resources, "loaded", True):
         await resources.async_load()
     for item in resources.async_items():
         if str(item.get("url", "")).split("?")[0] == CARD_URL:
             if item["url"] != url:
                 await resources.async_update_item(item["id"], {"url": url})
-            return
+            return True
     await resources.async_create_item({"res_type": "module", "url": url})
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

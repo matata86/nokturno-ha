@@ -34,6 +34,8 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB.
 - **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Pozor: Trakt od července 2026 vydává API klíče jen pro VIP účty, takže bez VIP tuhle část nezapneš — vlastní seznam funguje i tak.
+- **Rok v dotazu je filtr** — „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere.
+- **Databáze filmů po ruce vždycky** — tlačítko *Hledat v databázi filmů* je u každých výsledků, ne jen když zdroje nic nenajdou; hledá v IMDb/TMDB přes Cinemetu a titul odtud uložíš do seznamu k zhlédnutí.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
 
 ## Instalace
@@ -115,7 +117,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 
 <img src="docs/01-uvod.png" width="420" alt="Úvodní obrazovka">
 
-- **Pole pro hledání** a tlačítko **Hledat**; pod nimi přepínač **Filmy / Seriály**.
+- **Pole pro hledání** a tlačítko **Hledat** (během dotazu se v něm točí kolečko); pod nimi přepínač **Filmy / Seriály**. Rok napsaný do dotazu se použije jako filtr — „Duna 2021" vrátí jen film z roku 2021.
 - **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
 - **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
 - **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
@@ -126,7 +128,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 
 <img src="docs/02-vysledky.png" width="420" alt="Výsledky hledání">
 
-Mřížka plakátů s názvem a rokem. Když zdroje nic nemají, nabídne se **Hledat v databázi filmů** — z těch výsledků klepnutím titul rovnou uložíš do seznamu k zhlédnutí. Titul, který má jen Sosáč, dostane plakát z TMDB. Po klepnutí se přes plakát položí kolečko, dokud se streamy nenačtou. **Úvod** vlevo nahoře se vrátí zpět.
+Mřížka plakátů s názvem a rokem. Vedle tlačítka **Úvod** je vždy **Hledat v databázi filmů** (IMDb/TMDB) — hodí se, když zdroje vrátí něco jiného, než jsi hledal, nebo film teprve vyjde; z těch výsledků klepnutím titul rovnou uložíš do seznamu k zhlédnutí a **Zpět k výsledkům ze zdrojů** tě vrátí. Když hledáš s rokem a zdroje nic z toho roku nemají, výsledek je prázdný — právě proto, aby ti nepodstrčily jiný film. Titul, který má jen Sosáč, dostane plakát z TMDB. Po klepnutí se přes plakát položí kolečko, dokud se streamy nenačtou. **Úvod** vlevo nahoře se vrátí zpět.
 
 ### Seriál a epizody
 
@@ -162,7 +164,7 @@ Nad seznamem jsou výběry **Přehrávač** a **Mobil** — platí pro všechny 
 Služby označené **↩** vracejí data — volej je s `response_variable`.
 
 ### `nokturno.search` ↩
-Hledání. `query` (povinné), `type` = `movie` (výchozí) / `series` / `webshare` (soubory přímo z WebShare) / `catalog` / `catalog_series` (databáze filmů — najde i tituly, které zatím nikde nejsou), `limit` (1–60, výchozí 20).
+Hledání. `query` (povinné), `type` = `movie` (výchozí) / `series` / `webshare` (soubory přímo z WebShare) / `catalog` / `catalog_series` (databáze filmů — najde i tituly, které zatím nikde nejsou), `limit` (1–60, výchozí 20). Rok v `query` se použije jako filtr roku vydání (u `webshare` zůstává součástí fulltextu).
 Vrací `results`: `id`, `type`, `title`, `year`, `poster`, `background`, `description`, `alt` (id téhož titulu v druhém zdroji), `source`.
 
 ### `nokturno.streams` ↩
@@ -277,6 +279,7 @@ actions:
 
 | Problém | Co s tím |
 |---|---|
+| Karta hlásí „Custom element doesn't exist" / chybu nastavení | aktualizuj na 1.8.5+ (karta se registruje přes zdroje Lovelace, ne přes `extra_module_url` — ten se vyhodnotí dřív, než si frontend nasadí vlastní registr prvků) a stránku načti znovu |
 | Karta hlásí chybu nastavení, na desktopu je v pořádku | mobilní aplikaci úplně zavři a otevři znovu (drží si stránku v cache) |
 | Karta se načte dvakrát / „already used" | odeber ruční záznam `/local/nokturno/…` ze zdrojů Lovelace |
 | Změny v integraci se neprojeví | po zásahu do Pythonu je nutný restart HA Core, reload integrace nestačí |

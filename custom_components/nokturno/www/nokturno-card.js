@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.30.1";
+const CARD_VERSION = "1.31.3";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -38,7 +38,7 @@ class NokturnoCard extends HTMLElement {
     };
     this._state = {
       view: "search", type: "movie", query: "", results: [], streams: [], episodes: [],
-      seasons: [], season: null, item: null, title: "", busy: false, loading: null, error: "",
+      seasons: [], season: null, item: null, title: "", busy: false, searching: false, loading: null, error: "",
       player: config.player || (config.players || [])[0] || "", phone: config.phone || "",
       continueItems: null, stack: [],
     };
@@ -106,7 +106,7 @@ class NokturnoCard extends HTMLElement {
     this._state.busy = true; this._state.error = ""; this._paint();
     try { await fn(); }
     catch (err) { this._state.error = (err && (err.message || err.error)) || String(err); }
-    finally { this._state.busy = false; this._state.loading = null; this._paint(); }
+    finally { this._state.busy = false; this._state.searching = false; this._state.loading = null; this._paint(); }
   }
 
   // --- akce -----------------------------------------------------------------
@@ -126,6 +126,7 @@ class NokturnoCard extends HTMLElement {
     if (!query) return;
     this._state.stack = [];
     this._state.query = query;
+    this._state.searching = true;
     await this._guard(async () => {
       const res = await this._call("search", { query, type: this._state.type, limit: 24 });
       this._state.results = res.results || [];
@@ -306,7 +307,6 @@ class NokturnoCard extends HTMLElement {
         .head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
         .head[hidden] { display:none; }
         .head h2 { margin:0; font-size:1.15rem; font-weight:500; flex:1; }
-        .busy { position:absolute; right:16px; top:12px; }
         ha-card { position:relative; }
         /* hledání pod sebou přes celou šířku karty */
         .bar { display:grid; grid-template-columns: 1fr; gap:8px; align-items:center; }
@@ -394,7 +394,6 @@ class NokturnoCard extends HTMLElement {
           <ha-icon icon="mdi:movie-search"></ha-icon>
           <h2>${this._esc(this._config.title)}</h2>
         </div>
-        <span id="busy" class="muted busy"></span>
         <div class="bar" id="search">
           <ha-input id="q" placeholder="Název filmu nebo seriálu" with-clear></ha-input>
           <ha-control-button id="go"><ha-icon icon="mdi:magnify"></ha-icon> Hledat</ha-control-button>
@@ -420,8 +419,11 @@ class NokturnoCard extends HTMLElement {
 
   _paint() {
     if (!this._root) return;
-    this._root.querySelector("#busy").innerHTML = this._state.busy
-      ? '<ha-icon class="spin" icon="mdi:loading"></ha-icon>' : "";
+    const go = this._root.querySelector("#go");
+    // kolečko se točí přímo v tlačítku Hledat, ať je vidět, že dotaz běží
+    go.toggleAttribute("disabled", !!this._state.searching);
+    go.querySelector("ha-icon").className = this._state.searching ? "spin" : "";
+    go.querySelector("ha-icon").setAttribute("icon", this._state.searching ? "mdi:loading" : "mdi:magnify");
     const body = this._root.querySelector("#body");
     const st = this._state;
     // v detailu (epizody, streamy) je hledání jen na překážku
@@ -548,8 +550,9 @@ class NokturnoCard extends HTMLElement {
   /** Hlídat titul, který zatím žádný zdroj nemá — stačí název z vyhledávacího pole. */
   /** Databáze filmů (IMDb/TMDB) — najde i tituly, které zatím žádný zdroj nemá. */
   async _searchCatalog() {
-    const query = (this._state.query || this._readInput() || "").trim();
+    const query = (this._readInput() || this._state.query || "").trim();
     if (!query) { this._toast("Napiš nejdřív název do pole pro hledání."); return; }
+    this._state.searching = true;
     await this._guard(async () => {
       const res = await this._call("search", {
         query, type: this._state.type === "series" ? "catalog_series" : "catalog", limit: 12 });
@@ -563,6 +566,7 @@ class NokturnoCard extends HTMLElement {
   async _wantQuery() {
     const query = (this._state.query || this._readInput() || "").trim();
     if (!query) { this._toast("Napiš nejdřív název do pole pro hledání."); return; }
+    this._state.searching = true;
     await this._guard(async () => {
       await this._call("want_to_watch", { query, type: this._state.type === "series" ? "series" : "movie" }, false);
       this._toast(`Hlídám „${query}" — dám vědět, až bude ke sledování`);
@@ -589,10 +593,16 @@ class NokturnoCard extends HTMLElement {
 
   _results() {
     const st = this._state;
-    const home = `<div class="chips"><button class="chip" data-back="search"><ha-icon icon="mdi:home-outline" style="--mdc-icon-size:14px"></ha-icon> Úvod</button></div>`;
-    if (!st.results.length) return home + `<div class="muted" style="margin-top:10px">Nic nenalezeno.</div>
-      <div class="chips"><button class="chip" data-catalog="1"><ha-icon icon="mdi:database-search-outline" style="--mdc-icon-size:14px"></ha-icon>
-        Hledat v databázi filmů</button></div>`;
+    // databáze filmů je po ruce vždycky — zdroje můžou najít něco jiného, než uživatel hledal
+    const home = `<div class="chips">
+      <button class="chip" data-back="search"><ha-icon icon="mdi:home-outline" style="--mdc-icon-size:14px"></ha-icon> Úvod</button>
+      ${st.catalog
+        ? `<button class="chip" data-research="1"><ha-icon icon="mdi:magnify" style="--mdc-icon-size:14px"></ha-icon> Zpět k výsledkům ze zdrojů</button>`
+        : `<button class="chip" data-catalog="1"><ha-icon icon="mdi:database-search-outline" style="--mdc-icon-size:14px"></ha-icon> Hledat v databázi filmů</button>`}
+    </div>`;
+    if (!st.results.length) return home + `<div class="muted" style="margin-top:10px">${st.catalog
+      ? "V databázi filmů nic takového není."
+      : "Ve zdrojích nic nenalezeno — zkus databázi filmů."}</div>`;
     const files = st.results.every((r) => r.type === "file");
     const hint = st.catalog
       ? `<div class="muted" style="margin-top:8px">Z databáze filmů — klepnutím titul přidáš do seznamu k zhlédnutí a dám vědět, až bude ke sledování.</div>` : "";
@@ -798,7 +808,7 @@ class NokturnoCard extends HTMLElement {
   _onClick(event) {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
-                  "watch", "wopen", "wremove", "wseen", "trakt", "want", "catalog", "wantcat"];
+                  "watch", "wopen", "wremove", "wseen", "trakt", "want", "catalog", "wantcat", "research"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -819,6 +829,7 @@ class NokturnoCard extends HTMLElement {
     if (data.want !== undefined) return this._toggleWant();
     if (data.wantquery !== undefined) return this._wantQuery();
     if (data.catalog !== undefined) return this._searchCatalog();
+    if (data.research !== undefined) { st.catalog = false; return this._search(); }
     if (data.wantcat !== undefined) {
       const item = st.results[+data.wantcat];
       return this._guard(async () => {
@@ -960,10 +971,23 @@ class NokturnoCardEditor extends HTMLElement {
   }
 }
 
-if (!customElements.get("nokturno-card-editor")) customElements.define("nokturno-card-editor", NokturnoCardEditor);
+// Frontend HA si po startu nasadí vlastní registr prvků (scoped custom elements) a o tom,
+// co bylo definováno dřív, neví — karta by hlásila „Custom element doesn't exist“.
+// Proto registraci po načtení stránky ještě několikrát zopakujeme (podtřídou, tu registr přijme).
+function defineCard(tag, cls) {
+  try {
+    if (!customElements.get(tag)) customElements.define(tag, class extends cls {});
+  } catch (err) { /* jiný registr už jméno zná — nevadí */ }
+}
 
-// modul může přijít dvakrát (extra_module_url z integrace + Lovelace resource) — definovat jen jednou
-if (!customElements.get("nokturno-card")) customElements.define("nokturno-card", NokturnoCard);
+function registerNokturnoCards() {
+  defineCard("nokturno-card-editor", NokturnoCardEditor);
+  defineCard("nokturno-card", NokturnoCard);
+}
+
+registerNokturnoCards();
+if (document.readyState !== "complete") window.addEventListener("load", registerNokturnoCards, { once: true });
+[500, 1500, 3000, 6000].forEach((ms) => setTimeout(registerNokturnoCards, ms));
 window.customCards = window.customCards || [];
 if (!window.customCards.some((c) => c.type === "nokturno-card")) window.customCards.push({
   type: "nokturno-card",

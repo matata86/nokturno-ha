@@ -183,7 +183,7 @@ Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Lu
 | ⬇ | stáhne do složky pro stahování (i s titulky); průběh je vidět dole v kartě i s rychlostí a odhadem času |
 | 🔗 | zkopíruje přímý odkaz do schránky (na `http` schránka přes prohlížeč nejde, tak se odkaz nabídne v okně k ručnímu zkopírování) |
 
-Nad seznamem jsou výběry **Přehrávač** a **Mobil** — platí pro všechny akce v seznamu.
+Nad seznamem jsou výběry **Přehrávač** a **Mobil** ve vzhledu nativních výběrů Home Assistantu — platí pro všechny akce v seznamu.
 
 ### Bubliny u tlačítek
 

@@ -179,9 +179,24 @@ class NokturnoCard extends HTMLElement {
         this._state.season = this._state.seasons.find((s) => s > 0) ?? this._state.seasons[0] ?? null;
         this._state.view = "episodes";
       });
+      this._fillDetail();
       return;
     }
     await this._loadStreams({ id: item.id, type: "movie", alt: item.alt });
+    this._fillDetail();
+  }
+
+  /** Plakát a popis z databáze filmů — u titulů, které mají IMDb id a zdroje o nich mlčí. */
+  async _fillDetail() {
+    const item = this._state.item;
+    if (!item || !/^tt\d+/.test(String(item.id)) || (item.description && item.poster)) return;
+    try {
+      const meta = await this._call("detail", {
+        id: String(item.id).split(":")[0], type: item.type === "series" ? "series" : "movie" });
+      const extra = Object.fromEntries(Object.entries(meta).filter(([k, v]) => v && k !== "title" && k !== "type"));
+      this._state.item = { ...item, ...extra };
+      this._paint();
+    } catch (err) { /* databáze filmů titul nezná — detail se ukáže bez popisu */ }
   }
 
   /** Titul z databáze filmů: zdroje ho znát nemusí, takže detail nesmí spadnout na chybě. */
@@ -946,7 +961,8 @@ class NokturnoCard extends HTMLElement {
       const t = this._traktList()[+data.trakt];
       if (!t) return undefined;
       if (t.pending) { this._toast("Titul zatím žádný zdroj nemá — hlídám ho."); return undefined; }
-      return this._openItem({ id: t.id, type: t.type, title: t.title, year: t.year, alt: null, poster: "" });
+      return this._openItem({ id: t.id, type: t.type, title: t.title, year: t.year, alt: t.alt || null,
+                              poster: t.poster || "", description: t.description || "" });
     }
     if (data.wseen !== undefined) {
       const w = this._watchlist()[+data.wseen];

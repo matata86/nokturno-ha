@@ -88,7 +88,7 @@ class NokturnoCard extends HTMLElement {
   static getConfigElement() { return document.createElement("nokturno-card-editor"); }
 
   async _ready() {
-    const needed = ["ha-input", "ha-control-select", "ha-control-button", "ha-control-select-menu", "ha-icon-button"];
+    const needed = ["ha-input", "ha-control-select", "ha-control-button", "ha-select", "mwc-list-item", "ha-icon-button"];
     if (needed.every((tag) => customElements.get(tag))) return;
     try { await window.loadCardHelpers(); } catch (err) { /* starší HA — vykreslí se i tak */ }
     await Promise.race([
@@ -419,6 +419,7 @@ class NokturnoCard extends HTMLElement {
         .titlerow { display:flex; align-items:center; gap:4px; }
         .titlerow .name { flex:1; min-width:0; font-size:1.05rem; }
         .picks { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin-top:8px; }
+        .picks ha-select { width:100%; }
         ha-control-select-menu { width:100%; }
         .name { font-weight:500; }
         .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap:10px; margin-top:12px; align-items:start; }
@@ -581,12 +582,29 @@ class NokturnoCard extends HTMLElement {
     else html = this._home();
     if (st.error) html += `<div class="err">${this._esc(st.error)}</div>`;
     body.innerHTML = html;
-    body.querySelectorAll("select[data-pick]").forEach((el) => el.addEventListener("change", () => {
-      const id = el.dataset.pick;
-      if (id === "season") { st.season = +el.value; this._paint(); }
-      else if (id === "player") { st.player = el.value; }
-      else if (id === "phone") { st.phone = el.value; }
-    }));
+    body.querySelectorAll("[data-pick]").forEach((el) => {
+      const apply = () => {
+        const id = el.dataset.pick;
+        const value = el.value;
+        if (value == null || value === "") return;
+        if (id === "season") { st.season = +value; this._paint(); }
+        else if (id === "player") { st.player = value; }
+        else if (id === "phone") { st.phone = value; }
+      };
+      // nativní select hlásí „change“, ha-select „selected“ (mwc) i „closed“
+      el.addEventListener("change", apply);
+      el.addEventListener("selected", apply);
+      if (el.tagName.toLowerCase() === "ha-select") {
+        const conf = (this._pickData || {})[el.dataset.pick];
+        if (conf) {
+          el.label = conf.label;
+          el.options = conf.options;
+          el.value = conf.value;
+        }
+        el.addEventListener("value-changed", apply);
+        el.addEventListener("closed", apply);
+      }
+    });
     this._retryImages(body);
     this._renderDownloads();
   }
@@ -988,13 +1006,21 @@ class NokturnoCard extends HTMLElement {
   }
 
   /** Výběr ve vzhledu HA. `ha-control-select-menu` v 2026.9 výběr nijak nehlásí, proto nativní select. */
+  /** Výběr ve vzhledu HA. `ha-select` je materiálový prvek s vlastní rozbalovací nabídkou;
+   *  na starším HA, kde není, zbývá nativní `<select>` ostylovaný do podobné podoby. */
   _pick(id, label, options, value) {
-    return `<label class="pick">
-      <span>${this._esc(label)}</span>
-      <select id="${id}" data-pick="${id}">
-        ${options.map((o) => `<option value="${this._esc(o.value)}" ${o.value === value ? "selected" : ""}>${this._esc(o.label)}</option>`).join("")}
-      </select>
-    </label>`;
+    if (!customElements.get("ha-select")) {
+      return `<label class="pick">
+        <span>${this._esc(label)}</span>
+        <select id="${id}" data-pick="${id}">
+          ${options.map((o) => `<option value="${this._esc(o.value)}" ${o.value === value ? "selected" : ""}>${this._esc(o.label)}</option>`).join("")}
+        </select>
+      </label>`;
+    }
+    // ha-select v HA 2026.9 bere volby jako property `options`, ne jako vnořené položky
+    this._pickData = this._pickData || {};
+    this._pickData[id] = { label, options, value };
+    return `<ha-select id="${id}" data-pick="${id}"></ha-select>`;
   }
 
   /** Jeden posluchač na celý obsah — přežije překreslení a funguje i uvnitř ha-icon-button. */

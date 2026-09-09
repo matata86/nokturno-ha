@@ -131,7 +131,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 
 <img src="docs/02-vysledky.png" width="420" alt="Výsledky hledání">
 
-Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí kolečko a druhé se točí v tlačítku *Hledat*, dokud se detail nenačte. Vedle tlačítka **Úvod** je vždy **Hledat v databázi filmů** (IMDb/TMDB) — hodí se, když zdroje vrátí něco jiného, než jsi hledal, nebo film teprve vyjde; z těch výsledků klepnutím titul rovnou uložíš do seznamu k zhlédnutí a **Zpět k výsledkům ze zdrojů** tě vrátí. Když hledáš s rokem a zdroje nic z toho roku nemají, výsledek je prázdný — právě proto, aby ti nepodstrčily jiný film. Titul, který má jen Sosáč, dostane plakát z TMDB. Po klepnutí se přes plakát položí kolečko, dokud se streamy nenačtou. **Úvod** vlevo nahoře se vrátí zpět.
+Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí kolečko a druhé se točí v tlačítku *Hledat*, dokud se detail nenačte. Vedle tlačítka **Úvod** je vždy **Hledat v databázi filmů** (IMDb/TMDB) — hodí se, když zdroje vrátí něco jiného, než jsi hledal, nebo film teprve vyjde; z těch výsledků klepnutím titul rovnou uložíš do seznamu k zhlédnutí a **Zpět k výsledkům ze zdrojů** tě vrátí. Když hledáš s rokem a zdroje nic z toho roku nemají, výsledek je prázdný — právě proto, aby ti nepodstrčily jiný film. Titul, který má jen Sosáč, dostane plakát z TMDB. **Úvod** vlevo nahoře se vrátí zpět.
 
 ### Jak se hledá
 
@@ -146,6 +146,18 @@ Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí ko
 | Jsi v databázi filmů | další hledání zůstane v ní, dokud se nevrátíš tlačítkem **Zpět k výsledkům ze zdrojů** nebo na **Úvod** |
 | Klepneš na titul z databáze | otevře se detail s plakátem a popisem; streamy tam většinou nejsou, proto je nahoře záložka pro uložení do seznamu k zhlédnutí |
 | Otevřeš titul ze seznamu k zhlédnutí | plakát a popis se dotáhnou z databáze filmů, i když je zdroje neznají |
+
+### Databáze filmů
+
+<img src="docs/05-databaze.png" width="420" alt="Detail titulu z databáze filmů">
+
+Tlačítko **Hledat v databázi filmů** se ptá Cinemety (IMDb/TMDB), takže najde i tituly, které zdroje vůbec nemají — třeba film, který teprve vyjde. Klepnutí na výsledek otevře detail:
+
+- **plakát a popis** — popis se bere z TMDB (česky), a když ho nemá ani TMDB ani IMDb, složí se věta ze žánru, země, režie a hlavních rolí;
+- **streamy**, pokud už nějaké existují, jinak hláška, že žádný není;
+- **záložka** vpravo nahoře uloží titul do seznamu k zhlédnutí — pak se jednou denně kontroluje a jakmile se stream objeví, přijde oznámení.
+
+Názvy jsou v databázi vedené mezinárodním přepisem („Pet svestek"). Karta se pokouší dohledat český název přes TMDB; u úplně čerstvých titulů, které TMDB ještě nezná, zůstane přepis.
 
 ### Seriál a epizody
 
@@ -297,6 +309,10 @@ actions:
 - **Odkazy mimo síť**: streamy z Luny míří na její adresu v LAN, proto se páruje s fulltextem WebShare podle velikosti (±0,25 GB) a kvality a k položce se přibalí přímý odkaz z CDN. Hledá se pod českým i originálním názvem (z Sosáče nebo z Cinemety). Zbytek se přepíše na `external_host`, pokud addon Tailscale běží.
 - **Náhledy Sosáče** jsou od září 2026 mrtvé (404), plakáty se dotahují z TMDB — podle IMDb id, a když chybí, podle názvu a roku.
 - **Nový díl seriálu** se hlásí až podle dostupnosti streamu; při zařazení se najde nejnovější sezóna se streamy, dál se sleduje jen posun dopředu.
+- **Jedno hledání pro oba typy**: karta se ptá na filmy i seriály naráz a drží si obojí; přepínač se ukáže, jen když obojí něco našlo, a přepnutí pak jen prohodí už načtený seznam.
+- **Rok jako filtr**: z dotazu se odřízne čtyřciferný rok a použije se na výsledky i na názvy souborů z fulltextu WebShare (tolerance ±1, soubor bez roku projde). Rok v budoucnosti se bere jako součást názvu.
+- **Detail z databáze filmů**: Cinemeta `meta` + TMDB přes Lunu, výsledek se drží den v cache. Karta si ho vyžádá u každého titulu s IMDb id, kterému chybí popis nebo plakát.
+- **Karta se registruje přes zdroje Lovelace**, ne přes `extra_module_url` — ten se vyhodnotí dřív, než si frontend nasadí vlastní registr prvků, a karta by pro HA „neexistovala". Pro jistotu si registraci po načtení stránky ještě několikrát zopakuje.
 - Knihovny v `custom_components/nokturno/lib/` jsou kopie z Kodi doplňku, aby se obě aplikace chovaly stejně.
 
 ## Řešení potíží

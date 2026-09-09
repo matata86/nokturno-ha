@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import unicodedata
 import urllib.parse
@@ -161,9 +162,14 @@ class Engine:
         return self._qbit
 
     def sources(self):
-        """Které zdroje jsou nakonfigurované (pro diagnostiku)."""
+        """Které zdroje jsou nastavené — pro diagnostiku a pro kartu.
+
+        WebShare se hlásí podle vyplněných údajů, ne podle `ws`: ta se
+        přihlašuje po síti a tohle se čte při počítání atributů senzoru, tedy
+        ve smyčce událostí, kam blokující volání nepatří."""
         return {"luna": self.luna is not None, "sosac": self.sosac is not None,
-                "webshare": self.ws is not None, "torrent": self.prowlarr is not None}
+                "webshare": bool(self._opt("ws_username").strip()),
+                "torrent": self.prowlarr is not None}
 
     def api_for(self, item_id):
         api = self.sosac if is_sosac_id(item_id) else self.luna
@@ -738,25 +744,42 @@ class Engine:
         return out + solo[:SOLO_LIMIT]
 
     def _torrent_streams(self, meta, video=None, ctype="movie"):
-        """Torrenty z trackerů přes Prowlarr. Poslední možnost, když jinde nic není."""
+        """Torrenty z trackerů přes Prowlarr. Poslední možnost, když jinde nic není.
+
+        Zkouší se český i původní název: české trackery pojmenovávají soubory
+        obojím a fulltext na jednom z nich často nevrátí nic. U seriálu se
+        sezóna a díl vybírají až z výsledků, aby na díl 2x01 nevyskočila
+        první sezóna."""
         api = self.prowlarr
         if api is None:
             return []
-        title = meta.get("_title") or meta.get("name") or ""
-        if not title:
+        titles = []
+        for name in (meta.get("_title"), meta.get("name")):
+            name = (name or "").strip()
+            if name and name not in titles:
+                titles.append(name)
+        if not titles:
             return []
-        query = title
+        season = episode = None
         if video and video.get("season") is not None:
-            query = f"{title} S{int(video['season']):02d}E{int(video.get('episode') or 0):02d}"
-        else:
-            year = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
-            if year.isdigit():
-                query = f"{title} {year}"
-        try:
-            return api.search(query, "series" if video else ctype)
-        except ProwlarrError as err:  # noqa: BLE001 – výpadek trackerů není chyba titulu
-            _LOGGER.warning("torrenty %s: %s", query, err)
-            return []
+            season = int(video["season"])
+            episode = int(video.get("episode") or 0) or None
+        year = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
+        # U seriálu jde do dotazu jen název: trackery hledají fulltextem přes
+        # název souboru a značka „S02E01“ v něm dotaz spolehlivě vynuluje
+        # (ověřeno na Sk-CzTorrentu). Sezóna a díl se proto vybírají až
+        # z výsledků. Rok u seriálu taky ne — v názvu bývá rok sezóny.
+        queries = [t if season is not None or not year.isdigit() else f"{t} {year}" for t in titles]
+        for query in queries:
+            try:
+                rows = api.search(query, "series" if season is not None else ctype,
+                                  season=season, episode=episode)
+            except ProwlarrError as err:  # noqa: BLE001 – výpadek trackerů není chyba titulu
+                _LOGGER.warning("torrenty %s: %s", query, err)
+                return []
+            if rows:
+                return rows
+        return []
 
     @staticmethod
     def _describe_torrent(row, index):
@@ -854,6 +877,50 @@ class Engine:
         except QbitError as err:
             raise NokturnoError(str(err)) from err
         return True
+
+    def streams_or_torrents(self, ctype, item_id, alt=None, series_id=None):
+        """Streamy titulu, a když žádné nejsou, aspoň torrenty.
+
+        Pro hlídání dostupnosti (nové díly, seznam k zhlédnutí): torrent je až
+        poslední možnost, ale titul, který leží jen na trackeru, k dispozici je.
+        Trackery se ptají jen když streamy nic nevrátily — jinak by každá
+        kontrola stála dotazy navíc."""
+        found = self.streams(ctype, item_id, alt, series_id)
+        if found or self.prowlarr is None:
+            return found
+        try:
+            return self.torrents(ctype, item_id, series_id)
+        except Exception as err:  # noqa: BLE001 – tracker nesmí shodit kontrolu
+            _LOGGER.debug("torrenty %s: %s", item_id, err)
+            return []
+
+    def forget_torrent(self, path):
+        """Odebere z qBittorrentu torrent, ze kterého vznikl daný soubor.
+
+        Volá se při mazání staženého filmu. Data si maže integrace sama (i s
+        titulky), klientovi torrent jen zmizí ze seznamu — jinak by soubor dál
+        seedoval a po smazání hlásil chybějící data. Cesty se porovnávají podle
+        názvu souboru srovnaného na jednu podobu: qBittorrent může běžet jinde
+        a diakritiku vracet v jiné normalizaci Unicode."""
+        api = self.qbit
+        if api is None or not path:
+            return False
+        want = unicodedata.normalize("NFC", os.path.basename(path)).casefold()
+        try:
+            rows = api.torrents()
+        except QbitError as err:
+            _LOGGER.debug("qBittorrent: %s", err)
+            return False
+        for row in rows:
+            name = unicodedata.normalize("NFC", os.path.basename(row.get("path") or "")).casefold()
+            if name and name == want:
+                try:
+                    api.delete(row.get("hash"), with_files=False)
+                except QbitError as err:
+                    _LOGGER.warning("torrent %s nejde odebrat: %s", row.get("name"), err)
+                    return False
+                return True
+        return False
 
     def download_torrent(self, url, name=""):
         """Předá torrent qBittorrentu. Stažený soubor skončí ve složce stahování."""

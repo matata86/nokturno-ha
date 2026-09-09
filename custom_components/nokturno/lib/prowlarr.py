@@ -23,6 +23,31 @@ QUALITY_RE = re.compile(r"\b(2160p|1080p|720p|480p|4K|UHD)\b", re.I)
 PUNCT_RE = re.compile(r"[\u2010-\u2015\-:;,.!?()\[\]{}\"'/\\|]+")
 WORDS_SHORT = 3
 
+# Značky sezón a dílů, jak je píšou názvy souborů: „S02E10“, „S02.E10“, „2x10“,
+# „Season 2“, „S01-S05“. Bez nich se u seriálu nedá poznat, co torrent obsahuje.
+EP_RE = re.compile(r"\bS(\d{1,2})\s*[._ -]?\s*E(\d{1,3})\b", re.I)
+X_RE = re.compile(r"\b(\d{1,2})[xX](\d{1,3})\b")
+SEASON_RE = re.compile(r"\bS(?:eason[. _-]*)?(\d{1,2})\b(?![. _-]*E?\d)", re.I)
+SEASON_RANGE_RE = re.compile(r"\bS(\d{1,2})\s*[-\u2013]\s*S?(\d{1,2})\b", re.I)
+SEASON_TAIL_RE = re.compile(r"S\d{1,2}(?:E\d{1,3})?$", re.I)
+
+
+def episode_match(title, season, episode=None):
+    """Sedí torrent na hledaný díl?
+
+    Balík celé sezóny se počítá — díl v něm je. Jiná sezóna ne, a název bez
+    jakékoli značky sezóny taky ne: u seriálu je to nejspíš něco jiného."""
+    if season is None:
+        return True
+    text = title or ""
+    for first, last in SEASON_RANGE_RE.findall(text):
+        if int(first) <= season <= int(last):
+            return True
+    for found, num in EP_RE.findall(text) + X_RE.findall(text):
+        if int(found) == season and (episode is None or int(num) == episode):
+            return True
+    return any(int(num) == season for num in SEASON_RE.findall(text))
+
 
 class ProwlarrError(Exception):
     pass
@@ -76,9 +101,12 @@ class ProwlarrApi:
         Dlouhé podtituly („… Poslední zápas Pepika Hnátka“) se v názvech souborů
         na trackerech často zkracují nebo píšou jinak."""
         words = query.split()
-        year = words[-1] if words and words[-1].isdigit() and len(words[-1]) == 4 else ""
-        head = [w for w in words if w != year][:WORDS_SHORT]
-        return " ".join(head + ([year] if year else []))
+        # koncovka se drží: bez „S02E01“ by zkrácený dotaz našel kteroukoli sezónu
+        tail = ""
+        if words and ((words[-1].isdigit() and len(words[-1]) == 4) or SEASON_TAIL_RE.match(words[-1])):
+            tail = words[-1]
+        head = [w for w in words if w != tail][:WORDS_SHORT]
+        return " ".join(head + ([tail] if tail else []))
 
     def _raw(self, query, ctype, limit):
         return self._get("/api/v1/search", {
@@ -88,8 +116,11 @@ class ProwlarrApi:
             "limit": max(1, min(int(limit), 100)),
         }) or []
 
-    def search(self, query, ctype="movie", limit=30):
-        """Výsledky trackerů seřazené podle seedů (nejlíp dostupné první)."""
+    def search(self, query, ctype="movie", limit=30, season=None, episode=None):
+        """Výsledky trackerů seřazené podle seedů (nejlíp dostupné první).
+
+        Se `season` se výsledky filtrují: fulltext trackerů vrací i jiné sezóny
+        a balík S01 na díl 2x01 nesedí."""
         query = self.clean(query)
         if not query:
             return []
@@ -100,6 +131,13 @@ class ProwlarrApi:
                 found = self._raw(short, ctype, limit)
         out = [self._item(row) for row in found if isinstance(row, dict)]
         out = [row for row in out if row["url"]]
+        if season is not None:
+            out = [row for row in out if episode_match(row["title"], season, episode)]
+            if episode is not None:
+                # konkrétní díl napřed, balík celé sezóny až za ním — stahovat
+                # kvůli jednomu dílu deset hodin videa nemá smysl
+                out.sort(key=lambda r: (bool(EP_RE.search(r["title"]) or X_RE.search(r["title"])),
+                                        r["seeders"]), reverse=True)
         out.sort(key=lambda r: (r["seeders"], r["size_gb"] or 0), reverse=True)
         return out[:limit]
 

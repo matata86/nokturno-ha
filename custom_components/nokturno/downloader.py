@@ -19,6 +19,7 @@ from .const import SIGNAL_DOWNLOADS
 _LOGGER = logging.getLogger(__name__)
 
 CHUNK = 1024 * 512
+SUBTITLE_EXT = (".srt", ".sub", ".ass", ".vtt")
 MAX_PARALLEL = 1
 
 
@@ -57,13 +58,25 @@ class Downloader:
     # --- hotové soubory -----------------------------------------------------
 
     def _scan(self):
-        """Co ve složce opravdu leží — přežije to restart HA, na rozdíl od fronty."""
+        """Co ve složce opravdu leží — přežije to restart HA, na rozdíl od fronty.
+
+        Titulky se do seznamu nedávají zvlášť, patří k videu (počítají se u něj).
+        """
         try:
             entries = [e for e in os.scandir(self.directory) if e.is_file() and not e.name.endswith(".part")]
         except OSError:
             return []
-        out = [{"name": e.name, "path": e.path, "size": e.stat().st_size, "modified": e.stat().st_mtime}
-               for e in entries]
+        subs = {}
+        videos = []
+        for entry in entries:
+            if os.path.splitext(entry.name)[1].lower() in SUBTITLE_EXT:
+                stem = os.path.splitext(entry.name)[0].rsplit(".", 1)[0]
+                subs[stem] = subs.get(stem, 0) + 1
+            else:
+                videos.append(entry)
+        out = [{"name": e.name, "path": e.path, "size": e.stat().st_size, "modified": e.stat().st_mtime,
+                "subtitles": subs.get(os.path.splitext(e.name)[0], 0)}
+               for e in videos]
         out.sort(key=lambda f: f["modified"], reverse=True)
         return out
 
@@ -72,6 +85,17 @@ class Downloader:
             return shutil.disk_usage(self.directory).free / 1024 ** 3
         except OSError:
             return 0.0
+
+    @staticmethod
+    def _remove_with_subs(path):
+        os.remove(path)
+        stem = os.path.splitext(path)[0]
+        for suffix in SUBTITLE_EXT:
+            for candidate in (stem + suffix, stem + ".2" + suffix, stem + ".3" + suffix):
+                try:
+                    os.remove(candidate)
+                except OSError:
+                    pass
 
     async def async_refresh_files(self):
         self.files = await self.hass.async_add_executor_job(self._scan)
@@ -85,7 +109,7 @@ class Downloader:
         root = os.path.abspath(self.directory)
         if os.path.commonpath([target, root]) != root:
             raise ValueError(f"Soubor {path} není ve složce {self.directory}.")
-        await self.hass.async_add_executor_job(os.remove, target)
+        await self.hass.async_add_executor_job(self._remove_with_subs, target)
         for job_id, job in list(self.jobs.items()):
             if os.path.abspath(job.get("path", "")) == target and job["status"] == "done":
                 self.jobs.pop(job_id)

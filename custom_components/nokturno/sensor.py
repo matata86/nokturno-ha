@@ -91,7 +91,7 @@ class NokturnoDownloadsSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        jobs = sorted(self._downloader.jobs.values(), key=lambda j: j["started"], reverse=True)
+        jobs = sorted(self._downloader.jobs.values(), key=lambda j: j.get("started") or 0, reverse=True)
         running = next((j for j in jobs if j["status"] == "running"), None)
         return {
             "downloads": [

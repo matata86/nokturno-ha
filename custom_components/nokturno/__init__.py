@@ -415,7 +415,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     engine = await hass.async_add_executor_job(
         Engine, options, hass.config.path(f".storage/{DOMAIN}")
     )
-    downloader = Downloader(hass, options.get(CONF_DOWNLOAD_DIR) or DEFAULT_DOWNLOAD_DIR)
+    downloader = Downloader(hass, options.get(CONF_DOWNLOAD_DIR) or DEFAULT_DOWNLOAD_DIR,
+                            store=engine.store)
+    # odkazy z WebShare po pár hodinách vyprší — po restartu si downloader vyžádá nový
+    downloader.resolver = engine.resolve
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "engine": engine,
         "downloader": downloader,
@@ -881,7 +884,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if needed and downloader.free_gb and needed > downloader.free_gb - 0.5:
             raise HomeAssistantError(f"Na disku je jen {downloader.free_gb:.1f} GB, soubor má {needed:.1f} GB.")
         subs = [await _in_executor(engine.resolve, u) for u in (stream.get("subtitles") or [])]
-        job = downloader.add(url, name or "nokturno", {"stream": stream.get("label", "")}, subtitles=subs)
+        job = downloader.add(url, name or "nokturno", {"stream": stream.get("label", "")},
+                             subtitles=subs, source_url=stream.get("url", ""))
         return {"download_id": job["id"], "path": job["path"], "name": job["name"]}
 
     async def handle_send_link(call: ServiceCall):
@@ -993,6 +997,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, name, handler, schema=schema, supports_response=response)
 
     await downloader.async_refresh_files()
+    await downloader.async_restore()  # navázat na stahování přerušené restartem
     # sledované seriály a historie do paměti store hned — senzory je čtou z event loopu
     await hass.async_add_executor_job(engine.store.load, "watchlist", {})
     await hass.async_add_executor_job(engine.store.load, "history", [])

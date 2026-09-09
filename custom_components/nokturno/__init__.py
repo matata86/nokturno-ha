@@ -63,6 +63,7 @@ from .const import (
     SERVICE_SEND_LINK,
     SERVICE_STREAMS,
     SERVICE_WATCH,
+    SIGNAL_DOWNLOADS,
     SIGNAL_TRAKT,
     SIGNAL_WATCHLIST,
     TRAKT_INTERVAL_HOURS,
@@ -580,12 +581,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         "poster": hit.get("poster") or item.get("poster"), "found_id": hit["id"], "alt": alt}
             try:
                 streams = await hass.async_add_executor_job(
-                    engine.streams, item["type"], target, alt, None)
+                    engine.streams_or_torrents, item["type"], target, alt, None)
             except Exception as err:  # noqa: BLE001
                 _LOGGER.debug("trakt streamy %s: %s", item["id"], err)
                 streams = []
             record = {**item, "type": item.get("type", "movie"), "streams": len(streams),
                       "best": streams[0]["label"] if streams else "",
+                      # titul zatím jen na trackeru — pustit ho znamená napřed stáhnout
+                      "torrent": bool(streams) and all(s.get("kind") == "torrent" for s in streams),
                       "checked": dt_util.now().isoformat()}
             if streams and not before.get("streams") and before:
                 newly.append(record)
@@ -677,19 +680,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                            key=lambda e: (e["season"], e["episode"]))
             budget = [6]  # kolik dotazů na streamy si jedna kontrola seriálu může dovolit
 
-            async def has_stream(ep):
+            async def options(ep):
+                """Čím se dá díl pustit — streamy, a když žádné nejsou, torrenty."""
                 if budget[0] <= 0:
-                    return False
+                    return []
                 budget[0] -= 1
                 try:
-                    return bool(await hass.async_add_executor_job(engine.streams, "series", ep["id"], item.get("alt"), sid))
+                    return await hass.async_add_executor_job(
+                        engine.streams_or_torrents, "series", ep["id"], item.get("alt"), sid)
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.debug("streamy %s: %s", ep["id"], err)
-                    return False
+                    return []
 
-            def describe(ep):
+            def describe(ep, opts=()):
                 return {"season": ep["season"], "episode": ep["episode"], "title": ep.get("title") or "",
-                        "id": ep["id"], "released": (ep.get("released") or "")[:10]}
+                        "id": ep["id"], "released": (ep.get("released") or "")[:10],
+                        # díl jen na trackeru — karta to má říct, stažení chvíli trvá
+                        "torrent": bool(opts) and all(o.get("kind") == "torrent" for o in opts)}
 
             found = None
             if not known:
@@ -698,15 +705,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 for ep in aired:
                     last_per_season[ep["season"]] = ep
                 for season in sorted(last_per_season, reverse=True)[:3]:
-                    if await has_stream(last_per_season[season]):
-                        found = describe(last_per_season[season])
+                    opts = await options(last_per_season[season])
+                    if opts:
+                        found = describe(last_per_season[season], opts)
                         known_key = (season, last_per_season[season]["episode"])
                         break
             # pak po dílech dopředu — díly přibývají postupně, první chybějící ukončí hledání
             for ep in (e for e in aired if (e["season"], e["episode"]) > known_key):
-                if not await has_stream(ep):
+                opts = await options(ep)
+                if not opts:
                     break
-                found = describe(ep)
+                found = describe(ep, opts)
             if found:
                 first_check = "available" not in item and "checked" not in item
                 item["available"] = found
@@ -1018,8 +1027,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"queued": True, "name": name}
 
     async def handle_delete_file(call: ServiceCall):
+        path = call.data["path"]
+        # film ze staženého torrentu by v klientu zůstal seedovat a po smazání
+        # hlásil chybějící data — odebrat ho, ale mazání souboru na tom nestojí
         try:
-            await downloader.async_delete(call.data["path"])
+            await hass.async_add_executor_job(engine.forget_torrent, path)
+        except Exception as err:  # noqa: BLE001 – klient nemusí běžet
+            _LOGGER.debug("torrent k %s nejde odebrat: %s", path, err)
+        try:
+            await downloader.async_delete(path)
         except (OSError, ValueError) as err:
             raise HomeAssistantError(f"Smazání selhalo: {err}") from err
 

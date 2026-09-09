@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.45.1";
+const CARD_VERSION = "1.46.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c", "Torrent": "#3f9e6f" };
@@ -267,21 +267,51 @@ class NokturnoCard extends HTMLElement {
     const name = (v) => (kind === "phone" ? this._phoneName(v) : this._friendly(v));
     if (!list.length) return Promise.resolve(null);
     if (list.length === 1) return Promise.resolve(list[0]);
-    const box = this._root.querySelector("#chooser");
     return new Promise((resolve) => {
-      const close = (value) => { box.hidden = true; box.innerHTML = ""; resolve(value); };
-      box.hidden = false;
-      box.innerHTML = `<div class="chooser"><div class="panel">
-        <div class="ptitle">${kind === "phone" ? "Do kterého mobilu?" : "Kde přehrát?"}</div>
-        ${list.map((v, i) => `<button data-pickone="${i}">
+      // Modal patří do stránky, ne do karty: uvnitř dashboardu ho transformace
+      // rodičovských prvků vytrhly z prostředka obrazovky do rohu — `fixed` se
+      // pak počítá k nim, ne k oknu. Proto i vlastní styly místo těch v kartě.
+      const wrap = document.createElement("div");
+      wrap.className = "nokturno-chooser";
+      wrap.innerHTML = `<style>
+        .nokturno-chooser { position:fixed; inset:0; z-index:99; display:flex; align-items:center;
+          justify-content:center; background:rgba(0,0,0,.5); }
+        .nokturno-chooser .panel { background: var(--card-background-color, #1c1c1c);
+          color: var(--primary-text-color, #fff); border-radius:14px; padding:8px;
+          min-width:250px; max-width:min(90vw,340px); box-shadow:0 8px 32px rgba(0,0,0,.5); }
+        .nokturno-chooser .phead { display:flex; align-items:center; justify-content:space-between;
+          gap:8px; padding:4px 4px 8px 10px; }
+        .nokturno-chooser .ptitle { font-size:.8rem; font-weight:600; color: var(--secondary-text-color, #9e9e9e); }
+        .nokturno-chooser .pclose { border:none; background:none; color: var(--secondary-text-color, #9e9e9e);
+          font-size:1.3rem; line-height:1; cursor:pointer; padding:2px 9px 5px; border-radius:8px; }
+        .nokturno-chooser .pclose:hover { background: var(--secondary-background-color, #2a2a2a); }
+        .nokturno-chooser .pick { display:flex; align-items:center; gap:8px; width:100%; border:none;
+          background:none; color:inherit; font:inherit; text-align:left; padding:10px;
+          border-radius:8px; cursor:pointer; }
+        .nokturno-chooser .pick:hover { background: var(--secondary-background-color, #2a2a2a); }
+        .nokturno-chooser .pick ha-icon { --mdc-icon-size:18px; color: var(--secondary-text-color, #9e9e9e); }
+      </style>
+      <div class="panel">
+        <div class="phead">
+          <span class="ptitle">${kind === "phone" ? "Do kterého mobilu?" : "Kde přehrát?"}</span>
+          <button class="pclose" title="Zavřít">×</button>
+        </div>
+        ${list.map((v, i) => `<button class="pick" data-pickone="${i}">
           <ha-icon icon="${kind === "phone" ? "mdi:cellphone" : "mdi:cast"}"></ha-icon>
           <span>${this._esc(name(v))}</span></button>`).join("")}
-      </div></div>`;
-      box.querySelector(".chooser").addEventListener("click", (e) => {
-        if (e.target === e.currentTarget) close(null);   // klepnutí vedle zavře
-      });
-      box.querySelectorAll("[data-pickone]").forEach((el) =>
+      </div>`;
+      const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(null); } };
+      const close = (value) => {
+        window.removeEventListener("keydown", onKey, true);
+        wrap.remove();
+        resolve(value);
+      };
+      window.addEventListener("keydown", onKey, true);
+      wrap.addEventListener("click", (e) => { if (e.target === wrap) close(null); });   // klepnutí vedle zavře
+      wrap.querySelector(".pclose").addEventListener("click", () => close(null));
+      wrap.querySelectorAll("[data-pickone]").forEach((el) =>
         el.addEventListener("click", () => close(list[+el.dataset.pickone])));
+      document.body.appendChild(wrap);
     });
   }
 
@@ -301,6 +331,7 @@ class NokturnoCard extends HTMLElement {
   /** Torrenty se hledají až na vyžádání — trackery odpovídají v řádu sekund
       a u titulu, na který stream je, by to jen zdržovalo otevření detailu. */
   async _findTorrents() {
+    this._state.finding = true;   // vlastní příznak: jinak by tlačítko hlásilo hledání při každé akci
     await this._guard(async () => {
       const res = await this._call("torrents", { ...this._state.streamTarget });
       // torrenty patří nad streamy — kvůli nim se hledalo, tak ať jsou hned vidět
@@ -308,6 +339,8 @@ class NokturnoCard extends HTMLElement {
       this._state.torrents = true;
       if (!(res.streams || []).length) this._toast("Na trackerech nic nenašel");
     });
+    this._state.finding = false;
+    this._paint();
   }
 
   async _downloadTorrent(stream) {
@@ -558,20 +591,6 @@ class NokturnoCard extends HTMLElement {
         .where { position:absolute; left:6px; bottom:6px; font-size:.68rem; font-weight:600; padding:2px 6px;
                  border-radius:6px; background:rgba(0,0,0,.65); color:#fff; }
         .icons ha-icon-button { --mdc-icon-button-size:40px; --mdc-icon-size:20px; }
-        /* malý výběr cíle — otevře se až po klepnutí na ikonu, aby karta
-           nemusela trvale nést dva rozbalovací seznamy */
-        .chooser { position:fixed; inset:0; z-index:9; display:flex; align-items:center;
-                   justify-content:center; background:rgba(0,0,0,.45); }
-        .chooser .panel { background: var(--card-background-color); border-radius:14px;
-                          padding:8px; min-width:230px; max-width:min(90vw,340px);
-                          box-shadow:0 8px 32px rgba(0,0,0,.45); }
-        .chooser .ptitle { font-size:.8rem; font-weight:600; color: var(--secondary-text-color);
-                           padding:6px 10px 8px; }
-        .chooser button { display:flex; align-items:center; gap:8px; width:100%; border:none;
-                          background:none; color: var(--primary-text-color); font:inherit;
-                          text-align:left; padding:10px; border-radius:8px; cursor:pointer; }
-        .chooser button:hover { background: var(--secondary-background-color); }
-        .chooser button ha-icon { --mdc-icon-size:18px; color: var(--secondary-text-color); }
         .legend { margin-top:8px; font-size:.75rem; color: var(--secondary-text-color); display:flex;
                   align-items:center; gap:4px; }
         .legend ha-icon { --mdc-icon-size:14px; }
@@ -608,7 +627,6 @@ class NokturnoCard extends HTMLElement {
         </div>
         <div id="body"></div>
         <div id="downloads" class="dl" hidden></div>
-        <div id="chooser" hidden></div>
       </ha-card>`;
     this._root = this.shadowRoot;
     this._input = this._root.querySelector("#q");
@@ -719,7 +737,7 @@ class NokturnoCard extends HTMLElement {
           <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? `Otevřít streamy — ${t.streams} k dispozici` : "Zatím žádný stream; hlídám a dám vědět"}">
             <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">
               <ha-icon icon="${t.streams ? "mdi:play-circle-outline" : (t.pending ? "mdi:radar" : "mdi:clock-outline")}" class="ext"></ha-icon>
-              ${t.streams ? "lze pustit" : (t.pending ? "hlídám" : "zatím ne")}</span>
+              ${t.streams ? (t.torrent ? "jen torrent" : "lze pustit") : (t.pending ? "hlídám" : "zatím ne")}</span>
             <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${t.year})</span>` : ""}${
               t.streams ? ` <span class="muted">· ${t.streams} streamů</span>` : ""}</span>
           </div>`).join("")}</div>`;
@@ -733,7 +751,7 @@ class NokturnoCard extends HTMLElement {
             <span class="label${w.new ? "" : " label--meta"}">${this._esc(w.title)}${w.new
               ? ` — ${w.new.season}x${String(w.new.episode).padStart(2, "0")} ${this._esc(w.new.title)}`
               : `<span class="muted">${w.available
-                  ? `ke sledování ${w.available.season}x${String(w.available.episode).padStart(2, "0")}`
+                  ? `ke sledování ${w.available.season}x${String(w.available.episode).padStart(2, "0")}${w.available.torrent ? " (jen torrent)" : ""}`
                   : "zatím bez streamu"}${w.latest && (!w.available || w.latest.episode !== w.available.episode || w.latest.season !== w.available.season)
                   ? `, odvysíláno ${w.latest.season}x${String(w.latest.episode).padStart(2, "0")}` : ""}</span>`}</span>
             <span class="icons">
@@ -916,7 +934,7 @@ class NokturnoCard extends HTMLElement {
     // Hledání trvá pár sekund, takže se točí kolečko i v tlačítku, nejen přes fotku.
     const torrentBtn = st.torrents || !this._hasTorrents() ? "" : `<div class="chips" style="margin:8px 0 2px">
       <button class="chip" data-findtorrents="1"${st.busy ? " disabled" : ""} title="Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání">
-        <ha-icon class="${st.busy ? "spin" : ""}" icon="${st.busy ? "mdi:loading" : "mdi:magnify-scan"}" style="--mdc-icon-size:14px"></ha-icon> ${st.busy ? "Hledám torrenty…" : "Hledat torrenty"}
+        <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:magnify-scan"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? "Hledám torrenty…" : "Hledat torrenty"}
       </button></div>`;
     if (!st.streams.length) return head + torrentBtn + `<div class="muted empty">Pro tento titul se nenašel žádný stream.${
       st.item && st.item.source === "katalog" ? " Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví." : ""}</div>`;

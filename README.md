@@ -36,7 +36,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Stahování do `/media/nokturno`** s frontou, průběhem, rychlostí a odhadem času; přerušené stahování (restart HA, výpadek) se po startu samo dokončí od místa, kde skončilo; hotové soubory jsou vidět v kartě **na úvodní obrazovce**, dají se přehrát, smazat nebo poslat do mobilu odkazem přes Nabu Casa. Titulky se stáhnou vedle videa a mažou se spolu s ním.
 - **Odkazy použitelné mimo domácí síť** (ikona 🌐) — přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
 - **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat.
-- **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB.
+- **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB. Když stream není a máš nastavený Prowlarr, kontrola sáhne i na trackery.
 - **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Pozor: Trakt od července 2026 vydává API klíče jen pro VIP účty, takže bez VIP tuhle část nezapneš — vlastní seznam funguje i tak.
 - **Rok v dotazu je filtr** — „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere. Rok se hlídá i u souborů z fulltextu WebShare, takže se k titulu nepřimíchá stejnojmenný film z jiného roku.
@@ -131,8 +131,8 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 - **Pole pro hledání** a tlačítko **Hledat** (během dotazu se v něm točí kolečko). Přepínač **Filmy / Seriály** se ukáže až u výsledků, a jen když dotaz našel obojí. Rok napsaný do dotazu se použije jako filtr — „Duna 2021" vrátí jen film z roku 2021.
 - **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
 - **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
-- **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
-- **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Zelené „lze pustit" u těch, které už mají stream, „hlídám" u těch, které zatím nikde nejsou; klepnutí otevře streamy. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.
+- **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Díl, který je zatím jen na trackeru, je označený „(jen torrent)" — pustit ho znamená napřed ho stáhnout. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
+- **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Zelené „lze pustit" u těch, které už mají stream, „jen torrent" u těch, které leží jen na trackerech, „hlídám" u těch, které zatím nikde nejsou; klepnutí otevře streamy. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.
 - Dole **Stahování** — u běžícího souboru procenta, rychlost, odhad zbývajícího času, kolik už je staženo z celku a křížek, kterým se stahování zruší. Pod tím **Stažené** — u každého souboru počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
 
 ### Výsledky hledání
@@ -186,13 +186,15 @@ Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Lu
 | ⬇ | stáhne do složky pro stahování (i s titulky); průběh je vidět dole v kartě i s rychlostí a odhadem času |
 | 🔗 | zkopíruje přímý odkaz do schránky (na `http` schránka přes prohlížeč nejde, tak se odkaz nabídne v okně k ručnímu zkopírování) |
 
-Kam se pouští nebo posílá se vybírá **až u akce**: klepnutí na ▶ nebo 📱 otevře malý výběr přehrávačů, respektive mobilů. Když je k dispozici jediný, karta se neptá a rovnou ho použije. Volba si pamatuje, co jsi vybral naposledy, a stejný výběr se používá i u stažených souborů.
+Kam se pouští nebo posílá se vybírá **až u akce**: klepnutí na ▶ nebo 📱 otevře uprostřed obrazovky malý výběr přehrávačů, respektive mobilů. Zavře se křížkem, klávesou Esc nebo klepnutím vedle. Když je k dispozici jediný cíl, karta se neptá a rovnou ho použije. Volba si pamatuje, co jsi vybral naposledy, a stejný výběr se používá i u stažených souborů.
 
 Nad seznamem je štítek **Hledat torrenty**. Objeví se, jen když je nastavený Prowlarr, a klepnutím se prohledají trackery; během hledání se točí kolečko přes fotku i v samotném štítku. Nalezené torrenty se zařadí **nad streamy** se zeleným štítkem *Torrent* a mají jedinou akci, **Stáhnout torrent** — předá se qBittorrentu a video se objeví mezi staženými, až se stáhne. Přehrát ani poslat do mobilu je nelze, torrent není odkaz na video. V bublině je tracker a kolik lidí soubor sdílí.
 
-Interpunkci z názvu titulu dotaz na tracker neunese („Okresní přebor **–** Poslední zápas…" nenajde nic), takže se před odesláním odstraní. Když ani pak tracker nic nevrátí, zkusí se ještě kratší dotaz z prvních slov názvu a roku.
+Interpunkci z názvu titulu dotaz na tracker neunese („Okresní přebor **–** Poslední zápas…" nenajde nic), takže se před odesláním odstraní. Když ani pak tracker nic nevrátí, zkusí se ještě kratší dotaz z prvních slov názvu a roku, a nakonec původní název titulu — české trackery pojmenovávají soubory obojím.
 
-Rozdělané torrenty jsou vidět v **Stahování** spolu s vlastním stahováním, včetně procent, rychlosti a odhadu času; křížkem se torrent zruší i s rozdělanými daty. Dokud se stahuje, mezi staženými soubory se neukáže, i když už jeho soubor ve složce leží.
+U seriálu jde do dotazu **jen název**: značka „S02E01" fulltext trackerů spolehlivě vynuluje. Sezóna a díl se proto vybírají až z výsledků — nabídne se konkrétní díl, a když není, balík celé sezóny. Torrent jiné sezóny se zahodí, takže na díl 2×01 nevyskočí první série.
+
+Rozdělané torrenty jsou vidět v **Stahování** spolu s vlastním stahováním, včetně procent, rychlosti a odhadu času; křížkem se torrent zruší i s rozdělanými daty. Dokud se stahuje, mezi staženými soubory se neukáže, i když už jeho soubor ve složce leží. Smazání staženého filmu odebere i jeho torrent z qBittorrentu — jinak by dál seedoval a hlásil chybějící data.
 
 ### Bubliny u tlačítek
 

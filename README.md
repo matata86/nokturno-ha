@@ -145,6 +145,7 @@ Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí ko
 | Zdroje nenajdou nic | tlačítko **Hledat v databázi filmů** je hned vedle **Úvod**; databáze zná i chystané tituly |
 | Jsi v databázi filmů | další hledání zůstane v ní, dokud se nevrátíš tlačítkem **Zpět k výsledkům ze zdrojů** nebo na **Úvod** |
 | Klepneš na titul z databáze | otevře se detail s plakátem a popisem; streamy tam většinou nejsou, proto je nahoře záložka pro uložení do seznamu k zhlédnutí |
+| Otevřeš titul ze seznamu k zhlédnutí | plakát a popis se dotáhnou z databáze filmů, i když je zdroje neznají |
 
 ### Seriál a epizody
 

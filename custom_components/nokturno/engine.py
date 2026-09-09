@@ -12,6 +12,7 @@ import re
 import unicodedata
 import urllib.parse
 import urllib.request
+from datetime import datetime
 
 from .const import LANGS, SORT_ORDERS
 from .lib.enrich import DEAD_IMAGES, _cinemeta, enrich, enrich_one
@@ -39,6 +40,9 @@ QUALITY_NAMES = {4: "4K", 3: "Full HD", 2: "HD", 1: "SD", 0: ""}
 def _fold(text):
     """Bez diakritiky, malá písmena — pro porovnávání názvů souborů."""
     return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode().lower()
+
+
+YEAR_RE = re.compile(r"\b(19\d{2}|20\d{2})\b")
 
 
 class NokturnoError(Exception):
@@ -129,6 +133,29 @@ class Engine:
     # --- hledání ------------------------------------------------------------
 
     @staticmethod
+    def split_year(query):
+        """„Pět švestek 2026" → („Pět švestek", 2026). Zdroje hledají jen v názvu, rok
+        v dotazu by je zmátl — odřízneme ho a použijeme na filtrování výsledků."""
+        query = (query or "").strip()
+        match = YEAR_RE.search(query)
+        if not match:
+            return query, None
+        base = (query[: match.start()] + " " + query[match.end():]).strip()
+        year = int(match.group(1))
+        # „2012" nebo „Blade Runner 2049" — číslo je součást názvu, ne rok vydání
+        if not base or year > datetime.now().year + 2:
+            return query, None
+        return base, year
+
+    def _by_year(self, pairs, year):
+        """Rok v dotazu je filtr: projdou jen tituly z toho roku (a ty, kde ho zdroj neuvádí).
+        Když nezbude nic, karta nabídne hledání v databázi filmů — je to poctivější
+        než ukázat stejnojmenný film o čtyřicet let starší."""
+        if not year:
+            return pairs
+        return [p for p in pairs if self._year(p[0]) in (year, None)]
+
+    @staticmethod
     def _year(meta):
         raw = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
         return int(raw) if raw.isdigit() else None
@@ -183,7 +210,7 @@ class Engine:
 
     def search(self, ctype="movie", query="", limit=20):
         """Sloučené výsledky z Luny a Sosáče (stejný titul jen jednou)."""
-        query = (query or "").strip()
+        query, want_year = self.split_year(query)
         if not query:
             raise NokturnoError("Prázdný dotaz.")
         luna_metas, sosac_metas, errors = [], [], []
@@ -200,7 +227,7 @@ class Engine:
                 errors.append(f"Sosáč: {err}")
         if not luna_metas and not sosac_metas and errors:
             raise NokturnoError("; ".join(errors))
-        merged = self._merge(luna_metas, sosac_metas)[: int(limit or 20)]
+        merged = self._by_year(self._merge(luna_metas, sosac_metas), want_year)[: int(limit or 20)]
         enrich([m for m, _alt in merged if is_sosac_id(m.get("id"))], self.luna, self.store, ctype)
         return [self._item(meta, ctype, alt) for meta, alt in merged]
 
@@ -222,7 +249,7 @@ class Engine:
     def search_catalog(self, ctype="movie", query="", limit=10):
         """Hledání v databázi filmů (Cinemeta = IMDb/TMDB) — najde i tituly, které zatím
         žádný ze zdrojů nemá, třeba chystané filmy. Slouží pro seznam „k zhlédnutí"."""
-        query = (query or "").strip()
+        query, want_year = self.split_year(query)
         if not query:
             raise NokturnoError("Prázdný dotaz.")
         url = (f"https://v3-cinemeta.strem.io/catalog/{'series' if ctype == 'series' else 'movie'}"
@@ -237,8 +264,12 @@ class Engine:
             data = self.store.cached(url, 3600, load)
         except Exception as err:  # noqa: BLE001
             raise NokturnoError(f"Databáze filmů neodpověděla: {err}") from err
+        metas = data.get("metas") or []
+        if want_year:
+            metas = [m for m in metas
+                     if str(m.get("releaseInfo") or m.get("year") or "")[:4] in (str(want_year), "")]
         out = []
-        for meta in (data.get("metas") or [])[: int(limit or 10)]:
+        for meta in metas[: int(limit or 10)]:
             year = str(meta.get("releaseInfo") or meta.get("year") or "")[:4]
             out.append({
                 "id": meta.get("id"),

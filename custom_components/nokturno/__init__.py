@@ -58,6 +58,8 @@ from .const import (
     SERVICE_TRAKT_LIST,
     SERVICE_TRAKT_WATCHED,
     SERVICE_WANT,
+    SERVICE_TORRENT,
+    SERVICE_TORRENTS,
     SERVICE_SEND_LINK,
     SERVICE_STREAMS,
     SERVICE_WATCH,
@@ -141,6 +143,16 @@ SHARE_SCHEMA = vol.Schema({
     vol.Required("path"): cv.string,
     vol.Optional("notify_service"): vol.Any(cv.string, None),
     vol.Optional("hours", default=24): vol.All(vol.Coerce(int), vol.Range(min=1, max=24 * 30)),
+})
+
+TORRENTS_SCHEMA = STREAMS_SCHEMA.extend({
+    # kolik streamů karta už ukazuje — torrenty na ně navazují číslováním
+    vol.Optional("offset", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=500)),
+})
+
+TORRENT_SCHEMA = vol.Schema({
+    vol.Required("url"): cv.string,          # magnet nebo odkaz na .torrent z Prowlarru
+    vol.Optional("name"): vol.Any(cv.string, None),
 })
 
 WANT_SCHEMA = vol.Schema({
@@ -818,6 +830,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _ctype, _item, _series, _alt, streams = await _streams(call.data)
         return {"count": len(streams), "streams": streams}
 
+    async def handle_torrents(call: ServiceCall):
+        """Torrenty titulu z trackerů. Zvlášť od streamů: trackery odpovídají
+        v řádu sekund, takže se hledá až když si o to karta řekne."""
+        call_data = await _with_query(dict(call.data))
+        if not call_data.get("id"):
+            raise HomeAssistantError("Chybí `id` titulu nebo `query`.")
+        ctype, item_id, series, _alt = episode_target(engine, call_data)
+        rows = await _in_executor(engine.torrents, ctype, item_id, series,
+                                  int(call.data.get("offset") or 0))
+        return {"count": len(rows), "streams": rows}
+
     async def handle_detail(call: ServiceCall):
         """Detail titulu z databáze filmů (popis, plakát) — pro tituly, které zdroje nemají."""
         return await _in_executor(engine.catalog_detail, call.data.get("type", "movie"), call.data["id"])
@@ -965,6 +988,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     break
         return {"url": url, "name": name, "hours": call.data["hours"]}
 
+    async def handle_torrent(call: ServiceCall):
+        """Zařadí torrent do stahování v qBittorrentu. Video se pak objeví
+        ve složce stahování jako každý jiný stažený soubor."""
+        name = (call.data.get("name") or "").strip()
+        await hass.async_add_executor_job(engine.download_torrent, call.data["url"], name)
+        return {"queued": True, "name": name}
+
     async def handle_delete_file(call: ServiceCall):
         try:
             await downloader.async_delete(call.data["path"])
@@ -991,6 +1021,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_TRAKT_AUTH, handle_trakt_auth, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_LIST, handle_trakt_list, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_WANT, handle_want, WANT_SCHEMA, SupportsResponse.OPTIONAL),
+        (SERVICE_TORRENTS, handle_torrents, TORRENTS_SCHEMA, SupportsResponse.ONLY),
+        (SERVICE_TORRENT, handle_torrent, TORRENT_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_WATCHED, handle_trakt_watched, TRAKT_WATCHED_SCHEMA, SupportsResponse.OPTIONAL),
     )
     for name, handler, schema, response in services:

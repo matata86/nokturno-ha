@@ -10,6 +10,13 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_DOWNLOAD_DIR,
+    CONF_PROWLARR_URL,
+    CONF_PROWLARR_KEY,
+    CONF_QBIT_URL,
+    CONF_QBIT_USER,
+    CONF_QBIT_PASS,
+    DEFAULT_PROWLARR_URL,
+    DEFAULT_QBIT_URL,
     CONF_EXTERNAL_HOST,
     CONF_NOTIFY_TARGET,
     CONF_TRAKT_ID,
@@ -65,6 +72,13 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_NOTIFY_TARGET, default=data.get(CONF_NOTIFY_TARGET, "")): str,
         vol.Optional(CONF_TRAKT_ID, default=data.get(CONF_TRAKT_ID, "")): str,
         vol.Optional(CONF_TRAKT_SECRET, default=data.get(CONF_TRAKT_SECRET, "")): str,
+        # Torrenty jako poslední možnost: hledá Prowlarr, stahuje qBittorrent.
+        # Prázdná adresa nebo klíč = torrenty se v detailu titulu vůbec neobjeví.
+        vol.Optional(CONF_PROWLARR_URL, default=data.get(CONF_PROWLARR_URL, DEFAULT_PROWLARR_URL)): str,
+        vol.Optional(CONF_PROWLARR_KEY, default=data.get(CONF_PROWLARR_KEY, "")): str,
+        vol.Optional(CONF_QBIT_URL, default=data.get(CONF_QBIT_URL, DEFAULT_QBIT_URL)): str,
+        vol.Optional(CONF_QBIT_USER, default=data.get(CONF_QBIT_USER, "")): str,
+        vol.Optional(CONF_QBIT_PASS, default=data.get(CONF_QBIT_PASS, "")): str,
     })
 
 

@@ -17,6 +17,8 @@ from datetime import datetime
 from .const import LANGS, SORT_ORDERS
 from .lib.enrich import DEAD_IMAGES, _cinemeta, _fetch, _fetch_title, enrich, enrich_one
 from .lib.luna_api import LunaApi, LunaError, clean_label, parse_base_url, parse_token
+from .lib.prowlarr import ProwlarrApi, ProwlarrError
+from .lib.qbittorrent import QbitApi, QbitError
 from .lib.sosac_api import SosacError, names_match
 from .lib.sosac_api import is_sosac_id as _is_legacy_sosac_id
 from .lib.sosac_direct import SosacDirect, is_direct_id
@@ -32,7 +34,8 @@ SUBS_MAX = 3
 
 _LOGGER = logging.getLogger(__name__)
 
-SOURCE_NAMES = {"main": "Luna", "search": "WebShare", "ws": "WebShare", "sosac": "Sosáč"}
+SOURCE_NAMES = {"main": "Luna", "search": "WebShare", "ws": "WebShare", "sosac": "Sosáč",
+                "torrent": "Torrent"}
 
 QUALITY_NAMES = {4: "4K", 3: "Full HD", 2: "HD", 1: "SD", 0: ""}
 
@@ -93,6 +96,7 @@ class Engine:
         self._sosac = None
         self._ws = None
         self._ws_ready = False
+        self._prowlarr = self._qbit = None
 
     # --- konfigurace --------------------------------------------------------
 
@@ -100,6 +104,7 @@ class Engine:
         self.options = dict(options)
         self._luna = self._sosac = self._ws = None
         self._ws_ready = False
+        self._prowlarr = self._qbit = None
 
     def _opt(self, key, default=""):
         value = self.options.get(key, default)
@@ -137,9 +142,28 @@ class Engine:
                     _LOGGER.warning("WebShare login selhal: %s", err)
         return self._ws
 
+    @property
+    def prowlarr(self):
+        """Hledání na trackerech. Bez adresy i klíče se torrenty vůbec nenabídnou."""
+        if self._prowlarr is None:
+            url = self._opt("prowlarr_url").strip()
+            key = self._opt("prowlarr_key").strip()
+            if url and key:
+                self._prowlarr = ProwlarrApi(url, key)
+        return self._prowlarr
+
+    @property
+    def qbit(self):
+        if self._qbit is None:
+            url = self._opt("qbit_url").strip()
+            if url:
+                self._qbit = QbitApi(url, self._opt("qbit_username"), self._opt("qbit_password"))
+        return self._qbit
+
     def sources(self):
         """Které zdroje jsou nakonfigurované (pro diagnostiku)."""
-        return {"luna": self.luna is not None, "sosac": self.sosac is not None, "webshare": self.ws is not None}
+        return {"luna": self.luna is not None, "sosac": self.sosac is not None,
+                "webshare": self.ws is not None, "torrent": self.prowlarr is not None}
 
     def api_for(self, item_id):
         api = self.sosac if is_sosac_id(item_id) else self.luna
@@ -712,6 +736,83 @@ class Engine:
         solo = [s for s in streams if s.get("_direct") and id(s) not in used]
         solo.sort(key=lambda s: -(s.get("size_gb") or 0))
         return out + solo[:SOLO_LIMIT]
+
+    def _torrent_streams(self, meta, video=None, ctype="movie"):
+        """Torrenty z trackerů přes Prowlarr. Poslední možnost, když jinde nic není."""
+        api = self.prowlarr
+        if api is None:
+            return []
+        title = meta.get("_title") or meta.get("name") or ""
+        if not title:
+            return []
+        query = title
+        if video and video.get("season") is not None:
+            query = f"{title} S{int(video['season']):02d}E{int(video.get('episode') or 0):02d}"
+        else:
+            year = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
+            if year.isdigit():
+                query = f"{title} {year}"
+        try:
+            return api.search(query, "series" if video else ctype)
+        except ProwlarrError as err:  # noqa: BLE001 – výpadek trackerů není chyba titulu
+            _LOGGER.warning("torrenty %s: %s", query, err)
+            return []
+
+    @staticmethod
+    def _describe_torrent(row, index):
+        """Torrent do stejného tvaru jako stream, ale s vlastním druhem a bez přehrání."""
+        size = row.get("size_gb") or 0
+        name = row["title"][:51] + "…" if len(row["title"]) > 52 else row["title"]
+        parts = [p for p in (
+            "Torrent",
+            row.get("quality") or "",
+            name,
+            f"{row['seeders']} seedů",
+            f"{size:.1f} GB" if size else "",
+        ) if p]
+        return {
+            "index": index,
+            # torrent není odkaz na video — nedá se přehrát ani poslat do mobilu,
+            # jde s ním jen jedno: zařadit do stahování
+            "kind": "torrent",
+            "direct": False,
+            "ws_url": "",
+            "label": "  ·  ".join(parts),
+            "raw_label": row["title"],
+            "file": row["title"],
+            "source": "Torrent",
+            "tracker": row.get("indexer") or "",
+            "seeders": row.get("seeders") or 0,
+            "leechers": row.get("leechers") or 0,
+            "quality": row.get("quality") or "",
+            "quality_rank": 0,
+            "size_gb": size or None,
+            "bitrate": None,
+            "langs": [],
+            "channels": {},
+            "subs": [],
+            "url": row.get("url") or "",
+            "subtitles": [],
+        }
+
+    def torrents(self, ctype, item_id, series_id=None, offset=0):
+        """Torrenty titulu. Hledají se až na vyžádání — trackery odpovídají
+        v řádu sekund a u titulu, na který stream je, by to jen zdržovalo."""
+        meta, video = self.meta(ctype, item_id, series_id)
+        rows = self._torrent_streams(meta, video, ctype)
+        return [self._describe_torrent(row, offset + i) for i, row in enumerate(rows)]
+
+    def download_torrent(self, url, name=""):
+        """Předá torrent qBittorrentu. Stažený soubor skončí ve složce stahování."""
+        api = self.qbit
+        if api is None:
+            raise NokturnoError("qBittorrent není nastavený.")
+        try:
+            if not api.add(url, save_path=self._opt("download_dir", "") or "", rename=name):
+                raise NokturnoError("qBittorrent torrent nepřijal.")
+        except QbitError as err:
+            raise NokturnoError(str(err)) from err
+        return True
 
     def streams(self, ctype, item_id, alt=None, series_id=None):
         """Seřazené streamy titulu ze všech dostupných zdrojů."""

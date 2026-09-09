@@ -17,10 +17,10 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.33.3";
+const CARD_VERSION = "1.43.3";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
-const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
+const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c", "Torrent": "#3f9e6f" };
 const KINDS = [
   { value: "movie", label: "Filmy" },
   { value: "series", label: "Seriály" },
@@ -238,6 +238,7 @@ class NokturnoCard extends HTMLElement {
       const res = await this._call("streams", data);
       this._state.streams = res.streams || [];
       this._state.streamTarget = data;
+      this._state.torrents = false;   // torrenty se u nového titulu hledají znovu
       this._state.view = "streams";
     });
   }
@@ -261,6 +262,31 @@ class NokturnoCard extends HTMLElement {
     await this._guard(async () => {
       const res = await this._call("download", this._target(stream));
       this._toast(`Stahuji do ${res.path || "úložiště"}`);
+    });
+  }
+
+  /** Prowlarr nastavený? Senzor stahování to hlásí v atributu `sources`. */
+  _hasTorrents() {
+    const sensor = this._hass && this._hass.states[this._config.downloads];
+    return !!(sensor && sensor.attributes.sources && sensor.attributes.sources.torrent);
+  }
+
+  /** Torrenty se hledají až na vyžádání — trackery odpovídají v řádu sekund
+      a u titulu, na který stream je, by to jen zdržovalo otevření detailu. */
+  async _findTorrents() {
+    await this._guard(async () => {
+      const res = await this._call("torrents", {
+        ...this._state.streamTarget, offset: this._state.streams.length });
+      this._state.streams = this._state.streams.concat(res.streams || []);
+      this._state.torrents = true;
+      if (!(res.streams || []).length) this._toast("Na trackerech nic nenašel");
+    });
+  }
+
+  async _downloadTorrent(stream) {
+    await this._guard(async () => {
+      await this._call("download_torrent", { url: stream.url, name: stream.file || "" }, false);
+      this._toast("Torrent zařazen do stahování");
     });
   }
 
@@ -466,6 +492,7 @@ class NokturnoCard extends HTMLElement {
                          display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
         .stream .icons { grid-area:icons; display:flex; justify-content:flex-end; gap:2px; margin-top:2px; }
         /* tlačítka streamu ve vzhledu HA: čtyři široká vedle sebe přes celou šířku */
+        .icons.wide .span4 { grid-column: 1 / -1; }
         .icons.wide { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:6px; }
         .icons.wide ha-control-button { width:100%; height:40px; --control-button-border-radius:12px; }
         .icons.wide ha-icon { --mdc-icon-size:20px; }
@@ -840,20 +867,28 @@ class NokturnoCard extends HTMLElement {
           ${phones.length > 1 ? this._pick("phone", "Mobil", phones.map((p) => ({ value: p, label: this._phoneName(p) })), st.phone) : ""}
         </span>
       </div>`;
-    if (!st.streams.length) return head + `<div class="muted empty">Pro tento titul se nenašel žádný stream.${
+    // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání
+    const torrentBtn = st.torrents || !this._hasTorrents() ? "" : `<div class="chips" style="margin:8px 0 2px">
+      <button class="chip" data-findtorrents="1" title="Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání">
+        <ha-icon icon="mdi:magnify-scan" style="--mdc-icon-size:14px"></ha-icon> Hledat torrenty
+      </button></div>`;
+    if (!st.streams.length) return head + torrentBtn + `<div class="muted empty">Pro tento titul se nenašel žádný stream.${
       st.item && st.item.source === "katalog" ? " Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví." : ""}</div>`;
     const legend = st.streams.some((s) => s.direct)
       ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = hraje i mimo domácí síť</div>` : "";
-    return head + legend + `<div>${st.streams.map((s, i) => `
+    return head + torrentBtn + legend + `<div>${st.streams.map((s, i) => `
       <div class="stream" title="${this._esc(this._streamTitle(s))}">
         <span class="tag" style="background:${SOURCE_COLORS[s.source] || "#777"}">${s.source || "?"}${
           s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="Hraje i mimo domácí síť"></ha-icon>` : ""}</span>
         <span class="label">${this._esc(s.label.replace(s.source + "  ·  ", ""))}</span>
-        <span class="icons wide">
-          <ha-control-button data-play="${i}" title="Přehrát"><ha-icon icon="mdi:play"></ha-icon></ha-control-button>
+        <span class="icons wide">${s.kind === "torrent"
+          // torrent není odkaz na video: nedá se přehrát ani poslat do mobilu,
+          // nejdřív ho musí stáhnout torrentový klient
+          ? `<ha-control-button class="span4" data-torrent="${i}" title="Zařadit ke stažení do qBittorrentu — až se soubor stáhne, objeví se mezi staženými"><ha-icon icon="mdi:download-network-outline"></ha-icon> Stáhnout torrent</ha-control-button>`
+          : `<ha-control-button data-play="${i}" title="Přehrát"><ha-icon icon="mdi:play"></ha-icon></ha-control-button>
           <ha-control-button data-phone="${i}" title="Poslat do mobilu"><ha-icon icon="mdi:cellphone-play"></ha-icon></ha-control-button>
           <ha-control-button data-dl="${i}" title="Stáhnout"><ha-icon icon="mdi:download"></ha-icon></ha-control-button>
-          <ha-control-button data-link="${i}" title="Zkopírovat odkaz"><ha-icon icon="mdi:link-variant"></ha-icon></ha-control-button>
+          <ha-control-button data-link="${i}" title="Zkopírovat odkaz"><ha-icon icon="mdi:link-variant"></ha-icon></ha-control-button>`}
         </span>
       </div>`).join("")}</div>`;
   }
@@ -1040,7 +1075,8 @@ class NokturnoCard extends HTMLElement {
   _onClick(event) {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
-                  "watch", "wopen", "wremove", "wseen", "trakt", "want", "catalog", "research"];
+                  "watch", "wopen", "wremove", "wseen", "trakt", "want", "catalog", "research",
+                  "torrent", "findtorrents"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -1108,6 +1144,8 @@ class NokturnoCard extends HTMLElement {
     if (data.phone !== undefined) return this._toPhone(st.streams[+data.phone]);
     if (data.dl !== undefined) return this._download(st.streams[+data.dl]);
     if (data.link !== undefined) return this._openLink(st.streams[+data.link]);
+    if (data.torrent !== undefined) return this._downloadTorrent(st.streams[+data.torrent]);
+    if (data.findtorrents !== undefined) return this._findTorrents();
     return undefined;
   }
 
@@ -1118,6 +1156,10 @@ class NokturnoCard extends HTMLElement {
     if (s.subs && s.subs.length) rows.push("titulky: " + s.subs.join(", "));
     if (s.bitrate) rows.push(`${s.bitrate} Mb/s`);
     if (s.direct) rows.push("hraje i mimo domácí síť");
+    if (s.kind === "torrent") {
+      rows.push(`${s.tracker || "tracker"}: ${s.seeders} sdílí, ${s.leechers} stahuje`);
+      rows.push("stáhne se přes qBittorrent, přehrát půjde až potom");
+    }
     return rows.filter(Boolean).join("\n");
   }
 

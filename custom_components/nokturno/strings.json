@@ -26,7 +26,12 @@
           "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu",
           "notify_target": "Oznámení o stažení a nových dílech (např. notify.mobile_app_telefon; prázdné = oznámení v HA)",
           "trakt_client_id": "Trakt.tv — Client ID (z trakt.tv/oauth/applications)",
-          "trakt_client_secret": "Trakt.tv — Client Secret"
+          "trakt_client_secret": "Trakt.tv — Client Secret",
+          "prowlarr_url": "Prowlarr — adresa (hledání torrentů)",
+          "prowlarr_key": "Prowlarr — API klíč",
+          "qbit_url": "qBittorrent — adresa",
+          "qbit_username": "qBittorrent — jméno (jen když web UI vyžaduje přihlášení)",
+          "qbit_password": "qBittorrent — heslo"
         }
       }
     },
@@ -55,7 +60,12 @@
           "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu",
           "notify_target": "Oznámení o stažení a nových dílech (např. notify.mobile_app_telefon; prázdné = oznámení v HA)",
           "trakt_client_id": "Trakt.tv — Client ID (z trakt.tv/oauth/applications)",
-          "trakt_client_secret": "Trakt.tv — Client Secret"
+          "trakt_client_secret": "Trakt.tv — Client Secret",
+          "prowlarr_url": "Prowlarr — adresa (hledání torrentů)",
+          "prowlarr_key": "Prowlarr — API klíč",
+          "qbit_url": "qBittorrent — adresa",
+          "qbit_username": "qBittorrent — jméno (jen když web UI vyžaduje přihlášení)",
+          "qbit_password": "qBittorrent — heslo"
         }
       }
     }

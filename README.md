@@ -42,6 +42,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Rok v dotazu je filtr** — „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere. Rok se hlídá i u souborů z fulltextu WebShare, takže se k titulu nepřimíchá stejnojmenný film z jiného roku.
 - **Jedno hledání pro filmy i seriály** — přepínač *Filmy / Seriály* se objeví, jen když dotaz sedí na obojí; jinak karta rovnou ukáže to, co našla. Stejně to funguje i v doplňku do Kodi.
 - **Databáze filmů po ruce vždycky** — tlačítko *Hledat v databázi filmů* je u každých výsledků, ne jen když zdroje nic nenajdou. Klepnutím na titul se otevře jeho detail s plakátem a popisem (u chystaných filmů, které popis nikde nemají, aspoň žánr, režie a obsazení) a záložkou v něm si ho uložíš do seznamu k zhlédnutí. Dokud jsi v databázi, hledá tam i tlačítko *Hledat*.
+- **Torrenty jako poslední možnost** — když na titul nikde stream není, tlačítko *Hledat torrenty* pod seznamem prohledá trackery přes [Prowlarr](https://prowlarr.com/) a nalezené torrenty předá qBittorrentu. Hledá se **až na vyžádání**, protože trackery odpovídají v řádu sekund a otevření detailu by to zdržovalo. Vypnuté, dokud Prowlarr nevyplníš.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
 
 ## Instalace
@@ -87,6 +88,8 @@ Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Bez L
 | Adresa mimo domácí síť | IP nebo doména | — | Tailscale/VPN adresa HA (např. `100.94.191.65`). Použije se při odesílání odkazu a při `resolve`, a jen tehdy, když addon Tailscale skutečně běží — integrace si to ověřuje přes Supervisor. |
 | Oznámení | notify služba | — | kam chodí hlášky o dokončeném stahování, novém dílu a nově dostupném titulu (`notify.mobile_app_…`). Prázdné = trvalé oznámení v HA. |
 | Trakt.tv — Client ID, Secret | z [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications) | — | volitelné propojení účtu. **Trakt od 7/2026 vydává API klíče jen s VIP** — bez nich funguje vlastní seznam k zhlédnutí úplně stejně. |
+| Prowlarr — adresa, API klíč | `http://IP:9696` a klíč ze *Settings → General* | — | hledání na torrentových trackerech. **Dokud není vyplněné obojí, torrenty se v kartě vůbec nenabídnou.** Prowlarr drží přihlášení k trackerům za tebe, takže integrace nemusí řešit HTML jednotlivých stránek. |
+| qBittorrent — adresa, jméno, heslo | `http://IP:9091` | — | kam se předávají nalezené torrenty. Jméno a heslo nech prázdné, když má web UI povolenou místní síť bez přihlášení. Stažené video skončí ve složce pro stahování. |
 
 Po vyplnění Traktu spusť službu `nokturno.trakt_auth` — přijde oznámení s kódem, který zadáš na [trakt.tv/activate](https://trakt.tv/activate).
 
@@ -184,6 +187,8 @@ Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Lu
 | 🔗 | zkopíruje přímý odkaz do schránky (na `http` schránka přes prohlížeč nejde, tak se odkaz nabídne v okně k ručnímu zkopírování) |
 
 Nad seznamem jsou výběry **Přehrávač** a **Mobil** ve vzhledu nativních výběrů Home Assistantu — platí pro všechny akce v seznamu.
+
+Pod seznamem je štítek **Hledat torrenty**. Objeví se, jen když je nastavený Prowlarr, a klepnutím se prohledají trackery. Nalezené torrenty se přidají na konec seznamu se zeleným štítkem *Torrent* a mají jedinou akci, **Stáhnout torrent** — předá se qBittorrentu a video se objeví mezi staženými, až se stáhne. Přehrát ani poslat do mobilu je nelze, torrent není odkaz na video. V bublině je tracker a kolik lidí soubor sdílí. U titulu, na který zdroje nic nemají, je stejné tlačítko rovnou pod hláškou o chybějícím streamu.
 
 ### Bubliny u tlačítek
 

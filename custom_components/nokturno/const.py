@@ -20,8 +20,17 @@ CONF_EXTERNAL_HOST = "external_host"
 CONF_NOTIFY_TARGET = "notify_target"
 CONF_TRAKT_ID = "trakt_client_id"
 CONF_TRAKT_SECRET = "trakt_client_secret"
+# Torrenty: hledání přes Prowlarr, stahování přes qBittorrent. Bez obojího se
+# torrentový zdroj vůbec nenabídne.
+CONF_PROWLARR_URL = "prowlarr_url"
+CONF_PROWLARR_KEY = "prowlarr_key"
+CONF_QBIT_URL = "qbit_url"
+CONF_QBIT_USER = "qbit_username"
+CONF_QBIT_PASS = "qbit_password"
 
 DEFAULT_LUNA_URL = "http://192.168.1.10:7126"
+DEFAULT_PROWLARR_URL = "http://192.168.1.10:9696"
+DEFAULT_QBIT_URL = "http://192.168.1.10:9091"
 DEFAULT_DOWNLOAD_DIR = "/media/nokturno"
 DEFAULT_SORT = "quality"
 
@@ -51,6 +60,8 @@ SERVICE_TRAKT_AUTH = "trakt_auth"
 SERVICE_TRAKT_WATCHED = "trakt_watched"
 SERVICE_TRAKT_LIST = "trakt_watchlist"
 SERVICE_WANT = "want_to_watch"
+SERVICE_TORRENTS = "torrents"
+SERVICE_TORRENT = "download_torrent"
 
 SIGNAL_DOWNLOADS = f"{DOMAIN}_downloads_updated"
 SIGNAL_WATCHLIST = f"{DOMAIN}_watchlist_updated"

@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.43.3";
+const CARD_VERSION = "1.43.4";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c", "Torrent": "#3f9e6f" };
@@ -867,10 +867,11 @@ class NokturnoCard extends HTMLElement {
           ${phones.length > 1 ? this._pick("phone", "Mobil", phones.map((p) => ({ value: p, label: this._phoneName(p) })), st.phone) : ""}
         </span>
       </div>`;
-    // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání
+    // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání.
+    // Hledání trvá pár sekund, takže se točí kolečko i v tlačítku, nejen přes fotku.
     const torrentBtn = st.torrents || !this._hasTorrents() ? "" : `<div class="chips" style="margin:8px 0 2px">
-      <button class="chip" data-findtorrents="1" title="Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání">
-        <ha-icon icon="mdi:magnify-scan" style="--mdc-icon-size:14px"></ha-icon> Hledat torrenty
+      <button class="chip" data-findtorrents="1"${st.busy ? " disabled" : ""} title="Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání">
+        <ha-icon class="${st.busy ? "spin" : ""}" icon="${st.busy ? "mdi:loading" : "mdi:magnify-scan"}" style="--mdc-icon-size:14px"></ha-icon> ${st.busy ? "Hledám torrenty…" : "Hledat torrenty"}
       </button></div>`;
     if (!st.streams.length) return head + torrentBtn + `<div class="muted empty">Pro tento titul se nenašel žádný stream.${
       st.item && st.item.source === "katalog" ? " Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví." : ""}</div>`;

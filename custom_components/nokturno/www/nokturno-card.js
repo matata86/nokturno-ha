@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.46.1";
+const CARD_VERSION = "1.46.2";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c", "Torrent": "#3f9e6f" };
@@ -274,10 +274,9 @@ class NokturnoCard extends HTMLElement {
       wrap.innerHTML = `<style>
         .nokturno-chooser { position:fixed !important; top:0 !important; left:0 !important;
           width:100vw; height:100vh; z-index:99; background:rgba(0,0,0,.5); }
-        /* panel se kotví na střed okna sám, ne přes rozvržení obalu */
-        .nokturno-chooser .panel { position:fixed !important; top:50% !important; left:50% !important;
-          transform:translate(-50%,-50%) !important; margin:0 !important;
-          background: var(--card-background-color, #1c1c1c);
+        /* polohu panelu počítá karta měřením, CSS ji jen drží */
+        .nokturno-chooser .panel { position:fixed !important; top:0 !important; left:0 !important;
+          margin:0 !important; background: var(--card-background-color, #1c1c1c);
           color: var(--primary-text-color, #fff); border-radius:14px; padding:8px;
           width:max-content; min-width:250px; max-width:min(90vw,340px);
           box-shadow:0 8px 32px rgba(0,0,0,.5); }
@@ -301,6 +300,7 @@ class NokturnoCard extends HTMLElement {
       const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(null); } };
       const close = (value) => {
         window.removeEventListener("keydown", onKey, true);
+        wrap.dispatchEvent(new Event("remove-listener"));
         wrap.remove();
         resolve(value);
       };
@@ -310,6 +310,29 @@ class NokturnoCard extends HTMLElement {
       if (closer) closer.addEventListener("click", () => close(null));
       wire(wrap, close);
       document.body.appendChild(wrap);
+      // Panel patří doprostřed karty, ne obrazovky — modal se týká toho, na co
+      // se právě kleplo. Polohu počítá měření, ne CSS: modal visí v `body`,
+      // kde o kartě nic neví, a transformace předků umí podstrčit jiný
+      // vztažný bod. Do okna se zarovná, aby nevyčníval ven.
+      const panel = wrap.querySelector(".panel");
+      const centre = () => {
+        panel.style.transform = "none";
+        const box = panel.getBoundingClientRect();     // pozice bez posunu = vztažný bod
+        const card = this.getBoundingClientRect();
+        const pad = 8;
+        const fit = (start, size, room) => Math.max(pad, Math.min(room - size - pad, start));
+        const x = fit(card.left + (card.width - box.width) / 2, box.width, window.innerWidth);
+        const y = fit(card.top + (card.height - box.height) / 2, box.height, window.innerHeight);
+        panel.style.transform = `translate(${Math.round(x - box.left)}px, ${Math.round(y - box.top)}px)`;
+      };
+      requestAnimationFrame(centre);
+      const follow = () => requestAnimationFrame(centre);
+      window.addEventListener("resize", follow);
+      window.addEventListener("scroll", follow, true);
+      wrap.addEventListener("remove-listener", () => {
+        window.removeEventListener("resize", follow);
+        window.removeEventListener("scroll", follow, true);
+      });
     });
   }
 

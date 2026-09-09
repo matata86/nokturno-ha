@@ -186,7 +186,7 @@ Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Lu
 | ⬇ | stáhne do složky pro stahování (i s titulky); průběh je vidět dole v kartě i s rychlostí a odhadem času |
 | 🔗 | zkopíruje přímý odkaz do schránky (na `http` schránka přes prohlížeč nejde, tak se odkaz nabídne v okně k ručnímu zkopírování) |
 
-Kam se pouští nebo posílá se vybírá **až u akce**: klepnutí na ▶ nebo 📱 otevře uprostřed obrazovky malý výběr přehrávačů, respektive mobilů. Zavře se křížkem, klávesou Esc nebo klepnutím vedle. Když je k dispozici jediný cíl, karta se neptá a rovnou ho použije. Volba si pamatuje, co jsi vybral naposledy, a stejný výběr se používá i u stažených souborů.
+Kam se pouští nebo posílá se vybírá **až u akce**: klepnutí na ▶ nebo 📱 otevře uprostřed karty malý výběr přehrávačů, respektive mobilů. Zavře se křížkem, klávesou Esc nebo klepnutím vedle. Stejným způsobem se potvrzuje mazání staženého souboru. Když je k dispozici jediný cíl, karta se neptá a rovnou ho použije. Volba si pamatuje, co jsi vybral naposledy, a stejný výběr se používá i u stažených souborů.
 
 Nad seznamem je štítek **Hledat torrenty**. Objeví se, jen když je nastavený Prowlarr, a klepnutím se prohledají trackery; během hledání se točí kolečko přes fotku i v samotném štítku. Nalezené torrenty se zařadí **nad streamy** se zeleným štítkem *Torrent* a mají jedinou akci, **Stáhnout torrent** — předá se qBittorrentu a video se objeví mezi staženými, až se stáhne. Přehrát ani poslat do mobilu je nelze, torrent není odkaz na video. V bublině je tracker a kolik lidí soubor sdílí.
 

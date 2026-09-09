@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.25.1";
+const CARD_VERSION = "1.26.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c" };
@@ -214,41 +214,39 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
-  /** Rozkoukané: Kodi dostane přímo plugin:// odkaz z doplňku (obnoví pozici). */
-  async _playContinue(item) {
-    // pokračuje se na tom Kodi, kde je titul rozkoukaný
-    const entityId = item.entity_id || this._state.player || this._players()[0];
-    if (!entityId) { this._toast("Není nastavený žádný přehrávač."); return; }
-    await this._guard(async () => {
-      await this._hass.callService("media_player", "play_media", {
-        entity_id: entityId, media_content_type: "video", media_content_id: item.file,
+  /** Rozkoukané: otevře streamy titulu v kartě (id a typ nese plugin odkaz z Kodi). */
+  async _openContinue(item) {
+    const query = (item.file || "").split("?")[1] || "";
+    const params = new URLSearchParams(query);
+    const id = params.get("id");
+    const type = params.get("type") || (item.series ? "series" : "movie");
+    this._state.stack.push("search");
+    this._state.descOpen = false;
+    this._state.episode = null;
+    this._state.title = item.label || item.title;
+    if (id) {
+      this._state.item = {
+        id, type, title: item.title || item.label, year: item.year,
+        poster: item.thumbnail, background: item.fanart, description: item.plot,
+        alt: params.get("alt") || null,
+      };
+      return this._loadStreams({
+        id, type,
+        series: params.get("series") || undefined,
+        alt: params.get("alt") || undefined,
       });
-      this._toast(`Pokračuji na ${this._friendly(entityId)}: ${item.label}`);
-    });
-  }
-
-  /** Kopírování do schránky. `navigator.clipboard` funguje jen přes https nebo localhost,
-   *  na `http://<ip>:8123` (typicky mobil v LAN) se musí přes skryté pole a execCommand. */
-  _copy(text) {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).catch(() => this._copyFallback(text));
-      return true;
     }
-    return this._copyFallback(text);
-  }
-
-  _copyFallback(text) {
-    const field = document.createElement("textarea");
-    field.value = text;
-    field.setAttribute("readonly", "");
-    field.style.cssText = "position:fixed;top:0;left:0;opacity:0";
-    document.body.appendChild(field);
-    field.select();
-    field.setSelectionRange(0, text.length);
-    let ok = false;
-    try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
-    field.remove();
-    return ok;
+    // starší doplněk odkaz bez id nemá — dohledáme titul podle názvu
+    return this._guard(async () => {
+      const res = await this._call("search", { query: item.title || item.label, type, limit: 1 });
+      const found = (res.results || [])[0];
+      if (!found) { this._toast("Titul se nepodařilo najít."); this._state.stack.pop(); return; }
+      this._state.item = found;
+      const streams = await this._call("streams", { id: found.id, type, alt: found.alt });
+      this._state.streams = streams.streams || [];
+      this._state.streamTarget = { id: found.id, type, alt: found.alt };
+      this._state.view = "streams";
+    });
   }
 
   _toast(message) {
@@ -776,7 +774,7 @@ class NokturnoCard extends HTMLElement {
       return;
     }
     if (data.histclear !== undefined) return this._call("clear_history", {}, false).then(() => this._paint());
-    if (data.cont !== undefined) return this._playContinue(st.continueItems[+data.cont]);
+    if (data.cont !== undefined) return this._openContinue(st.continueItems[+data.cont]);
     if (data.watch !== undefined) return this._toggleWatch();
     if (data.wopen !== undefined) {
       const w = this._watchlist()[+data.wopen];

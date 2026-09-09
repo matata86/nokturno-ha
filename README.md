@@ -30,7 +30,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 - **Odeslání do mobilu** — notifikace s odkazem, klepnutím se spustí ve VLC (posílá se jako Android intent s typem videa, jinak by telefon soubor jen stáhl).
 - **Stahování do `/media/nokturno`** s frontou a průběhem; hotové soubory jsou vidět v kartě, dají se přehrát, smazat nebo poslat do mobilu odkazem přes Nabu Casa. Titulky se stáhnou vedle videa a mažou se spolu s ním.
 - **Odkazy použitelné mimo domácí síť** (ikona 🌐) — přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
-- **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí pokračuje na tom, kde jsi to rozkoukal.
+- **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat.
 - **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB.
 - **Trakt.tv** — propojení účtu, hlášení přehrávání, zápis do historie a hlídání seznamu „k zhlédnutí": jednou denně se kontroluje, co už má stream, a přijde oznámení.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
@@ -116,7 +116,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 
 - **Pole pro hledání** a tlačítko **Hledat**; pod nimi přepínač **Filmy / Seriály**.
 - **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
-- **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný; klepnutí pokračuje právě tam.
+- **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
 - **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
 - **K zhlédnutí (Trakt)** — seznam z Traktu; zelené „lze pustit" u titulů, které už mají stream, jinak „zatím ne". Klepnutí otevře streamy.
 - Dole **Stahování** (fronta s procenty) a **Stažené** — u každého souboru počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.

@@ -230,7 +230,7 @@ class NokturnoCard extends HTMLElement {
       }
       let streams = [];
       try {
-        const res = await this._call("streams", { id: item.id, type });
+        const res = await this._call("streams", { id: item.id, type, title: item.title, year: item.year });
         streams = res.streams || [];
       } catch (err) { /* stejně tak film */ }
       st.streams = streams;
@@ -242,7 +242,9 @@ class NokturnoCard extends HTMLElement {
   async _loadStreams(data) {
     this._state.stack.push(this._state.view);
     await this._guard(async () => {
-      const res = await this._call("streams", data);
+      // název a rok jdou s dotazem jen kvůli čítačům používání (viz stats v integraci)
+      const it = this._state.item || {};
+      const res = await this._call("streams", { title: it.title, year: it.year, ...data });
       this._state.streams = res.streams || [];
       this._state.streamTarget = data;
       this._state.torrents = false;   // torrenty se u nového titulu hledají znovu
@@ -495,7 +497,7 @@ class NokturnoCard extends HTMLElement {
       const found = (res.results || [])[0];
       if (!found) { this._toast("Titul se nepodařilo najít."); this._state.stack.pop(); return; }
       this._state.item = found;
-      const streams = await this._call("streams", { id: found.id, type, alt: found.alt });
+      const streams = await this._call("streams", { id: found.id, type, alt: found.alt, title: found.title, year: found.year });
       this._state.streams = streams.streams || [];
       this._state.streamTarget = { id: found.id, type, alt: found.alt };
       this._state.view = "streams";

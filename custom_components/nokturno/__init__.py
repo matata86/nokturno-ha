@@ -28,10 +28,15 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.loader import async_get_integration
 
 from .const import (
     CONF_DOWNLOAD_DIR,
     CONF_EXTERNAL_HOST,
+    CONF_STATS_ENABLED,
+    CONF_STATS_URL,
+    DEFAULT_STATS_URL,
+    STATS_INTERVAL_HOURS,
     CONF_KODI_ENTITY,
     CONF_NOTIFY_TARGET,
     CONF_TRAKT_ID,
@@ -76,6 +81,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .downloader import Downloader
+from .lib.stats import Stats
 from .engine import Engine, NokturnoError, _fold, split_episode_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -101,6 +107,10 @@ STREAMS_SCHEMA = vol.Schema({
     vol.Optional("series"): vol.Any(cv.string, None),
     vol.Optional("season"): vol.Any(vol.Coerce(int), None),
     vol.Optional("episode"): vol.Any(vol.Coerce(int), None),
+    # jen pro čítače: karta název i rok zná, takže se kvůli nim nemusí znovu
+    # sahat na metadata (`title`/`year` na výběr streamů nemají žádný vliv)
+    vol.Optional("title"): vol.Any(cv.string, None),
+    vol.Optional("year"): vol.Any(cv.string, vol.Coerce(int), None),
 })
 
 PLAY_SCHEMA = STREAMS_SCHEMA.extend({
@@ -492,6 +502,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     engine = await hass.async_add_executor_job(
         Engine, options, hass.config.path(f".storage/{DOMAIN}")
     )
+    # čítače leží vedle ostatních dat integrace; Stats si soubor drží sám
+    stats = await hass.async_add_executor_job(Stats, hass.config.path(f".storage/{DOMAIN}"))
+    stats_version = str((await async_get_integration(hass, DOMAIN)).version or "")
     downloader = Downloader(hass, options.get(CONF_DOWNLOAD_DIR) or DEFAULT_DOWNLOAD_DIR,
                             store=engine.store)
     # odkazy z WebShare po pár hodinách vyprší — po restartu si downloader vyžádá nový
@@ -501,6 +514,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "downloader": downloader,
         "entry": entry,
         "owners": await async_phone_owners(hass),
+        "stats_send": None,   # doplní se níž, až closure existuje
     }
 
     async def notify(title, message, url=None):
@@ -853,6 +867,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # dokončený torrent zmizí z fronty a objeví se jako soubor ve složce
         await downloader.async_refresh_files()
 
+    def _stats_send(force=False):
+        """Blokující — patří do executoru. Nikdy nevyhodí výjimku ven."""
+        if not options.get(CONF_STATS_ENABLED, True):
+            return
+        if not force and not stats.due():
+            return
+        ok, why = stats.send(
+            (options.get(CONF_STATS_URL) or DEFAULT_STATS_URL).strip(),
+            version=stats_version, platform="Home Assistant",
+            kodi=hass.config.as_dict().get("version", ""),
+            lang=(hass.config.language or "")[:8],
+            agent="HomeAssistant nokturno",
+        )
+        if not ok:
+            _LOGGER.debug("statistiky neodeslány: %s", why)
+
+    def _note_view(item_id, title="", year=None, kind="movie"):
+        """Zobrazení streamů titulu — stejná událost jako v Kodi doplňku."""
+        if not options.get(CONF_STATS_ENABLED, True):
+            return
+        stats.note_use()
+        if item_id:
+            stats.note_play(item_id, title or "", year, kind)
+
+    async def stats_tick(_now=None):
+        await hass.async_add_executor_job(_stats_send)
+
+    entry.async_on_unload(async_track_time_interval(hass, stats_tick, timedelta(hours=STATS_INTERVAL_HOURS)))
+    hass.data[DOMAIN][entry.entry_id]["stats_send"] = _stats_send
     entry.async_on_unload(async_track_time_interval(hass, poll_torrents, timedelta(seconds=5)))
     entry.async_on_unload(async_track_time_interval(hass, check_series, timedelta(hours=WATCH_INTERVAL_HOURS)))
     entry.async_on_unload(async_track_time_interval(hass, check_trakt, timedelta(hours=TRAKT_INTERVAL_HOURS)))
@@ -919,7 +962,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"count": len(results), "results": results}
 
     async def handle_streams(call: ServiceCall):
-        _ctype, _item, _series, _alt, streams = await _streams(call.data)
+        ctype, item_id, series, _alt, streams = await _streams(call.data)
+        year = call.data.get("year")
+        await hass.async_add_executor_job(
+            _note_view, item_id, call.data.get("title") or "",
+            int(year) if str(year or "").isdigit() else None,
+            "series" if series or ctype == "series" else "movie",
+        )
         return {"count": len(streams), "streams": streams}
 
     async def handle_torrents(call: ServiceCall):
@@ -1164,6 +1213,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         data = hass.data[DOMAIN].pop(entry.entry_id)
         data["downloader"].shutdown()
+        # poslední hlášení — jinak by u vypnuté instance chybělo posledních pár hodin
+        if data.get("stats_send"):
+            await hass.async_add_executor_job(data["stats_send"], True)
         if not hass.data[DOMAIN]:
             for name in (SERVICE_SEARCH, SERVICE_STREAMS, SERVICE_EPISODES, SERVICE_RESOLVE, SERVICE_PLAY,
                          SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_START_DOWNLOAD,

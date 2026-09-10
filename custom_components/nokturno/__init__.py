@@ -536,6 +536,63 @@ class NokturnoSyncView(HomeAssistantView):
         return self.json(result)
 
 
+def _encode_signed(signed: str) -> str:
+    """Zakóduje část cesty podepsaného odkazu (mezery, diakritika), query ponechá."""
+    path, sep, query = signed.partition("?")
+    return urllib.parse.quote(path, safe="/") + sep + query
+
+
+class NokturnoFilesView(HomeAssistantView):
+    """Seznam souborů stažených integrací — pro položku „Staženo v HA" v Kodi doplňku.
+
+    Vrací podepsané RELATIVNÍ odkazy (`async_sign_path`); absolutní adresu si
+    doplněk složí z adresy, přes kterou k HA přistupuje (může to být i Nabu Casa,
+    pak odkaz hraje i mimo domácí síť). Ověření stejným klíčem jako `/sync`.
+    """
+
+    url = "/api/nokturno/files"
+    name = "api:nokturno:files"
+    requires_auth = False
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def get(self, request):
+        from datetime import timedelta as _timedelta
+
+        from homeassistant.components import media_source
+
+        try:
+            data = _entry_data(self.hass)
+        except HomeAssistantError:
+            return self.json({"error": "integrace není nastavená"}, status_code=503)
+        key = data["entry"].data.get(CONF_SYNC_KEY) or ""
+        if not key or request.headers.get("X-Nokturno-Key") != key:
+            return self.json({"error": "špatný klíč"}, status_code=403)
+        downloader = data["downloader"]
+        await downloader.async_refresh_files()
+        out = []
+        for f in sorted(downloader.files, key=lambda x: x.get("modified") or 0, reverse=True):
+            rel = os.path.relpath(os.path.abspath(f["path"]), "/media").replace(os.sep, "/")
+            try:
+                resolved = await media_source.async_resolve_media(
+                    self.hass, f"media-source://media_source/local/{rel}", None)
+            except Exception as err:  # noqa: BLE001 – mimo media_dirs apod.
+                _LOGGER.debug("soubor %s nejde nabídnout: %s", f["path"], err)
+                continue
+            out.append({
+                "name": f["name"],
+                "size": f.get("size") or 0,
+                "subtitles": f.get("subtitles") or 0,
+                # podpis platí pár hodin; seznam se stahuje čerstvý při každém otevření.
+                # async_sign_path vrací cestu NEzakódovanou (mezery, diakritika) — část
+                # cesty je nutné zakódovat, query s podpisem nechat; HA si cestu před
+                # ověřením podpisu dekóduje zpět, takže %20 == mezera a podpis sedí
+                "path": _encode_signed(async_sign_path(self.hass, resolved.url, _timedelta(hours=6))),
+            })
+        return self.json({"files": out})
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await async_register_card(hass)
     # starší instalace klíč nemají — doplnit jednou (spustí to jeden reload přes update listener)
@@ -543,6 +600,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_SYNC_KEY: secrets.token_hex(6)})
     if not hass.data.get(f"{DOMAIN}_sync_view"):
         hass.http.register_view(NokturnoSyncView(hass))
+        hass.http.register_view(NokturnoFilesView(hass))
         hass.data[f"{DOMAIN}_sync_view"] = True
     options = {**entry.data, **entry.options}
     if options.get(CONF_EXTERNAL_HOST) and await async_tailscale_running(hass) is False:

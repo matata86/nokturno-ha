@@ -11,13 +11,15 @@ import json
 import logging
 import os
 import re
+import secrets
+import time
 import urllib.parse
 from datetime import timedelta
 
 import voluptuous as vol
 
 from homeassistant.components.frontend import add_extra_js_url
-from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.components.http.auth import async_sign_path
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID, Platform
@@ -28,12 +30,14 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.start import async_at_started
 from homeassistant.loader import async_get_integration
 
 from .const import (
     CONF_DOWNLOAD_DIR,
     CONF_EXTERNAL_HOST,
     CONF_STATS_ENABLED,
+    CONF_SYNC_KEY,
     STATS_INTERVAL_HOURS,
     CONF_KODI_ENTITY,
     CONF_NOTIFY_TARGET,
@@ -80,6 +84,7 @@ from homeassistant.util import slugify
 
 from .downloader import Downloader
 from .lib.stats import COLLECT_URL, Stats
+from .lib.sync import apply_changes, collect_changes
 from .engine import Engine, NokturnoError, _fold, split_episode_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -491,8 +496,54 @@ async def async_register_resource(hass: HomeAssistant, url: str) -> bool:
     return True
 
 
+class NokturnoSyncView(HomeAssistantView):
+    """Střed synchronizace pro Kodi doplňky (viz lib/sync.py).
+
+    Bez přihlášení HA — Kodi nemá jak vzít token uživatele; místo toho vlastní
+    klíč z nastavení integrace v hlavičce `X-Nokturno-Key`. Data jsou jen
+    zhlédnuto/rozkoukané/Můj seznam, nic se tím nedá spustit ani přehrát.
+    """
+
+    url = "/api/nokturno/sync"
+    name = "api:nokturno:sync"
+    requires_auth = False
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def post(self, request):
+        try:
+            data = _entry_data(self.hass)
+        except HomeAssistantError:
+            return self.json({"error": "integrace není nastavená"}, status_code=503)
+        key = data["entry"].data.get(CONF_SYNC_KEY) or ""
+        if not key or request.headers.get("X-Nokturno-Key") != key:
+            return self.json({"error": "špatný klíč"}, status_code=403)
+        try:
+            body = await request.json()
+        except ValueError:
+            return self.json({"error": "neplatný JSON"}, status_code=400)
+        store = data["engine"].store
+        since = int(body.get("since") or 0)
+
+        def work():
+            applied = apply_changes(store, body.get("changes"))
+            return {"now": int(time.time()), "applied": applied, "changes": collect_changes(store, since)}
+
+        result = await self.hass.async_add_executor_job(work)
+        _LOGGER.debug("sync %s: přijato %s, vráceno %s", body.get("device"), result["applied"],
+                      len(result["changes"]["watched"]) + len(result["changes"]["favlog"]))
+        return self.json(result)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await async_register_card(hass)
+    # starší instalace klíč nemají — doplnit jednou (spustí to jeden reload přes update listener)
+    if not entry.data.get(CONF_SYNC_KEY):
+        hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_SYNC_KEY: secrets.token_hex(6)})
+    if not hass.data.get(f"{DOMAIN}_sync_view"):
+        hass.http.register_view(NokturnoSyncView(hass))
+        hass.data[f"{DOMAIN}_sync_view"] = True
     options = {**entry.data, **entry.options}
     if options.get(CONF_EXTERNAL_HOST) and await async_tailscale_running(hass) is False:
         _LOGGER.warning("addon Tailscale neběží — odkazy mimo síť se nebudou přepisovat")
@@ -893,6 +944,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.async_add_executor_job(_stats_send)
 
     entry.async_on_unload(async_track_time_interval(hass, stats_tick, timedelta(hours=STATS_INTERVAL_HOURS)))
+    # Interval se poprvé ozve až za šest hodin, takže nová instalace se v přehledu
+    # objevila nejdřív po nich — a když se mezitím restartovalo HA, tak vůbec.
+    # Hlásíme se proto hned po startu, stejně jako služba v Kodi doplňku; `stats.due()`
+    # uvnitř `_stats_send` drží odstup, aby se restartem nedalo posílat častěji.
+    entry.async_on_unload(async_at_started(hass, stats_tick))
     hass.data[DOMAIN][entry.entry_id]["stats_send"] = _stats_send
     entry.async_on_unload(async_track_time_interval(hass, poll_torrents, timedelta(seconds=5)))
     entry.async_on_unload(async_track_time_interval(hass, check_series, timedelta(hours=WATCH_INTERVAL_HOURS)))

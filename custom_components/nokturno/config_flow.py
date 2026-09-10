@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
@@ -16,6 +18,7 @@ from .const import (
     CONF_QBIT_USER,
     CONF_QBIT_PASS,
     CONF_STATS_ENABLED,
+    CONF_SYNC_KEY,
     DEFAULT_PROWLARR_URL,
     DEFAULT_QBIT_URL,
     CONF_EXTERNAL_HOST,
@@ -43,7 +46,7 @@ from .const import (
 )
 
 ACCOUNT_KEYS = [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS,
-                CONF_LUNA_URL, CONF_LUNA_TOKEN]
+                CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY]
 
 ACCOUNTS = {
     vol.Optional(CONF_WS_USER, default=""): str,
@@ -104,6 +107,8 @@ class NokturnoConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             if user_input.get(CONF_PREF_LANG) == "—":
                 user_input[CONF_PREF_LANG] = ""
+            # klíč pro synchronizaci Kodi doplňků — vzniká jednou, uživatel si ho opíše do Kodi
+            self._data.setdefault(CONF_SYNC_KEY, secrets.token_hex(6))
             return self.async_create_entry(title="Nokturno", data=self._data, options=user_input)
         return self.async_show_form(step_id="preferences", data_schema=preferences_schema({}))
 

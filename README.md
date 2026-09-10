@@ -90,6 +90,7 @@ Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Bez L
 | Trakt.tv — Client ID, Secret | z [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications) | — | volitelné propojení účtu. **Trakt od 7/2026 vydává API klíče jen s VIP** — bez nich funguje vlastní seznam k zhlédnutí úplně stejně. |
 | Prowlarr — adresa, API klíč | `http://IP:9696` a klíč ze *Settings → General* | — | hledání na torrentových trackerech. **Dokud není vyplněné obojí, torrenty se v kartě vůbec nenabídnou.** Prowlarr drží přihlášení k trackerům za tebe, takže integrace nemusí řešit HTML jednotlivých stránek. |
 | qBittorrent — adresa, jméno, heslo | `http://IP:9091` | — | kam se předávají nalezené torrenty. Jméno a heslo nech prázdné, když má web UI povolenou místní síť bez přihlášení. Stažené video skončí ve složce pro stahování. |
+| Klíč pro synchronizaci Kodi | text | vygeneruje se | opiš ho do Kodi doplňku (*Nastavení → Synchronizace*) — zhlédnuto, rozkoukané a Můj seznam se pak sdílí mezi všemi Kodi v síti přes tuhle integraci (`POST /api/nokturno/sync`). Klíč jde kdykoli změnit, pak ho přepiš i v Kodi. |
 | Anonymní statistiky | ano / ne | ano | posílá jednou za šest hodin počet zobrazení streamů podle titulu a čas posledního použití. Neodchází nic o tobě ani o tvé instalaci kromě náhodného identifikátoru, verze, platformy a jazyka — žádné adresy, účty ani odkazy. Vypnutím se přestane odesílat i sbírat. |
 
 Po vyplnění Traktu spusť službu `nokturno.trakt_auth` — přijde oznámení s kódem, který zadáš na [trakt.tv/activate](https://trakt.tv/activate).

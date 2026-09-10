@@ -34,8 +34,6 @@ from .const import (
     CONF_DOWNLOAD_DIR,
     CONF_EXTERNAL_HOST,
     CONF_STATS_ENABLED,
-    CONF_STATS_URL,
-    DEFAULT_STATS_URL,
     STATS_INTERVAL_HOURS,
     CONF_KODI_ENTITY,
     CONF_NOTIFY_TARGET,
@@ -81,7 +79,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .downloader import Downloader
-from .lib.stats import Stats
+from .lib.stats import COLLECT_URL, Stats
 from .engine import Engine, NokturnoError, _fold, split_episode_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -874,7 +872,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not force and not stats.due():
             return
         ok, why = stats.send(
-            (options.get(CONF_STATS_URL) or DEFAULT_STATS_URL).strip(),
+            COLLECT_URL,
             version=stats_version, platform="Home Assistant",
             kodi=hass.config.as_dict().get("version", ""),
             lang=(hass.config.language or "")[:8],

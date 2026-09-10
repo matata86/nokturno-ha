@@ -29,9 +29,7 @@ CONF_QBIT_USER = "qbit_username"
 CONF_QBIT_PASS = "qbit_password"
 
 CONF_STATS_ENABLED = "stats_enabled"
-CONF_STATS_URL = "stats_url"
 
-DEFAULT_STATS_URL = "https://nokturno.full-net.cz/collect"
 STATS_INTERVAL_HOURS = 6
 
 DEFAULT_LUNA_URL = "http://192.168.1.10:7126"

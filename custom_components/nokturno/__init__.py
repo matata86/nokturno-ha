@@ -42,9 +42,11 @@ from .const import (
     EVENT_NEW_EPISODE,
     KODI_PLUGIN,
     SERVICE_CHECK_SERIES,
+    SERVICE_CLEAR_CACHE,
     SERVICE_CLEAR_HISTORY,
     SERVICE_CONTINUE,
     SERVICE_CANCEL_DOWNLOAD,
+    SERVICE_START_DOWNLOAD,
     SERVICE_DELETE_FILE,
     SERVICE_DOWNLOAD,
     SERVICE_DETAIL,
@@ -137,6 +139,7 @@ EPISODES_SCHEMA = vol.Schema({
 })
 
 CANCEL_SCHEMA = vol.Schema({vol.Required("download_id"): cv.string})
+START_SCHEMA = vol.Schema({vol.Required("download_id"): cv.string})
 
 DELETE_SCHEMA = vol.Schema({vol.Required("path"): cv.string})
 
@@ -217,6 +220,25 @@ def episode_target(engine: Engine, call_data: dict) -> tuple[str, str, str | Non
         series = base
         ctype = "series"
     return ctype, item_id, series, alt
+
+
+def android_play_intent(url: str, mime: str = "video/*") -> str:
+    """Android Intent URI, co telefonu nabídne přehrávače (VLC, MX Player…),
+    ne jen otevření v prohlížeči.
+
+    Syntaxe `intent:<scheme>://…` (jedno dvojtečka, scheme součástí opaque
+    části) telefon spolehlivě neparsuje — spadne to na fallback (otevře se
+    v prohlížeči jako obyčejný odkaz), přesně to, co dřív dělala. Správný
+    tvar je `intent://<zbytek bez schématu>#Intent;scheme=<schema>;…;end`
+    (scheme se předává zvlášť v Intent fragmentu). `S.browser_fallback_url`
+    navíc dá Androidu vlastní odkaz pro případ, že žádný přehrávač intent
+    nezachytí, místo aby spoléhal na implicitní chování prohlížeče."""
+    parts = urllib.parse.urlsplit(url)
+    opaque = urllib.parse.urlunsplit(("", parts.netloc, parts.path, parts.query, parts.fragment)).lstrip("/")
+    fallback = urllib.parse.quote(url, safe="")
+    return (f"intent://{opaque}#Intent;scheme={parts.scheme};"
+            f"action=android.intent.action.VIEW;type={mime};"
+            f"S.browser_fallback_url={fallback};end")
 
 
 def kodi_url(ctype, item_id, series, alt, stream) -> str:
@@ -353,11 +375,27 @@ async def kodi_continue(hass: HomeAssistant, entity_id: str | None, engine: Engi
         raise HomeAssistantError("Kodi není v Home Assistantu nastavené.")
     results = await asyncio.gather(*(_kodi_continue_one(hass, k) for k in kodis), return_exceptions=True)
     items = []
+    seen = {}
     for kodi, result in zip(kodis, results):
         if isinstance(result, Exception):
             _LOGGER.debug("rozkoukané z %s: %s", kodi["name"], result)
             continue
-        items.extend(result)
+        for item in result:
+            key = (
+                (item.get("title") or "").strip().lower(),
+                item.get("year"),
+                (item.get("series") or "").strip().lower(),
+                item.get("season"),
+                item.get("episode"),
+            )
+            existing = seen.get(key)
+            if existing is None:
+                seen[key] = item
+                item["players"] = [{"entity_id": item["entity_id"], "player": item["player"]}]
+                items.append(item)
+            else:
+                # stejný titul rozehraný na víc Kodi – necháme jednu položku, karta nabídne výběr zdroje
+                existing["players"].append({"entity_id": item["entity_id"], "player": item["player"]})
     if engine and any(not (i.get("fanart") or i.get("thumbnail")) for i in items):
         await hass.async_add_executor_job(_art_by_title, engine, items)
     return items
@@ -779,6 +817,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.async_add_executor_job(engine.clear_history)
         async_dispatcher_send(hass, SIGNAL_WATCHLIST)
 
+    async def handle_clear_cache(call: ServiceCall):
+        """Vymaže cache API (hledání, streamy, katalogy) — ne historii ani Můj seznam."""
+        await hass.async_add_executor_job(engine.store.clear_cache)
+
     async def poll_torrents(_now=None):
         """Průběh torrentů z qBittorrentu do fronty stahování.
 
@@ -952,7 +994,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # `notify.sm_s921b` bývá entita nové notify platformy, odesílá až `notify.mobile_app_sm_s921b`
         # odkazy na streamy nemají příponu, takže by je Android stáhl jako neznámý soubor;
         # intent s typem video/* místo toho nabídne přehrávače (VLC, MX Player…)
-        play_uri = f"intent:{url}#Intent;action=android.intent.action.VIEW;type=video/*;end"
+        play_uri = android_play_intent(url)
         for service in (short, f"mobile_app_{short}"):
             if hass.services.has_service("notify", service):
                 await hass.services.async_call("notify", service, {
@@ -988,6 +1030,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return
         downloader.remove(job_id)
 
+    async def handle_start_download(call: ServiceCall):
+        """Ruční „spustit" u čekající položky — jede hned, souběžně s tím, co už stahuje."""
+        job_id = call.data["download_id"]
+        if not downloader.start_now(job_id):
+            raise HomeAssistantError("Položka už nečeká ve frontě.")
+
     async def handle_share_file(call: ServiceCall):
         """Odkaz na stažený soubor přes veřejnou adresu HA (Nabu Casa), volitelně rovnou do mobilu."""
         from datetime import timedelta as _timedelta
@@ -1014,7 +1062,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         target = (call.data.get("notify_service") or options.get(CONF_NOTIFY_TARGET) or "").split(".")[-1]
         name = os.path.basename(path)
         if target:
-            play_uri = f"intent:{url}#Intent;action=android.intent.action.VIEW;type=video/*;end"
+            play_uri = android_play_intent(url)
             for service in (target, f"mobile_app_{target}"):
                 if hass.services.has_service("notify", service):
                     await hass.services.async_call("notify", service, {
@@ -1057,12 +1105,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_DOWNLOAD, handle_download, DOWNLOAD_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_SEND_LINK, handle_send_link, SEND_LINK_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CANCEL_DOWNLOAD, handle_cancel, CANCEL_SCHEMA, SupportsResponse.NONE),
+        (SERVICE_START_DOWNLOAD, handle_start_download, START_SCHEMA, SupportsResponse.NONE),
         (SERVICE_DELETE_FILE, handle_delete_file, DELETE_SCHEMA, SupportsResponse.NONE),
         (SERVICE_SHARE_FILE, handle_share_file, SHARE_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CONTINUE, handle_continue, CONTINUE_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_WATCH, handle_watch, WATCH_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CHECK_SERIES, handle_check_series, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_CLEAR_HISTORY, handle_clear_history, vol.Schema({}), SupportsResponse.NONE),
+        (SERVICE_CLEAR_CACHE, handle_clear_cache, vol.Schema({}), SupportsResponse.NONE),
         (SERVICE_SEEN, handle_seen, SEEN_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_AUTH, handle_trakt_auth, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_LIST, handle_trakt_list, vol.Schema({}), SupportsResponse.OPTIONAL),
@@ -1097,8 +1147,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data["downloader"].shutdown()
         if not hass.data[DOMAIN]:
             for name in (SERVICE_SEARCH, SERVICE_STREAMS, SERVICE_EPISODES, SERVICE_RESOLVE, SERVICE_PLAY,
-                         SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_DELETE_FILE,
+                         SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_START_DOWNLOAD,
+                         SERVICE_DELETE_FILE,
                          SERVICE_SHARE_FILE, SERVICE_CONTINUE, SERVICE_WATCH, SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
+                         SERVICE_CLEAR_CACHE,
                          SERVICE_SEEN, SERVICE_TRAKT_AUTH, SERVICE_TRAKT_LIST, SERVICE_TRAKT_WATCHED,
                          SERVICE_WANT):
                 hass.services.async_remove(DOMAIN, name)

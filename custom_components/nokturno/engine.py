@@ -32,6 +32,8 @@ SOLO_LIMIT = 8   # kolik z nich nechat v seznamu, když k nim Luna nemá protěj
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
 HISTORY_MAX = 12
 SUBS_MAX = 3
+SEARCH_CACHE_TTL = 43200      # 12 h – seznam nalezených titulů podle dotazu (Luna, WebShare fulltext)
+STREAMS_CACHE_TTL = 259200    # 72 h – seznam streamů k titulu, ale JEN když nějaké našel (viz `cached_if`)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -256,27 +258,47 @@ class Engine:
         }
 
     def search(self, ctype="movie", query="", limit=20):
-        """Sloučené výsledky z Luny a Sosáče (stejný titul jen jednou)."""
+        """Sloučené výsledky z Luny a Sosáče (stejný titul jen jednou).
+
+        Sosáč vrací u položek vždy mrtvý náhled (`movies.sosac.tv`), takže `_needs()`
+        v `enrich()` je pro ně TRUE napořád — cachovat jen dílčí Luna/Sosáč volání by
+        `enrich()` nechalo běžet (a diskové I/O na jeho vlastní cache × N položek dělat)
+        při každém hledání znovu. Cachuje se proto rovnou celý výsledek PO enrichi.
+
+        Dotaz zakončený `*` obejde cache a vynutí čerstvá data (hvězdička se před
+        hledáním odřízne) — výsledek se přesto zapíše do cache pro příští normální dotaz.
+        """
+        query = (query or "").strip()
+        force = query.endswith("*")
+        if force:
+            query = query[:-1].strip()
         query, want_year = self.split_year(query)
         if not query:
             raise NokturnoError("Prázdný dotaz.")
-        luna_metas, sosac_metas, errors = [], [], []
-        if self.luna:
-            try:
-                cid = "search.movie" if ctype == "movie" else "search.series"
-                luna_metas = self.luna.catalog(ctype, cid, search=query)
-            except LunaError as err:
-                errors.append(f"Luna: {err}")
-        if self.sosac:
-            try:
-                sosac_metas = self.sosac.search(ctype, query)
-            except SosacError as err:
-                errors.append(f"Sosáč: {err}")
-        if not luna_metas and not sosac_metas and errors:
-            raise NokturnoError("; ".join(errors))
-        merged = self._by_year(self._merge(luna_metas, sosac_metas), want_year)[: int(limit or 20)]
-        enrich([m for m, _alt in merged if is_sosac_id(m.get("id"))], self.luna, self.store, ctype)
-        return [self._item(meta, ctype, alt) for meta, alt in merged]
+
+        def _fetch():
+            luna_metas, sosac_metas, errors = [], [], []
+            if self.luna:
+                try:
+                    cid = "search.movie" if ctype == "movie" else "search.series"
+                    cache_key = f"luna:search:{ctype}:{cid}:{query}"
+                    luna_metas = self.store.cached(cache_key, SEARCH_CACHE_TTL,
+                                                    lambda: self.luna.catalog(ctype, cid, search=query))
+                except LunaError as err:
+                    errors.append(f"Luna: {err}")
+            if self.sosac:
+                try:
+                    sosac_metas = self.sosac.search(ctype, query)
+                except SosacError as err:
+                    errors.append(f"Sosáč: {err}")
+            if not luna_metas and not sosac_metas and errors:
+                raise NokturnoError("; ".join(errors))
+            merged = self._by_year(self._merge(luna_metas, sosac_metas), want_year)[: int(limit or 20)]
+            enrich([m for m, _alt in merged if is_sosac_id(m.get("id"))], self.luna, self.store, ctype)
+            return [self._item(meta, ctype, alt) for meta, alt in merged]
+
+        cache_key = f"search:{ctype}:{query}:{int(limit or 20)}:{want_year or ''}"
+        return self.store.cached_if(cache_key, 0 if force else SEARCH_CACHE_TTL, _fetch)
 
     # --- historie hledání -----------------------------------------------------
 
@@ -419,10 +441,19 @@ class Engine:
         return " ".join(parts)
 
     def search_webshare(self, query, limit=20):
-        """Soubory přímo z WebShare (fulltext), bez metadat titulu."""
+        """Soubory přímo z WebShare (fulltext), bez metadat titulu.
+
+        Dotaz zakončený `*` obejde cache a vynutí čerstvá data, stejně jako u `search()`.
+        """
         if not self.ws:
             raise NokturnoError("WebShare účet není nastavený.")
-        files, _total = self.ws.search(query, limit=int(limit or 20))
+        query = (query or "").strip()
+        force = query.endswith("*")
+        if force:
+            query = query[:-1].strip()
+        cache_key = f"webshare:search:{query}:{int(limit or 20)}"
+        files, _total = self.store.cached_if(cache_key, 0 if force else SEARCH_CACHE_TTL,
+                                              lambda: self.ws.search(query, limit=int(limit or 20)))
         return [{
             "id": "ws:" + f["ident"],
             "type": "file",
@@ -935,38 +966,58 @@ class Engine:
         return True
 
     def streams(self, ctype, item_id, alt=None, series_id=None):
-        """Seřazené streamy titulu ze všech dostupných zdrojů."""
+        """Seřazené streamy titulu ze všech dostupných zdrojů.
+
+        Síťové dohledání streamů se cachuje 72 h, ale JEN když něco našlo (`cached_if`) —
+        prázdný výsledek by mohl být jen dočasný výpadek zdroje, takže se zkusí znovu
+        hned příště. Řazení/filtrování podle uživatelských preferencí (jazyk, velikost,
+        pořadí) běží vždy nad čerstvě načtenými daty, aby se projevila okamžitě.
+        """
         meta, video = self.meta(ctype, item_id, series_id)
         base_id = split_episode_id(item_id)[0]
-        api = self.api_for(base_id)
-        try:
-            found = api.streams(ctype, item_id, include_search=True) if isinstance(api, LunaApi) \
-                else api.streams(ctype, item_id)
-        except Exception as err:  # noqa: BLE001 – výpadek zdroje = prázdno, ne chyba služby
-            _LOGGER.warning("streamy %s: %s", item_id, err)
-            found = []
-        # titul otevřený jen podle IMDb id (z databáze filmů) má v metadatech mezinárodní přepis
-        # („Sunday League…“), pod kterým Sosáč nic nenajde — podstrčíme mu český název z TMDB
-        if not found and not alt and not is_sosac_id(base_id) and str(base_id).startswith("tt"):
-            meta = self._with_local_title(ctype, base_id, meta)
-        found += self._cross_streams(ctype, item_id, meta, alt)
-        found += self._webshare_streams(meta, video, ctype, alt)
-        for stream in found:
-            parse_stream(stream)
-            # bez kvality v názvu („Matrix (1999).mkv") by soubor spadl na konec seznamu,
-            # i když je podle velikosti zjevně 4K — odhadneme ji, ale přiznaně (~)
-            if not stream.get("quality_rank"):
-                guess = estimate_rank(stream.get("size_gb"))
-                if guess:
-                    stream["quality_rank"] = guess
-                    stream["_estimated"] = True
-        found = self._merge_direct(found)
-        # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
-        subs = self._webshare_subtitles(meta, video, ctype, alt)
-        if subs:
+
+        def _fetch_streams():
+            nonlocal meta
+            api = self.api_for(base_id)
+            try:
+                found = api.streams(ctype, item_id, include_search=True) if isinstance(api, LunaApi) \
+                    else api.streams(ctype, item_id)
+            except Exception as err:  # noqa: BLE001 – výpadek zdroje = prázdno, ne chyba služby
+                _LOGGER.warning("streamy %s: %s", item_id, err)
+                found = []
+            # titul otevřený jen podle IMDb id (z databáze filmů) má v metadatech mezinárodní přepis
+            # („Sunday League…“), pod kterým Sosáč nic nenajde — podstrčíme mu český název z TMDB
+            if not found and not alt and not is_sosac_id(base_id) and str(base_id).startswith("tt"):
+                meta = self._with_local_title(ctype, base_id, meta)
+            found += self._cross_streams(ctype, item_id, meta, alt)
+            found += self._webshare_streams(meta, video, ctype, alt)
             for stream in found:
-                if not stream.get("subtitles"):
-                    stream["subtitles"] = list(subs)
+                parse_stream(stream)
+                # bez kvality v názvu („Matrix (1999).mkv") by soubor spadl na konec seznamu,
+                # i když je podle velikosti zjevně 4K — odhadneme ji, ale přiznaně (~)
+                if not stream.get("quality_rank"):
+                    guess = estimate_rank(stream.get("size_gb"))
+                    if guess:
+                        stream["quality_rank"] = guess
+                        stream["_estimated"] = True
+            found = self._merge_direct(found)
+            # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
+            subs = self._webshare_subtitles(meta, video, ctype, alt)
+            if subs:
+                for stream in found:
+                    if not stream.get("subtitles"):
+                        stream["subtitles"] = list(subs)
+            # `parse_stream()` dává do langs/subs `set` — nejde ho serializovat do JSON
+            # cache, tak se tu normalizuje na list (řazení navíc dělá cache stabilní)
+            for stream in found:
+                if isinstance(stream.get("langs"), set):
+                    stream["langs"] = sorted(stream["langs"])
+                if isinstance(stream.get("subs"), set):
+                    stream["subs"] = sorted(stream["subs"])
+            return found
+
+        cache_key = f"streams:{ctype}:{item_id}:{alt or ''}"
+        found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams)
         try:
             max_gb = float(str(self._opt("max_size_gb", 0)).replace(",", ".") or 0)
         except ValueError:

@@ -30,12 +30,13 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči** a **Luně** přímo z
 
 ## Co to umí
 
-- **Jedno hledání ve všech zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz. U každého streamu je zdroj, kvalita, název souboru, jazyky zvuku i titulků a velikost.
+- **Jedno hledání ve všech zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz: Luna, přímý fulltext WebShare (víc variant dotazu, aby neunikly soubory, které Lunin jeden dotaz mine) i Sosáč. Stejný soubor nalezený víc cestami se ukáže jednou. U každého streamu je zdroj, kvalita, název souboru, jazyky zvuku i titulků a velikost.
 - **Přehrání v Kodi přes doplněk Nokturno**, takže si Kodi vede „Pokračovat ve sledování" a pamatuje si pozici. Ostatní přehrávače (TV, Cast) dostanou přímé URL.
 - **Odeslání do mobilu** — notifikace s odkazem, klepnutím se spustí ve VLC (posílá se jako Android intent s typem videa, jinak by telefon soubor jen stáhl).
 - **Stahování do `/media/nokturno`** s frontou, průběhem, rychlostí a odhadem času; přerušené stahování (restart HA, výpadek) se po startu samo dokončí od místa, kde skončilo; hotové soubory jsou vidět v kartě **na úvodní obrazovce**, dají se přehrát, smazat nebo poslat do mobilu odkazem přes Nabu Casa. Titulky se stáhnou vedle videa a mažou se spolu s ním.
 - **Odkazy použitelné mimo domácí síť** (ikona 🌐) — přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
 - **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat.
+- **Společné zhlédnuto a Můj seznam pro všechna Kodi** — integrace je střed synchronizace: zhlédnuté, rozkoukané (i pozice) a Můj seznam se sdílí mezi všemi Kodi s doplňkem Nokturno v síti. V nastavení integrace je klíč, který se opíše do každého Kodi (*Nastavení → Synchronizace*). Film rozkoukaný v obýváku pak pokračuje v pracovně na stejném místě.
 - **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB. Když stream není a máš nastavený Prowlarr, kontrola sáhne i na trackery.
 - **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Pozor: Trakt od července 2026 vydává API klíče jen pro VIP účty, takže bez VIP tuhle část nezapneš — vlastní seznam funguje i tak.

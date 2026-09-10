@@ -232,10 +232,29 @@ def android_play_intent(url: str, mime: str = "video/*") -> str:
     tvar je `intent://<zbytek bez schématu>#Intent;scheme=<schema>;…;end`
     (scheme se předává zvlášť v Intent fragmentu). `S.browser_fallback_url`
     navíc dá Androidu vlastní odkaz pro případ, že žádný přehrávač intent
-    nezachytí, místo aby spoléhal na implicitní chování prohlížeče."""
+    nezachytí, místo aby spoléhal na implicitní chování prohlížeče.
+
+    `async_sign_path()` vrací URL s cestou v čitelné, NEzakódované podobě
+    (mezery a diakritika v názvu souboru zůstávají doslova) — normální HTTP
+    klient/prohlížeč si je zakóduje sám při sestavení požadavku, ale tady jde
+    o text vkládaný do URI schématu intentu, který se dál neupravuje. Bez
+    zakódování se odkaz na první mezeře/nediakritickém znaku rozbije a
+    přehrávač na telefonu ohlásí, že místo nejde přehrát. Odkazy z ostatních
+    zdrojů (WebShare/Sosáč/Luna) už zakódované bývají — `unquote` před
+    `quote` z toho dělá idempotentní krok, ať se nezakóduje podruhé."""
     parts = urllib.parse.urlsplit(url)
-    opaque = urllib.parse.urlunsplit(("", parts.netloc, parts.path, parts.query, parts.fragment)).lstrip("/")
-    fallback = urllib.parse.quote(url, safe="")
+    path = urllib.parse.quote(urllib.parse.unquote(parts.path), safe="/")
+    query = urllib.parse.quote(urllib.parse.unquote(parts.query), safe="=&")
+    opaque = urllib.parse.urlunsplit(("", parts.netloc, path, query, parts.fragment)).lstrip("/")
+    # `S.browser_fallback_url` je hodnota uvnitř Intent fragmentu, ne URI samo
+    # o sobě — Android ji chce zakódovanou celou naráz (`http%3A%2F%2F…`), ne
+    # jako URI s jednotlivě escapnutou cestou jako `opaque` výše. Musí se
+    # sestavit ze surových (rozbalených) částí, jinak by se %20 zakódovalo
+    # podruhé na %2520 a fallback by mířil na neexistující adresu.
+    raw_url = urllib.parse.urlunsplit(
+        (parts.scheme, parts.netloc, urllib.parse.unquote(parts.path),
+         urllib.parse.unquote(parts.query), parts.fragment))
+    fallback = urllib.parse.quote(raw_url, safe="")
     return (f"intent://{opaque}#Intent;scheme={parts.scheme};"
             f"action=android.intent.action.VIEW;type={mime};"
             f"S.browser_fallback_url={fallback};end")

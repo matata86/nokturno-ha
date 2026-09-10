@@ -147,6 +147,13 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
+  async _clearCache() {
+    await this._guard(async () => {
+      await this._call("clear_cache", {}, false);
+      this._toast("Cache hledání a streamů vymazána");
+    });
+  }
+
   /** Co ukázat po hledání: typ, který něco našel; obojí = necháme na uživateli. */
   _pickType() {
     const st = this._state;
@@ -555,8 +562,12 @@ class NokturnoCard extends HTMLElement {
         /* hledání pod sebou přes celou šířku karty */
         .bar { display:grid; grid-template-columns: 1fr; gap:8px; align-items:center; }
         .bar[hidden] { display:none; }  /* jinak by display:grid přebil atribut hidden */
-        ha-control-button#go { width:100%; }
+        /* Hledat + koš vedle sebe v jednom řádku, ne každý zvlášť pod sebou */
+        .searchrow { display:flex; gap:8px; align-items:stretch; }
+        ha-control-button#go { flex:1; }
         ha-control-button#go ha-icon { --mdc-icon-size:20px; margin-right:4px; vertical-align:-4px; }
+        ha-control-button#clearcache { flex:0 0 40px; --control-button-padding: 0; }
+        ha-control-button#clearcache ha-icon { --mdc-icon-size:18px; }
         ha-control-select { --control-select-thickness:40px; }
         /* prvek má vlastní display, atribut hidden by se bez tohohle neprojevil */
         ha-control-select[hidden] { display:none; }
@@ -682,7 +693,10 @@ class NokturnoCard extends HTMLElement {
         </div>
         <div class="bar" id="search">
           <ha-input id="q" placeholder="Název filmu nebo seriálu" with-clear></ha-input>
-          <ha-control-button id="go" title="Hledat ve WebShare, Sosáči a Luně"><ha-icon icon="mdi:magnify"></ha-icon> Hledat</ha-control-button>
+          <div class="searchrow">
+            <ha-control-button id="go" title="Hledat ve WebShare, Sosáči a Luně"><ha-icon icon="mdi:magnify"></ha-icon> Hledat</ha-control-button>
+            <ha-control-button id="clearcache" title="Vymazat cache hledání a streamů"><ha-icon icon="mdi:trash-can-outline"></ha-icon></ha-control-button>
+          </div>
           <ha-control-select id="type"></ha-control-select>
         </div>
         <div id="body"></div>
@@ -695,6 +709,7 @@ class NokturnoCard extends HTMLElement {
       this._state.query = (e.target && e.target.value) || this._readInput();
     }));
     this._root.querySelector("#go").addEventListener("click", () => this._search());
+    this._root.querySelector("#clearcache").addEventListener("click", () => this._clearCache());
     this._root.querySelector("#body").addEventListener("click", (e) => this._onClick(e));
     const kind = this._root.querySelector("#type");
     kind.options = KINDS;
@@ -1093,6 +1108,8 @@ class NokturnoCard extends HTMLElement {
           <span class="muted">${j.status === "queued" ? "čeká na svoje místo ve frontě"
             : [this._speed(j.speed), this._eta(j.eta),
                j.size ? `${this._size(j.done)} z ${this._size(j.size)}` : ""].filter(Boolean).join(" · ")}</span>
+          ${j.status === "queued" ? `<ha-icon-button data-dlstart="${i}" title="Spustit hned">
+            <ha-icon icon="mdi:play"></ha-icon></ha-icon-button>` : ""}
           <ha-icon-button data-dlcancel="${i}" title="Zrušit stahování">
             <ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
         </div>
@@ -1125,6 +1142,8 @@ class NokturnoCard extends HTMLElement {
   }
 
   _bindFiles(box) {
+    box.querySelectorAll("[data-dlstart]").forEach((el) =>
+      el.addEventListener("click", () => this._startDownload(this._active[+el.dataset.dlstart])));
     box.querySelectorAll("[data-dlcancel]").forEach((el) =>
       el.addEventListener("click", () => this._cancelDownload(this._active[+el.dataset.dlcancel])));
     box.querySelectorAll("[data-fileplay]").forEach((el) =>
@@ -1140,6 +1159,14 @@ class NokturnoCard extends HTMLElement {
     await this._guard(async () => {
       await this._call("cancel_download", { download_id: job.id }, false);
       this._toast(`Stahování „${job.name}" zrušeno`);
+    });
+  }
+
+  async _startDownload(job) {
+    if (!job) return;
+    await this._guard(async () => {
+      await this._call("start_download", { download_id: job.id }, false);
+      this._toast(`Stahování „${job.name}" spuštěno`);
     });
   }
 

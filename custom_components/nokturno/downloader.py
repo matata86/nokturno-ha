@@ -22,7 +22,6 @@ _LOGGER = logging.getLogger(__name__)
 CHUNK = 1024 * 512
 FLUSH = 8 * 1024 * 1024   # kolik se nasbírá, než se sáhne na disk
 SUBTITLE_EXT = (".srt", ".sub", ".ass", ".vtt")
-MAX_PARALLEL = 1
 
 
 def _append(path, data, mode="ab"):
@@ -59,7 +58,8 @@ def _key(path):
 
 
 class Downloader:
-    """Fronta stahování — jedno běží, ostatní čekají."""
+    """Fronta stahování — automaticky běží jedno po druhém, „spustit" u čekající
+    položky ji ale pustí rovnou souběžně s tím, co už běží."""
 
     def __init__(self, hass: HomeAssistant, directory: str, store=None):
         self.hass = hass
@@ -75,7 +75,7 @@ class Downloader:
         self.on_done = None  # callback(job) po dokončení – notifikace
         self._queue: asyncio.Queue = asyncio.Queue()
         self._worker: asyncio.Task | None = None
-        self._current: asyncio.Task | None = None
+        self._running: dict[str, asyncio.Task] = {}  # job_id -> běžící stahování (auto i ruční)
         self._saved = 0.0
 
     def set_directory(self, directory):
@@ -178,8 +178,9 @@ class Downloader:
         if not job:
             return False
         job["_by_user"] = True
-        if job["status"] == "running" and self._current and not self._current.done():
-            self._current.cancel()
+        task = self._running.get(job_id)
+        if job["status"] == "running" and task and not task.done():
+            task.cancel()
         job["status"] = "canceled"
         self._cleanup(job)
         self._notify(save=True)
@@ -190,9 +191,18 @@ class Downloader:
         self.jobs.pop(job_id, None)
         self._notify()
 
+    def start_now(self, job_id):
+        """Pustí čekající položku hned, souběžně s tím, co už stahuje — bez čekání ve frontě."""
+        job = self.jobs.get(job_id)
+        if not job or job["status"] != "queued":
+            return False
+        self.hass.async_create_background_task(self._execute(job_id, job), f"nokturno_download_{job_id}")
+        return True
+
     def shutdown(self):
-        if self._current and not self._current.done():
-            self._current.cancel()
+        for task in list(self._running.values()):
+            if not task.done():
+                task.cancel()
         if self._worker and not self._worker.done():
             self._worker.cancel()
 
@@ -237,29 +247,41 @@ class Downloader:
     # --- vlastní stahování --------------------------------------------------
 
     async def _run(self):
+        """Automatická fronta — jedno stahování po druhém. Položku spuštěnou ručně
+        (`start_now`) přeskočí, jakmile na ni dojde řada, protože už není „queued"."""
         while not self._queue.empty():
             job_id = await self._queue.get()
             job = self.jobs.get(job_id)
             if not job or job["status"] != "queued":
                 continue
-            self._current = self.hass.async_create_task(self._download(job))
-            try:
-                await self._current
-            except asyncio.CancelledError:
-                if job.get("_by_user"):
-                    job["status"] = "canceled"
-                    self._cleanup(job)
-                else:
-                    # vypnutí HA — `.part` necháme ležet, po startu se na něj naváže
-                    job["status"] = "queued"
-                    _LOGGER.info("stahování %s přerušeno, naváže se po startu", job["name"])
+            await self._execute(job_id, job)
+
+    async def _execute(self, job_id, job):
+        """Jedno stahování od začátku do konce — použije ji worker i ruční `start_now`,
+        obě volání se navzájem nijak neomezují a mohou běžet souběžně."""
+        task = self.hass.async_create_task(self._download(job))
+        self._running[job_id] = task
+        try:
+            await task
+        except asyncio.CancelledError:
+            if job.get("_by_user"):
+                # zrušil uživatel — jen tahle položka odpadá, ostatní běží dál
+                job["status"] = "canceled"
+                self._cleanup(job)
+                self._notify(save=True)
+            else:
+                # vypnutí HA — `.part` necháme ležet, po startu se na něj naváže
+                job["status"] = "queued"
+                _LOGGER.info("stahování %s přerušeno, naváže se po startu", job["name"])
                 self._notify(save=True)
                 raise
-            except Exception as err:  # noqa: BLE001 – chyba jedné položky nesmí zabít frontu
-                job.update(status="error", error=str(err)[:200])
-                self._cleanup(job)
-                _LOGGER.error("stahování %s selhalo: %s", job["name"], err)
-                self._notify(save=True)
+        except Exception as err:  # noqa: BLE001 – chyba jedné položky nesmí zabít frontu ani ostatní běžící
+            job.update(status="error", error=str(err)[:200])
+            self._cleanup(job)
+            _LOGGER.error("stahování %s selhalo: %s", job["name"], err)
+            self._notify(save=True)
+        finally:
+            self._running.pop(job_id, None)
 
     def _cleanup(self, job):
         """Nedokončený `.part` po zrušení nebo chybě smazat, ať se nehromadí."""

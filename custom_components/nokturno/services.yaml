@@ -301,6 +301,16 @@ cancel_download:
       selector:
         text:
 
+start_download:
+  name: Spustit stahování z fronty
+  description: Pustí čekající položku hned, souběžně s tím, co už stahuje.
+  fields:
+    download_id:
+      name: ID stahování
+      required: true
+      selector:
+        text:
+
 detail:
   name: Detail titulu z databáze filmů
   description: >-
@@ -394,6 +404,10 @@ check_series:
 clear_history:
   name: Smazat historii hledání
   description: Vymaže poslední dotazy zobrazené v kartě.
+
+clear_cache:
+  name: Vymazat cache API
+  description: Vymaže cache hledání, streamů a katalogů (ne historii ani Můj seznam) — vynutí čerstvá data.
 
 mark_seen:
   name: Nový díl viděn

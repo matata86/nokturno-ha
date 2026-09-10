@@ -16,8 +16,6 @@ from .const import (
     CONF_QBIT_USER,
     CONF_QBIT_PASS,
     CONF_STATS_ENABLED,
-    CONF_STATS_URL,
-    DEFAULT_STATS_URL,
     DEFAULT_PROWLARR_URL,
     DEFAULT_QBIT_URL,
     CONF_EXTERNAL_HOST,
@@ -83,7 +81,6 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_QBIT_USER, default=data.get(CONF_QBIT_USER, "")): str,
         vol.Optional(CONF_QBIT_PASS, default=data.get(CONF_QBIT_PASS, "")): str,
         vol.Optional(CONF_STATS_ENABLED, default=data.get(CONF_STATS_ENABLED, True)): bool,
-        vol.Optional(CONF_STATS_URL, default=data.get(CONF_STATS_URL, DEFAULT_STATS_URL)): str,
     })
 
 

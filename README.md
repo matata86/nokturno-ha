@@ -91,7 +91,6 @@ Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Bez L
 | Prowlarr — adresa, API klíč | `http://IP:9696` a klíč ze *Settings → General* | — | hledání na torrentových trackerech. **Dokud není vyplněné obojí, torrenty se v kartě vůbec nenabídnou.** Prowlarr drží přihlášení k trackerům za tebe, takže integrace nemusí řešit HTML jednotlivých stránek. |
 | qBittorrent — adresa, jméno, heslo | `http://IP:9091` | — | kam se předávají nalezené torrenty. Jméno a heslo nech prázdné, když má web UI povolenou místní síť bez přihlášení. Stažené video skončí ve složce pro stahování. |
 | Anonymní statistiky | ano / ne | ano | posílá jednou za šest hodin počet zobrazení streamů podle titulu a čas posledního použití. Neodchází nic o tobě ani o tvé instalaci kromě náhodného identifikátoru, verze, platformy a jazyka — žádné adresy, účty ani odkazy. Vypnutím se přestane odesílat i sbírat. |
-| Adresa pro statistiky | URL | `nokturno.full-net.cz/collect` | kam se hlášení posílá. Dá se přesměrovat na vlastní sběrný bod. |
 
 Po vyplnění Traktu spusť službu `nokturno.trakt_auth` — přijde oznámení s kódem, který zadáš na [trakt.tv/activate](https://trakt.tv/activate).
 

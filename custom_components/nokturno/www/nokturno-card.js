@@ -1351,7 +1351,8 @@ class NokturnoCard extends HTMLElement {
     const rows = [s.label];
     if (s.file && !s.label.includes(s.file)) rows.push(s.file);
     if (s.subs && s.subs.length) rows.push("titulky: " + s.subs.join(", "));
-    if (s.bitrate) rows.push(`${s.bitrate} Mb/s`);
+    if (s.length_min) rows.push(`${s.length_est ? "~" : ""}${Math.floor(s.length_min / 60)}:${String(s.length_min % 60).padStart(2, "0")}`);
+    if (s.bitrate) rows.push(`${s.bitrate_est ? "~" : ""}${s.bitrate} Mb/s`);
     if (s.direct) rows.push("hraje i mimo domácí síť");
     if (s.kind === "torrent") {
       rows.push(`${s.tracker || "tracker"}: ${s.seeders} sdílí, ${s.leechers} stahuje`);

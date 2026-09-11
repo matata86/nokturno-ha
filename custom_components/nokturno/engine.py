@@ -27,7 +27,7 @@ from .lib.sosac_direct import SosacDirect, is_direct_id
 from .lib.store import Store
 from .lib.streams import arrange, estimate_rank, langs_from_name, parse_stream
 from .lib.hellspy_api import HellspyApi, HellspyError
-from .lib.mediainfo import audio_tracks, describe as describe_audio
+from .lib.mediainfo import describe as describe_media, probe as probe_media, quality_from_size
 from .lib.webshare_api import WebshareApi, WebshareError, human_size
 
 WS_LIMIT = 25    # kolik souborů brát z fulltextu WebShare
@@ -49,6 +49,23 @@ SOURCE_NAMES = {"main": "Luna", "search": "WebShare", "ws": "WebShare", "sosac":
                 "hs": "HellSpy", "torrent": "Torrent"}
 
 QUALITY_NAMES = {4: "4K", 3: "Full HD", 2: "HD", 1: "SD", 0: ""}
+
+
+RUNTIME_RE = re.compile(r"(?:(\d+)\s*h)?\s*(?:(\d+)\s*min)?", re.I)
+DEFAULT_RUNTIME_S = 7200    # dvouhodinový film — odhad stopáže, jen když ji titul sám neřekne
+
+
+def runtime_minutes(text):
+    """Stopáž v minutách. Luna/Cinemeta posílají „2h42min", epizody bývají
+    holé číslo („42") — bez rozlišení formátu by prosté vytažení číslic
+    z „2h42min" dalo „242" a z dvouapůlhodinového filmu udělalo čtyřhodinový.
+    """
+    text = str(text or "")
+    m = RUNTIME_RE.search(text)
+    if m and (m.group(1) or m.group(2)):
+        return int(m.group(1) or 0) * 60 + int(m.group(2) or 0)
+    digits = "".join(ch for ch in text if ch.isdigit())
+    return int(digits) if digits else 0
 
 
 def _fold(text):
@@ -590,6 +607,10 @@ class Engine:
         source = SOURCE_NAMES.get(stream.get("source"), "")
         size = stream.get("size_gb") or 0
         name = full[:51] + "…" if len(full) > 52 else full
+        length_min = round(stream["_length_s"] / 60) if stream.get("_length_s") else 0
+        length_str = f"{'~' if stream.get('_length_est') else ''}{length_min // 60}:{length_min % 60:02d}" \
+            if length_min >= 60 else (f"{'~' if stream.get('_length_est') else ''}{length_min} min" if length_min else "")
+        bitrate_str = f"{'~' if stream.get('_bitrate_est') else ''}{stream['bitrate']:g} Mb/s" if stream.get("bitrate") else ""
         parts = [p for p in (
             source,
             quality,
@@ -597,6 +618,8 @@ class Engine:
             ("zvuk " + " ".join(langs)) if langs else "",
             ("tit. " + " ".join(stream.get("subs") or [])) if stream.get("subs") else "",
             f"{size:.1f} GB" if size else "",
+            length_str,
+            bitrate_str,
         ) if p]
         return {
             "index": index,
@@ -612,6 +635,10 @@ class Engine:
             "quality_rank": stream.get("quality_rank") or 0,
             "size_gb": round(size, 2) if size else None,
             "bitrate": stream.get("bitrate") or None,
+            # odhad ze stopáže titulu, ne ze skutečné délky streamu (viz _ensure_bitrate)
+            "bitrate_est": bool(stream.get("_bitrate_est")),
+            "length_min": round(stream["_length_s"] / 60) if stream.get("_length_s") else None,
+            "length_est": bool(stream.get("_length_est")),
             "langs": codes,
             "channels": channels,
             "subs": stream.get("subs") or [],
@@ -736,19 +763,19 @@ class Engine:
                 })
         return out
 
-    def _audio_from_file(self, url):
-        """„Zvuk: CZ 5.1" přečtené z hlavičky souboru. Prázdné, když to nejde."""
+    def _media_from_file(self, url):
+        """Co se o souboru dá přečíst z jeho hlavičky. Prázdné, když to nejde."""
         def load():
             try:
                 link = self.resolve(url)
             except NokturnoError as err:
-                _LOGGER.debug("zvuk %s: %s", url[:28], err)
-                return ""
-            return describe_audio(audio_tracks(link))
-        return self.store.cached(f"audio:{url}", AUDIO_TTL, load)
+                _LOGGER.debug("hlavička %s: %s", url[:28], err)
+                return {}
+            return probe_media(link)
+        return self.store.cached(f"media:{url}", AUDIO_TTL, load) or {}
 
     def _fill_audio(self, streams):
-        """Doplní zvuk tam, kde ho zdroj neřekl.
+        """Doplní zvuk, titulky a rozlišení tam, kde je zdroj neřekl.
 
         HellSpy o zvuku ve svém rozhraní nemá vůbec nic a u souborů z fulltextu
         je jen to, co si někdo napsal do názvu. Údaj přitom leží v hlavičce
@@ -762,15 +789,61 @@ class Engine:
         if not todo:
             return streams
         with ThreadPoolExecutor(max_workers=8) as pool:
-            found = list(pool.map(lambda s: self._audio_from_file(s["url"]), todo))
-        for stream, text in zip(todo, found):
-            if not text:
+            found = list(pool.map(lambda s: self._media_from_file(s["url"]), todo))
+        for stream, info in zip(todo, found):
+            if not info:
                 continue
-            stream["detail"] = f"{stream['detail']} | {text}" if stream.get("detail") else text
+            text = describe_media(info)
+            if text:
+                stream["detail"] = f"{stream['detail']} | {text}" if stream.get("detail") else text
+            stream["_tracks"] = info.get("audio") or []
+            if info.get("duration"):
+                # z hlavičky je i skutečná délka streamu — přesnější základ pro
+                # datový tok v `_ensure_bitrate()` než odhad ze stopáže titulu
+                stream["_duration"] = info["duration"]
             # parse_stream je idempotentní podle `quality_rank`; po změně popisku
             # se musí přepočítat, jinak by jazyky a kanály zůstaly prázdné
             stream.pop("quality_rank", None)
             parse_stream(stream)
+            # rozlišení ze souboru přebíjí název: ten u řady souborů slibuje
+            # „4k", a přitom je uvnitř 1080p
+            real = quality_from_size(info.get("width") or 0, info.get("height") or 0)
+            if real:
+                stream["quality_rank"] = {"4K": 4, "Full HD": 3, "HD": 2, "SD": 1}[real]
+            if not stream.get("size_gb") and info.get("size"):
+                # Sosáč velikost vůbec neříká, server ji ale poslal v Content-Range
+                # při stejném dotazu na hlavičku, který se dělal pro zvuk
+                stream["size_gb"] = info["size"] / 2 ** 30
+        return streams
+
+    def _ensure_bitrate(self, streams, meta_or_video):
+        """Datový tok a délka má mít úplně každý stream, ne jen ten, co je zdroj sám řekl.
+
+        Přesnost podle toho, odkud se vzala délka. Nejlepší je ta, kterou přímo
+        posílá zdroj (`duration`, z popisku Luny). Pak hlavička souboru
+        (`_duration`, z `_fill_audio`) — z obojího je datový tok stejně přesný
+        jako velikost. Bez nich se počítá se stopáží titulu — odhad, značí se
+        vlnovkou stejně jako ostatní odhadnuté věci v popisku.
+
+        AVI hlavičky lžou často — `dwTotalFrames` v `avih` je jeden z nejčastěji
+        poškozených nebo neaktualizovaných údajů po přebalení souboru. Soubor
+        pak tvrdí, že devadesátiminutový film má 14 minut, a datový tok vyjde
+        několikanásobně nadsazený. Když je titul znám, přečtená délka ze
+        souboru se proto porovná s jeho stopáží; liší-li se o víc než
+        polovinu, nedůvěřuje se jí a použije se odhad ze stopáže titulu.
+        """
+        minutes = runtime_minutes((meta_or_video or {}).get("runtime"))
+        fallback_s = minutes * 60 if minutes else DEFAULT_RUNTIME_S
+        for stream in streams:
+            duration = stream.get("duration") or stream.get("_duration") or 0
+            if duration and minutes and not (0.5 <= duration / fallback_s <= 2.0):
+                duration = 0
+            length = duration or fallback_s
+            stream["_length_s"] = length
+            stream["_length_est"] = not duration
+            if not stream.get("bitrate") and stream.get("size_gb"):
+                stream["bitrate"] = round(stream["size_gb"] * 2 ** 30 * 8 / length / 1_000_000, 1)
+                stream["_bitrate_est"] = not duration
         return streams
 
     def _hellspy_streams(self, meta, video=None, ctype="movie", alt=None):
@@ -1063,6 +1136,25 @@ class Engine:
             raise NokturnoError(str(err)) from err
         return True
 
+    def _effective_max_gb(self, meta_or_video):
+        """Max. velikost streamu pro TENHLE titul, spočtená z nastaveného
+        datového toku (`max_bitrate_mbps`). Velikost souboru sama o sobě
+        neříká, jestli přehrávání poteče plynule — rozhoduje datový tok, tedy
+        velikost dělená stopáží. Pevné GB proto nedávaly smysl: devadesáti-
+        minutová pohádka a tříhodinový epos se stejným tokem vyjdou na jinou
+        velikost. Bez známé stopáže (typicky holý fulltext bez metadat) se
+        počítá s dvouhodinovým filmem — stejný odhad jako v `_ensure_bitrate`.
+        """
+        try:
+            mbps = float(str(self._opt("max_bitrate_mbps", 0)).replace(",", ".") or 0)
+        except ValueError:
+            mbps = 0.0
+        if not mbps:
+            return 0.0
+        minutes = runtime_minutes((meta_or_video or {}).get("runtime"))
+        seconds = minutes * 60 if minutes else DEFAULT_RUNTIME_S
+        return mbps * 1_000_000 * seconds / 8 / 2 ** 30
+
     def streams(self, ctype, item_id, alt=None, series_id=None):
         """Seřazené streamy titulu ze všech dostupných zdrojů.
 
@@ -1117,10 +1209,7 @@ class Engine:
 
         cache_key = f"streams:{ctype}:{item_id}:{alt or ''}"
         found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams)
-        try:
-            max_gb = float(str(self._opt("max_size_gb", 0)).replace(",", ".") or 0)
-        except ValueError:
-            max_gb = 0.0
+        max_gb = self._effective_max_gb(video or meta)
         lang = self._opt("pref_lang", "")
         order = self._opt("sort_streams", "quality")
         def sort(items):
@@ -1137,7 +1226,7 @@ class Engine:
         # a před seřazením se rozpočet utratil za řádky, které skončí dole; teď padne
         # na začátek seznamu, tedy na to, co má uživatel před očima. Po doplnění
         # kanálů se řadí znovu, protože 5.1 může pořadím pohnout.
-        ordered = sort(self._fill_audio(sort(found)))
+        ordered = sort(self._ensure_bitrate(self._fill_audio(sort(found)), video or meta))
         return [self._describe(s, i) for i, s in enumerate(ordered)]
 
     # co WebShare vrací u nedostupných souborů — hlášky jsou anglické a nic neříkající

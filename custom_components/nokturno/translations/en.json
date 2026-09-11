@@ -20,7 +20,6 @@
           "pref_lang": "Preferovaný jazyk zvuku",
           "pref_surround": "Preferovat prostorový zvuk (5.1 a víc)",
           "hide_sd": "Skrýt SD streamy",
-          "max_size_gb": "Max. velikost streamu v GB (0 = bez omezení)",
           "sort_streams": "Řazení streamů",
           "download_dir": "Složka pro stahování",
           "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu",
@@ -32,7 +31,8 @@
           "qbit_url": "qBittorrent — address",
           "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
           "qbit_password": "qBittorrent — password",
-          "hs_enabled": "Search HellSpy too"
+          "hs_enabled": "Search HellSpy too",
+          "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)"
         }
       }
     },
@@ -55,7 +55,6 @@
           "pref_lang": "Preferovaný jazyk zvuku",
           "pref_surround": "Preferovat prostorový zvuk (5.1 a víc)",
           "hide_sd": "Skrýt SD streamy",
-          "max_size_gb": "Max. velikost streamu v GB (0 = bez omezení)",
           "sort_streams": "Řazení streamů",
           "download_dir": "Složka pro stahování",
           "external_host": "Adresa mimo domácí síť (Tailscale/VPN) — pro odkazy do mobilu",
@@ -67,7 +66,8 @@
           "qbit_url": "qBittorrent — address",
           "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
           "qbit_password": "qBittorrent — password",
-          "hs_enabled": "Search HellSpy too"
+          "hs_enabled": "Search HellSpy too",
+          "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)"
         }
       }
     }

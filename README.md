@@ -84,7 +84,7 @@ Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Bez L
 | Preferovaný jazyk zvuku | CZ, SK, EN, … | CZ | streamy s tímhle zvukem jdou v seznamu nahoru. Neodfiltrují se ostatní, jen se seřadí. |
 | Preferovat prostorový zvuk | ano / ne | ne | při shodné kvalitě jde nahoru 5.1 a víc. |
 | Skrýt SD streamy | ano / ne | ne | vyhodí ze seznamu všechno pod 720p. |
-| Max. velikost streamu (GB) | číslo, 0 = bez omezení | 0 | užitečné, když nechceš 40GB remuxy na mobilní data. |
+| Max. datový tok (Mb/s) | číslo, 0 = bez omezení | 0 | přepočítá se na GB podle stopáže právě otevřeného titulu — pevné GB nedávaly smysl, devadesátiminutová pohádka a tříhodinový epos se stejnou rychlostí vyjdou na jinou velikost. |
 | Řazení streamů | `quality`, `size_desc`, `size_asc`, `source` | `quality` | `quality` řadí podle rozlišení (odhad z velikosti u souborů bez kvality v názvu se pozná podle vlnovky), `source` seskupí podle zdroje. |
 | Složka pro stahování | cesta | `/media/nokturno` | musí být uvnitř `media_dirs`, jinak stažené soubory neuvidíš v Médiích. Titulky se ukládají vedle videa se stejným názvem. |
 | Adresa mimo domácí síť | IP nebo doména | — | Tailscale/VPN adresa HA (např. `100.94.191.65`). Použije se při odesílání odkazu a při `resolve`, a jen tehdy, když addon Tailscale skutečně běží — integrace si to ověřuje přes Supervisor. |

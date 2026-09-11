@@ -29,7 +29,7 @@ from .const import (
     CONF_KODI_ENTITY,
     CONF_LUNA_TOKEN,
     CONF_LUNA_URL,
-    CONF_MAX_SIZE_GB,
+    CONF_MAX_BITRATE,
     CONF_PREF_LANG,
     CONF_PREF_SURROUND,
     CONF_SORT,
@@ -68,8 +68,8 @@ def preferences_schema(data: dict) -> vol.Schema:
             selector.SelectSelector(selector.SelectSelectorConfig(options=[l or "—" for l in LANGS])),
         vol.Optional(CONF_PREF_SURROUND, default=data.get(CONF_PREF_SURROUND, False)): bool,
         vol.Optional(CONF_HIDE_SD, default=data.get(CONF_HIDE_SD, False)): bool,
-        vol.Optional(CONF_MAX_SIZE_GB, default=data.get(CONF_MAX_SIZE_GB, 0)):
-            vol.All(vol.Coerce(float), vol.Range(min=0, max=200)),
+        vol.Optional(CONF_MAX_BITRATE, default=data.get(CONF_MAX_BITRATE, 0)):
+            vol.All(vol.Coerce(float), vol.Range(min=0, max=2000)),
         vol.Optional(CONF_SORT, default=data.get(CONF_SORT, DEFAULT_SORT)):
             selector.SelectSelector(selector.SelectSelectorConfig(options=SORT_ORDERS)),
         vol.Optional(CONF_DOWNLOAD_DIR, default=data.get(CONF_DOWNLOAD_DIR, DEFAULT_DOWNLOAD_DIR)): str,

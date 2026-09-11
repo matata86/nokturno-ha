@@ -37,6 +37,7 @@ from .const import (
     CONF_STREAMUJ_USER,
     CONF_WS_PASS,
     CONF_HS_ENABLED,
+    CONF_SUB_WARN_DAYS,
     CONF_WS_USER,
     DEFAULT_DOWNLOAD_DIR,
     DEFAULT_LUNA_URL,
@@ -86,6 +87,9 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_QBIT_PASS, default=data.get(CONF_QBIT_PASS, "")): str,
         # HellSpy je veřejný, účet nepotřebuje — proto jen přepínač mezi předvolbami
         vol.Optional(CONF_HS_ENABLED, default=data.get(CONF_HS_ENABLED, False)): bool,
+        # 0 = upozornění na konec předplatného WebShare vypnuté
+        vol.Optional(CONF_SUB_WARN_DAYS, default=data.get(CONF_SUB_WARN_DAYS, 5)):
+            vol.All(vol.Coerce(int), vol.Range(min=0, max=14)),
         vol.Optional(CONF_STATS_ENABLED, default=data.get(CONF_STATS_ENABLED, True)): bool,
     })
 

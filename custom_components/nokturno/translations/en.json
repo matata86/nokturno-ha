@@ -32,7 +32,8 @@
           "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
           "qbit_password": "qBittorrent — password",
           "hs_enabled": "Search HellSpy too",
-          "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)"
+          "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
+          "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)"
         }
       }
     },
@@ -67,7 +68,8 @@
           "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
           "qbit_password": "qBittorrent — password",
           "hs_enabled": "Search HellSpy too",
-          "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)"
+          "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
+          "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)"
         }
       }
     }

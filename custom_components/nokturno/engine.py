@@ -126,6 +126,7 @@ class Engine:
         self._ws_ready = False
         self._hs = None
         self._prowlarr = self._qbit = None
+        self.sub_status = {}   # {"vip": bool, "days": int, "until": str} — plní check_subscription()
 
     # --- konfigurace --------------------------------------------------------
 
@@ -171,6 +172,20 @@ class Engine:
                 except WebshareError as err:
                     _LOGGER.warning("WebShare login selhal: %s", err)
         return self._ws
+
+    def check_subscription(self):
+        """Zjistí, kolik dní zbývá z předplatného WebShare. Volá se z HA periodicky
+        (viz __init__.py) a výsledek si nechává v `sub_status` pro senzor i pro
+        rozhodnutí, jestli poslat upozornění."""
+        ws = self.ws
+        if ws is None:
+            self.sub_status = {}
+            return self.sub_status
+        try:
+            self.sub_status = ws.account_status()
+        except WebshareError as err:
+            _LOGGER.debug("stav předplatného WebShare: %s", err)
+        return self.sub_status
 
     @property
     def hs(self):

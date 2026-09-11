@@ -86,7 +86,7 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_QBIT_USER, default=data.get(CONF_QBIT_USER, "")): str,
         vol.Optional(CONF_QBIT_PASS, default=data.get(CONF_QBIT_PASS, "")): str,
         # HellSpy je veřejný, účet nepotřebuje — proto jen přepínač mezi předvolbami
-        vol.Optional(CONF_HS_ENABLED, default=data.get(CONF_HS_ENABLED, False)): bool,
+        vol.Optional(CONF_HS_ENABLED, default=data.get(CONF_HS_ENABLED, True)): bool,
         # 0 = upozornění na konec předplatného WebShare vypnuté
         vol.Optional(CONF_SUB_WARN_DAYS, default=data.get(CONF_SUB_WARN_DAYS, 5)):
             vol.All(vol.Coerce(int), vol.Range(min=0, max=14)),

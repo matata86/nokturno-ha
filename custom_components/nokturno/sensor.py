@@ -115,6 +115,8 @@ class NokturnoDownloadsSensor(SensorEntity):
             "sources": self._engine.sources(),
             # karta z toho plní výběr mobilu (u koho který telefon je)
             "notify_targets": self.notify_targets,
+            # dny do vypršení předplatného WebShare — plní `check_subscription` v __init__.py
+            "subscription": self._engine.sub_status,
         }
 
 

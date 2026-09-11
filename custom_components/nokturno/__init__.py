@@ -14,7 +14,7 @@ import re
 import secrets
 import time
 import urllib.parse
-from datetime import timedelta
+from datetime import date, timedelta
 
 import voluptuous as vol
 
@@ -37,8 +37,10 @@ from .const import (
     CONF_DOWNLOAD_DIR,
     CONF_EXTERNAL_HOST,
     CONF_STATS_ENABLED,
+    CONF_SUB_WARN_DAYS,
     CONF_SYNC_KEY,
     STATS_INTERVAL_HOURS,
+    SUB_CHECK_INTERVAL_HOURS,
     CONF_KODI_ENTITY,
     CONF_NOTIFY_TARGET,
     CONF_TRAKT_ID,
@@ -1011,6 +1013,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # uvnitř `_stats_send` drží odstup, aby se restartem nedalo posílat častěji.
     entry.async_on_unload(async_at_started(hass, stats_tick))
     hass.data[DOMAIN][entry.entry_id]["stats_send"] = _stats_send
+
+    def _sub_warn_message(status):
+        if status.get("vip"):
+            return f"Předplatné WebShare končí za {status['days']} dní ({status['until'][:10]})."
+        return "Předplatné WebShare vypršelo."
+
+    async def check_subscription(_now=None):
+        """Denně nejvýš jednou upozorní na blížící se nebo proběhlé vypršení
+        předplatného WebShare — stejná logika jako `SubscriptionChecker` v Kodi
+        doplňku, jen dedup přes engine.store místo souboru `substate.json`."""
+        status = await hass.async_add_executor_job(engine.check_subscription)
+        if not status:
+            return
+        warn_days = int(options.get(CONF_SUB_WARN_DAYS, 5) or 0)
+        days_left = status.get("days", 0) if status.get("vip") else -1
+        due = warn_days > 0 and days_left <= warn_days
+        if due:
+            today = date.today().isoformat()
+            state = await hass.async_add_executor_job(engine.store.load, "substate", {})
+            if state.get("last_warned") != today:
+                await notify("Nokturno — WebShare", _sub_warn_message(status))
+                await hass.async_add_executor_job(engine.store.save, "substate", {"last_warned": today})
+        async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
+
+    entry.async_on_unload(async_track_time_interval(hass, check_subscription, timedelta(hours=SUB_CHECK_INTERVAL_HOURS)))
+    entry.async_on_unload(async_at_started(hass, check_subscription))
     entry.async_on_unload(async_track_time_interval(hass, poll_torrents, timedelta(seconds=5)))
     entry.async_on_unload(async_track_time_interval(hass, check_series, timedelta(hours=WATCH_INTERVAL_HOURS)))
     entry.async_on_unload(async_track_time_interval(hass, check_trakt, timedelta(hours=TRAKT_INTERVAL_HOURS)))

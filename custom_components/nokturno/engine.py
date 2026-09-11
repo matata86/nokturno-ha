@@ -13,6 +13,7 @@ import re
 import unicodedata
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from .const import CONF_HS_ENABLED, LANGS, SORT_ORDERS
@@ -26,10 +27,13 @@ from .lib.sosac_direct import SosacDirect, is_direct_id
 from .lib.store import Store
 from .lib.streams import arrange, estimate_rank, langs_from_name, parse_stream
 from .lib.hellspy_api import HellspyApi, HellspyError
+from .lib.mediainfo import audio_tracks, describe as describe_audio
 from .lib.webshare_api import WebshareApi, WebshareError, human_size
 
 WS_LIMIT = 25    # kolik souborů brát z fulltextu WebShare
 HS_LIMIT = 25    # totéž pro HellSpy
+AUDIO_PROBE_MAX = 12          # u kolika streamů se ještě vyplatí číst hlavičku souboru
+AUDIO_TTL = 30 * 24 * 3600    # obsah souboru se nemění, stačí zjistit jednou
 SOLO_LIMIT = 8   # kolik z nich nechat v seznamu, když k nim Luna nemá protějšek
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
 HISTORY_MAX = 12
@@ -725,6 +729,41 @@ class Engine:
                 })
         return out
 
+    def _audio_from_file(self, url):
+        """„Zvuk: CZ 5.1" přečtené z hlavičky souboru. Prázdné, když to nejde."""
+        def load():
+            try:
+                link = self.resolve(url)
+            except NokturnoError as err:
+                _LOGGER.debug("zvuk %s: %s", url[:28], err)
+                return ""
+            return describe_audio(audio_tracks(link))
+        return self.store.cached(f"audio:{url}", AUDIO_TTL, load)
+
+    def _fill_audio(self, streams):
+        """Doplní zvuk tam, kde ho zdroj neřekl.
+
+        HellSpy o zvuku ve svém rozhraní nemá vůbec nic a u souborů z fulltextu
+        je jen to, co si někdo napsal do názvu. Údaj přitom leží v hlavičce
+        souboru a servery umí vydat jen její výřez, takže se čte pár desítek kB.
+        Běží to souběžně a výsledek se pamatuje, takže se za soubor platí jednou.
+        """
+        todo = [s for s in streams if not s.get("langs")
+                and str(s.get("url") or "").startswith(("hs:", "ws:", "streamuj:"))][:AUDIO_PROBE_MAX]
+        if not todo:
+            return streams
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            found = list(pool.map(lambda s: self._audio_from_file(s["url"]), todo))
+        for stream, text in zip(todo, found):
+            if not text:
+                continue
+            stream["detail"] = f"{stream['detail']} | {text}" if stream.get("detail") else text
+            # parse_stream je idempotentní podle `quality_rank`; po změně popisku
+            # se musí přepočítat, jinak by jazyky a kanály zůstaly prázdné
+            stream.pop("quality_rank", None)
+            parse_stream(stream)
+        return streams
+
     def _hellspy_streams(self, meta, video=None, ctype="movie", alt=None):
         """Tentýž titul na HellSpy. Nabízí se původní soubor, ne překódování, takže
         název i velikost popisují to, co se opravdu přehraje — viz `lib/hellspy_api`."""
@@ -1051,7 +1090,7 @@ class Engine:
                     if guess:
                         stream["quality_rank"] = guess
                         stream["_estimated"] = True
-            found = self._merge_direct(found)
+            found = self._fill_audio(self._merge_direct(found))
             # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
             subs = self._webshare_subtitles(meta, video, ctype, alt)
             if subs:

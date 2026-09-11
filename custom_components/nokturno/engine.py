@@ -606,16 +606,24 @@ class Engine:
     def _describe(self, stream, index):
         """Stream do podoby vhodné pro HA (dashboard, hlasovka, automatizace)."""
         parse_stream(stream)
-        channels = stream.get("channels") or {}
         # pevné pořadí: zdroj · kvalita · název souboru · zvuk · titulky · velikost
         full = clean_label(stream.get("label") if stream.get("_direct") else stream.get("_ws_name", ""))
-        # metadata zdroje nemusí sedět na soubor (Luna hlásila „EN 5.1“ u souboru „…_cz_…“),
-        # takže jazyk z názvu souboru se přidá k tomu, co uvádí zdroj
-        codes = list(stream.get("langs") or [])
-        for code in sorted(langs_from_name(full)):
-            if code not in codes:
-                codes.append(code)
-        langs = [f"{code} {channels[code]:g}" if code in channels else code for code in codes]
+        tracks = stream.get("_tracks") or []
+        if tracks:
+            # přečteno z hlavičky souboru — přebíjí název i metadata zdroje,
+            # ty jen hádají (viz past níže o „EN 5.1“ u českého souboru)
+            codes = sorted({t.get("lang") for t in tracks if t.get("lang")})
+            channels = {t.get("lang"): t.get("channels") for t in tracks if t.get("lang") and t.get("channels")}
+        else:
+            channels = stream.get("channels") or {}
+            # metadata zdroje nemusí sedět na soubor (Luna hlásila „EN 5.1“ u souboru „…_cz_…“),
+            # takže jazyk z názvu souboru se přidá k tomu, co uvádí zdroj
+            codes = list(stream.get("langs") or [])
+            for code in sorted(langs_from_name(full)):
+                if code not in codes:
+                    codes.append(code)
+        langs = [f"{code} {channels[code]:g}" if isinstance(channels.get(code), (int, float)) else
+                 f"{code} {channels[code]}" if code in channels else code for code in codes]
         quality = QUALITY_NAMES.get(stream.get("quality_rank") or 0, "")
         if quality and stream.get("_estimated"):
             quality = "~" + quality  # odhad z velikosti, ne údaj ze zdroje
@@ -790,17 +798,22 @@ class Engine:
         return self.store.cached(f"media:{url}", AUDIO_TTL, load) or {}
 
     def _fill_audio(self, streams):
-        """Doplní zvuk, titulky a rozlišení tam, kde je zdroj neřekl.
+        """Doplní zvuk, titulky a rozlišení tam, kde je zdroj neřekl, a ověří je
+        tam, kde je řekl jen název souboru.
 
         HellSpy o zvuku ve svém rozhraní nemá vůbec nic a u souborů z fulltextu
         je jen to, co si někdo napsal do názvu. Údaj přitom leží v hlavičce
         souboru a servery umí vydat jen její výřez, takže se čte pár desítek kB.
         Běží to souběžně a výsledek se pamatuje, takže se za soubor platí jednou.
         """
-        # rozhoduje neznámý počet kanálů, ne neznámý jazyk: ten se často přečte
-        # z názvu („CZ Dabing"), ale kolik má stopa kanálů, z názvu nepozná nikdo
-        todo = [s for s in streams if not s.get("channels")
-                and str(s.get("url") or "").startswith(("hs:", "ws:", "streamuj:"))][:AUDIO_PROBE_MAX]
+        # streamy bez počtu kanálů v názvu jdou první — tam chybí úplně všechno.
+        # Streamy, které už jazyk podle názvu mají („CZ Dabing"), se ale taky
+        # ověří: uploader se může splést nebo zkopírovat popisek z jiného
+        # souboru, takže název sám o sobě není důkaz — jen se čeká, až na ně
+        # dojde řada v limitu.
+        candidates = [s for s in streams if not s.get("_tracks")
+                      and str(s.get("url") or "").startswith(("hs:", "ws:", "streamuj:"))]
+        todo = sorted(candidates, key=lambda s: bool(s.get("channels")))[:AUDIO_PROBE_MAX]
         if not todo:
             return streams
         with ThreadPoolExecutor(max_workers=8) as pool:

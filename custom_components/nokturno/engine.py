@@ -302,18 +302,16 @@ class Engine:
 
     # --- historie hledání -----------------------------------------------------
 
+    # historie se sdílí s doplňkem pro Kodi pod typem "any" (hlavní hledání) —
+    # zápis vede i deník `histlog`, takže se synchronizuje mezi kartou a všemi Kodi
     def history(self):
-        return list(self.store.load("history", []))
+        return self.store.history("any")
 
     def add_history(self, query):
-        query = (query or "").strip()
-        if not query:
-            return
-        items = [q for q in self.history() if q.lower() != query.lower()]
-        self.store.save("history", ([query] + items)[:HISTORY_MAX])
+        self.store.add_history("any", query)
 
     def clear_history(self):
-        self.store.save("history", [])
+        self.store.clear_history("any")
 
     def search_catalog(self, ctype="movie", query="", limit=10):
         """Hledání v databázi filmů (Cinemeta = IMDb/TMDB) — najde i tituly, které zatím

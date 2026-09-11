@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 
-from .const import LANGS, SORT_ORDERS
+from .const import CONF_HS_ENABLED, LANGS, SORT_ORDERS
 from .lib.enrich import DEAD_IMAGES, _cinemeta, _fetch, _fetch_title, enrich, enrich_one
 from .lib.luna_api import LunaApi, LunaError, clean_label, parse_base_url, parse_token
 from .lib.prowlarr import ProwlarrApi, ProwlarrError
@@ -25,9 +25,11 @@ from .lib.sosac_api import is_sosac_id as _is_legacy_sosac_id
 from .lib.sosac_direct import SosacDirect, is_direct_id
 from .lib.store import Store
 from .lib.streams import arrange, estimate_rank, langs_from_name, parse_stream
+from .lib.hellspy_api import HellspyApi, HellspyError
 from .lib.webshare_api import WebshareApi, WebshareError, human_size
 
 WS_LIMIT = 25    # kolik souborů brát z fulltextu WebShare
+HS_LIMIT = 25    # totéž pro HellSpy
 SOLO_LIMIT = 8   # kolik z nich nechat v seznamu, když k nim Luna nemá protějšek
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
 HISTORY_MAX = 12
@@ -38,7 +40,7 @@ STREAMS_CACHE_TTL = 259200    # 72 h – seznam streamů k titulu, ale JEN když
 _LOGGER = logging.getLogger(__name__)
 
 SOURCE_NAMES = {"main": "Luna", "search": "WebShare", "ws": "WebShare", "sosac": "Sosáč",
-                "torrent": "Torrent"}
+                "hs": "HellSpy", "torrent": "Torrent"}
 
 QUALITY_NAMES = {4: "4K", 3: "Full HD", 2: "HD", 1: "SD", 0: ""}
 
@@ -99,6 +101,7 @@ class Engine:
         self._sosac = None
         self._ws = None
         self._ws_ready = False
+        self._hs = None
         self._prowlarr = self._qbit = None
 
     # --- konfigurace --------------------------------------------------------
@@ -107,6 +110,7 @@ class Engine:
         self.options = dict(options)
         self._luna = self._sosac = self._ws = None
         self._ws_ready = False
+        self._hs = None
         self._prowlarr = self._qbit = None
 
     def _opt(self, key, default=""):
@@ -144,6 +148,13 @@ class Engine:
                 except WebshareError as err:
                     _LOGGER.warning("WebShare login selhal: %s", err)
         return self._ws
+
+    @property
+    def hs(self):
+        """HellSpy nemá účet ani token — stačí přepínač v nastavení."""
+        if self._hs is None and self._opt(CONF_HS_ENABLED, False):
+            self._hs = HellspyApi(cache=self.store)
+        return self._hs
 
     @property
     def prowlarr(self):
@@ -632,16 +643,12 @@ class Engine:
                 out.append(name)
         return out
 
-    def _webshare_streams(self, meta, video=None, ctype="movie", alt=None):
-        """Tytéž soubory přímo z WebShare — jejich odkazy fungují i mimo domácí síť.
+    def _title_queries(self, meta, video=None, ctype="movie", alt=None):
+        """Dotazy pro fulltextové zdroje a filtr, který z výsledku nechá jen ten titul.
 
-        Streamy přes Lunu míří na její lokální adresu (`http://192.168.1.10:7126/…`),
-        takže na mobilu mimo LAN nehrají. WebShare vrací odkaz na svoje CDN.
-        Hledá se ve víc variantách (s rokem, bez roku, originální název), protože
-        jeden dotaz vrátí jen část souborů a nespárované streamy pak zůstanou bez odkazu.
+        Sdílí to WebShare i HellSpy — oba hledají v názvech souborů, takže potřebují
+        totéž: víc variant názvu a pak zahodit všechno, co se jen podobá.
         """
-        if not self.ws:
-            return []
         title = meta.get("_title") or meta.get("name") or ""
         origs = self.original_titles(meta, ctype, alt)
         if video:
@@ -683,8 +690,21 @@ class Engine:
                 return False
             return not episode_re or bool(episode_re.search(folded))
 
+        return [q.strip() for q in dict.fromkeys(queries) if q.strip()], relevant
+
+    def _webshare_streams(self, meta, video=None, ctype="movie", alt=None):
+        """Tytéž soubory přímo z WebShare — jejich odkazy fungují i mimo domácí síť.
+
+        Streamy přes Lunu míří na její lokální adresu (`http://192.168.1.10:7126/…`),
+        takže na mobilu mimo LAN nehrají. WebShare vrací odkaz na svoje CDN.
+        Hledá se ve víc variantách (s rokem, bez roku, originální název), protože
+        jeden dotaz vrátí jen část souborů a nespárované streamy pak zůstanou bez odkazu.
+        """
+        if not self.ws:
+            return []
+        queries, relevant = self._title_queries(meta, video, ctype, alt)
         out, seen = [], set()
-        for query in dict.fromkeys(q.strip() for q in queries if q.strip()):
+        for query in queries:
             try:
                 files, _total = self.ws.search(query, limit=WS_LIMIT)
             except WebshareError as err:
@@ -701,6 +721,38 @@ class Engine:
                     "label": f.get("name") or "",
                     "detail": f.get("size_h") or (human_size(int(f["size"])) if f.get("size") else ""),
                     "source": "ws",
+                    "_direct": True,
+                })
+        return out
+
+    def _hellspy_streams(self, meta, video=None, ctype="movie", alt=None):
+        """Tentýž titul na HellSpy. Nabízí se původní soubor, ne překódování, takže
+        název i velikost popisují to, co se opravdu přehraje — viz `lib/hellspy_api`."""
+        if not self.hs:
+            return []
+        queries, relevant = self._title_queries(meta, video, ctype, alt)
+        out, seen = [], set()
+        for query in queries:
+            try:
+                files, _next = self.hs.search(query, limit=HS_LIMIT)
+            except HellspyError as err:
+                _LOGGER.debug("HellSpy hledání „%s“: %s", query, err)
+                continue
+            for f in files:
+                name = f.get("name") or ""
+                # Táž nahrávka bývá na HellSpy vícekrát pod prakticky stejným názvem.
+                # _fold zahodí cizí písmo úplně, takže se dvě jinak shodná jména liší
+                # jen zbylou mezerou — proto se mezery ještě srovnají.
+                key = (" ".join(_fold(name).split()), f["size"])
+                if f["hash"] in seen or key in seen or not relevant(name):
+                    continue
+                seen.add(f["hash"])
+                seen.add(key)
+                out.append({
+                    "url": f"hs:{f['id']}:{f['hash']}",
+                    "label": name,
+                    "detail": f.get("size_h") or "",
+                    "source": "hs",
                     "_direct": True,
                 })
         return out
@@ -989,6 +1041,7 @@ class Engine:
                 meta = self._with_local_title(ctype, base_id, meta)
             found += self._cross_streams(ctype, item_id, meta, alt)
             found += self._webshare_streams(meta, video, ctype, alt)
+            found += self._hellspy_streams(meta, video, ctype, alt)
             for stream in found:
                 parse_stream(stream)
                 # bez kvality v názvu („Matrix (1999).mkv") by soubor spadl na konec seznamu,
@@ -1077,6 +1130,13 @@ class Engine:
             raise NokturnoError("Chybí odkaz na stream.")
         if url.startswith("ws:"):
             return self.webshare_link(url[3:])
+        if url.startswith("hs:"):
+            api = self.hs or HellspyApi(cache=self.store)
+            file_id, _sep, file_hash = url[3:].partition(":")
+            try:
+                return api.file_link(file_id, file_hash)
+            except HellspyError as err:
+                raise NokturnoError(f"HellSpy: {err}") from err
         if url.startswith("streamuj:"):
             sosac = self.sosac
             if sosac is None:

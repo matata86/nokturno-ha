@@ -36,6 +36,7 @@ from .const import (
     CONF_STREAMUJ_PASS,
     CONF_STREAMUJ_USER,
     CONF_WS_PASS,
+    CONF_HS_ENABLED,
     CONF_WS_USER,
     DEFAULT_DOWNLOAD_DIR,
     DEFAULT_LUNA_URL,
@@ -83,6 +84,8 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_QBIT_URL, default=data.get(CONF_QBIT_URL, DEFAULT_QBIT_URL)): str,
         vol.Optional(CONF_QBIT_USER, default=data.get(CONF_QBIT_USER, "")): str,
         vol.Optional(CONF_QBIT_PASS, default=data.get(CONF_QBIT_PASS, "")): str,
+        # HellSpy je veřejný, účet nepotřebuje — proto jen přepínač mezi předvolbami
+        vol.Optional(CONF_HS_ENABLED, default=data.get(CONF_HS_ENABLED, False)): bool,
         vol.Optional(CONF_STATS_ENABLED, default=data.get(CONF_STATS_ENABLED, True)): bool,
     })
 

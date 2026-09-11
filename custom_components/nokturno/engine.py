@@ -32,7 +32,9 @@ from .lib.webshare_api import WebshareApi, WebshareError, human_size
 
 WS_LIMIT = 25    # kolik souborů brát z fulltextu WebShare
 HS_LIMIT = 25    # totéž pro HellSpy
-AUDIO_PROBE_MAX = 12          # u kolika streamů se ještě vyplatí číst hlavičku souboru
+# značka dílu v názvu souboru: „S01E03", „s1 e3", „1x03"
+EPISODE_ANY_RE = re.compile(r"(?<![a-z0-9])s\d{1,2}\s?e\d{1,2}(?!\d)|(?<!\d)\d{1,2}x\d{2}(?!\d)", re.I)
+AUDIO_PROBE_MAX = 24          # u kolika streamů se ještě vyplatí číst hlavičku souboru
 AUDIO_TTL = 30 * 24 * 3600    # obsah souboru se nemění, stačí zjistit jednou
 SOLO_LIMIT = 8   # kolik z nich nechat v seznamu, když k nim Luna nemá protějšek
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
@@ -690,6 +692,11 @@ class Engine:
             folded = _fold(name)
             if wanted and not any(all(w in folded for w in group) for group in wanted):
                 return False
+            if not video and EPISODE_ANY_RE.search(folded):
+                # u filmu nemá soubor se značkou dílu co dělat. Jednoslovný název
+                # („Avatar") projde kontrolou slov a díly seriálu rok v názvu nemají,
+                # takže by se do seznamu streamů filmu nasypal celý seriál.
+                return False
             if not year_ok(folded):
                 return False
             return not episode_re or bool(episode_re.search(folded))
@@ -748,11 +755,13 @@ class Engine:
         souboru a servery umí vydat jen její výřez, takže se čte pár desítek kB.
         Běží to souběžně a výsledek se pamatuje, takže se za soubor platí jednou.
         """
-        todo = [s for s in streams if not s.get("langs")
+        # rozhoduje neznámý počet kanálů, ne neznámý jazyk: ten se často přečte
+        # z názvu („CZ Dabing"), ale kolik má stopa kanálů, z názvu nepozná nikdo
+        todo = [s for s in streams if not s.get("channels")
                 and str(s.get("url") or "").startswith(("hs:", "ws:", "streamuj:"))][:AUDIO_PROBE_MAX]
         if not todo:
             return streams
-        with ThreadPoolExecutor(max_workers=6) as pool:
+        with ThreadPoolExecutor(max_workers=8) as pool:
             found = list(pool.map(lambda s: self._audio_from_file(s["url"]), todo))
         for stream, text in zip(todo, found):
             if not text:
@@ -1090,7 +1099,7 @@ class Engine:
                     if guess:
                         stream["quality_rank"] = guess
                         stream["_estimated"] = True
-            found = self._fill_audio(self._merge_direct(found))
+            found = self._merge_direct(found)
             # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
             subs = self._webshare_subtitles(meta, video, ctype, alt)
             if subs:
@@ -1114,14 +1123,21 @@ class Engine:
             max_gb = 0.0
         lang = self._opt("pref_lang", "")
         order = self._opt("sort_streams", "quality")
-        ordered = arrange(
-            found,
-            pref_lang=lang if lang in LANGS else "",
-            hide_sd=bool(self.options.get("hide_sd")),
-            max_size_gb=max_gb,
-            order=order if order in SORT_ORDERS else "quality",
-            pref_surround=bool(self.options.get("pref_surround")),
-        )
+        def sort(items):
+            return arrange(
+                items,
+                pref_lang=lang if lang in LANGS else "",
+                hide_sd=bool(self.options.get("hide_sd")),
+                max_size_gb=max_gb,
+                order=order if order in SORT_ORDERS else "quality",
+                pref_surround=bool(self.options.get("pref_surround")),
+            )
+
+        # Hlavičky se čtou až po seřazení. Kandidátů bývá víc, než se vyplatí číst,
+        # a před seřazením se rozpočet utratil za řádky, které skončí dole; teď padne
+        # na začátek seznamu, tedy na to, co má uživatel před očima. Po doplnění
+        # kanálů se řadí znovu, protože 5.1 může pořadím pohnout.
+        ordered = sort(self._fill_audio(sort(found)))
         return [self._describe(s, i) for i, s in enumerate(ordered)]
 
     # co WebShare vrací u nedostupných souborů — hlášky jsou anglické a nic neříkající

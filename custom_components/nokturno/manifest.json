@@ -1,7 +1,7 @@
 {
   "domain": "nokturno",
   "name": "Nokturno",
-  "version": "1.22.0",
+  "version": "1.22.1",
   "documentation": "https://github.com/matata86/nokturno-ha",
   "issue_tracker": "https://github.com/matata86/nokturno-ha/issues",
   "codeowners": [

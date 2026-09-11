@@ -531,6 +531,9 @@ class NokturnoSyncView(HomeAssistantView):
             return {"now": int(time.time()), "applied": applied, "changes": collect_changes(store, since)}
 
         result = await self.hass.async_add_executor_job(work)
+        # obnovit senzor (a tím kartu) — přišlo zhlédnuto/Můj seznam/historie z jiného Kodi
+        if result["applied"]:
+            async_dispatcher_send(self.hass, SIGNAL_WATCHLIST)
         _LOGGER.debug("sync %s: přijato %s, vráceno %s", body.get("device"), result["applied"],
                       len(result["changes"]["watched"]) + len(result["changes"]["favlog"]))
         return self.json(result)

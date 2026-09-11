@@ -948,6 +948,13 @@ class Engine:
         funguje mimo domácí síť a jede z jejich CDN. Necháme tedy popis z Luny
         a přibalíme k němu `_ws_url`; osamocené soubory z WebShare zůstanou zvlášť.
         Velikosti se párují s tolerancí — Luna zaokrouhluje jinak než WebShare.
+
+        Kvalita se u kandidáta na spárování bere jen jako vodítko, ne podmínka:
+        WebShare/HellSpy fulltext ji hádá z názvu souboru ("HD"), zatímco Luna
+        stejný soubor nezávisle klasifikuje jinak ("Full HD") — u WebShare se
+        navíc kvalita opraví podle skutečného rozlišení až později, po tomhle
+        párování. O jednu úroveň jinak odhadnutá kvalita proto nesmí párování
+        zablokovat, jen se u ní vyžaduje mnohem těsnější shoda velikosti.
         """
         direct = [s for s in streams if s.get("_direct") and (s.get("size_gb") or 0) > 0]
         used, out = set(), []
@@ -956,12 +963,16 @@ class Engine:
                 continue
             size = stream.get("size_gb") or 0
             if size:
-                best, closest = None, SIZE_TOLERANCE
+                best, closest = None, None
                 for cand in direct:
-                    if id(cand) in used or (cand.get("quality_rank") or 0) != (stream.get("quality_rank") or 0):
+                    if id(cand) in used:
                         continue
+                    rank_diff = abs((cand.get("quality_rank") or 0) - (stream.get("quality_rank") or 0))
+                    if rank_diff > 1:
+                        continue
+                    limit = SIZE_TOLERANCE if rank_diff == 0 else 0.05
                     delta = abs((cand.get("size_gb") or 0) - size)
-                    if delta < closest:
+                    if delta < limit and (closest is None or delta < closest):
                         best, closest = cand, delta
                 if best is not None:
                     stream["_ws_url"] = best["url"]
@@ -971,7 +982,37 @@ class Engine:
             out.append(stream)
         solo = [s for s in streams if s.get("_direct") and id(s) not in used]
         solo.sort(key=lambda s: -(s.get("size_gb") or 0))
-        return out + solo[:SOLO_LIMIT]
+        merged = out + solo[:SOLO_LIMIT]
+        # Lunino vlastní "Search" (fulltext přes WebShare uvnitř Luny) umí tentýž
+        # soubor vrátit i víckrát — všechny kopie mají stejnou velikost a kvalitu,
+        # ale generický popisek bez jména ("(WS) Full HD"), protože Luna sama
+        # název souboru neposílá. Spárovat s přímým nálezem výše jde jen jednu
+        # (na druhou už nezbyl kandidát) — zbylé nerozeznatelné kopie sloučit do jedné.
+        seen, deduped = set(), []
+        for stream in merged:
+            if stream.get("source") == "search" and not stream.get("_ws_name"):
+                key = (stream.get("quality_rank") or 0, round(stream.get("size_gb") or 0, 1))
+                if key in seen:
+                    continue
+                seen.add(key)
+            deduped.append(stream)
+        # WebShare umí tentýž soubor vrátit i dvakrát fulltextem samotným (jiný
+        # dočasný "ws:" odkaz, stejný název i velikost) — sloučit i tohle, radši
+        # necháme tu bohatší verzi (zná jazyk zvuku).
+        by_name, final = {}, []
+        for stream in deduped:
+            name = stream.get("label") if stream.get("_direct") else stream.get("_ws_name", "")
+            if not name:
+                final.append(stream)
+                continue
+            key = (" ".join(_fold(name).split()), round(stream.get("size_gb") or 0, 1))
+            prev = by_name.get(key)
+            if prev is None:
+                by_name[key] = len(final)
+                final.append(stream)
+            elif not final[prev].get("langs") and stream.get("langs"):
+                final[prev] = stream
+        return final
 
     def _torrent_streams(self, meta, video=None, ctype="movie"):
         """Torrenty z trackerů přes Prowlarr. Poslední možnost, když jinde nic není.

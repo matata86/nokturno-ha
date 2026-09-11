@@ -1335,8 +1335,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for name, handler, schema, response in services:
         hass.services.async_register(DOMAIN, name, handler, schema=schema, supports_response=response)
 
-    await downloader.async_refresh_files()
+    # POZOR na pořadí: async_restore() musí běžet první. async_refresh_files()
+    # volá _notify(), jehož první zavolání na čerstvém Downloaderu (self._saved == 0)
+    # vždy vynutí zápis do downloads.json — kdyby self.jobs bylo v tu chvíli ještě
+    # prázdné (restore ještě neproběhlo), přepíše se uložená fronta prázdným
+    # seznamem a rozdělané stahování se ztratí, i když .part soubor zůstane ležet
+    # na disku (2026-09-11).
     await downloader.async_restore()  # navázat na stahování přerušené restartem
+    await downloader.async_refresh_files()
     # sledované seriály a historie do paměti store hned — senzory je čtou z event loopu
     await hass.async_add_executor_job(engine.store.load, "watchlist", {})
     await hass.async_add_executor_job(engine.store.load, "history", [])

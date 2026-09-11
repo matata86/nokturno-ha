@@ -28,6 +28,8 @@ CONF_QBIT_URL = "qbit_url"
 CONF_QBIT_USER = "qbit_username"
 CONF_QBIT_PASS = "qbit_password"
 
+CONF_HS_ENABLED = "hs_enabled"   # HellSpy je veřejný, stačí přepínač
+
 CONF_STATS_ENABLED = "stats_enabled"
 CONF_SYNC_KEY = "sync_key"   # klíč, kterým se Kodi doplňky hlásí na /api/nokturno/sync
 

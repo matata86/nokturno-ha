@@ -31,7 +31,8 @@
           "prowlarr_key": "Prowlarr — API key",
           "qbit_url": "qBittorrent — address",
           "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
-          "qbit_password": "qBittorrent — password"
+          "qbit_password": "qBittorrent — password",
+          "hs_enabled": "Search HellSpy too"
         }
       }
     },
@@ -65,7 +66,8 @@
           "prowlarr_key": "Prowlarr — API key",
           "qbit_url": "qBittorrent — address",
           "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
-          "qbit_password": "qBittorrent — password"
+          "qbit_password": "qBittorrent — password",
+          "hs_enabled": "Search HellSpy too"
         }
       }
     }

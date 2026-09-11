@@ -31,7 +31,8 @@
           "prowlarr_key": "Prowlarr — API klíč",
           "qbit_url": "qBittorrent — adresa",
           "qbit_username": "qBittorrent — jméno (jen když web UI vyžaduje přihlášení)",
-          "qbit_password": "qBittorrent — heslo"
+          "qbit_password": "qBittorrent — heslo",
+          "hs_enabled": "Hledat i na HellSpy"
         }
       }
     },
@@ -65,7 +66,8 @@
           "prowlarr_key": "Prowlarr — API klíč",
           "qbit_url": "qBittorrent — adresa",
           "qbit_username": "qBittorrent — jméno (jen když web UI vyžaduje přihlášení)",
-          "qbit_password": "qBittorrent — heslo"
+          "qbit_password": "qBittorrent — heslo",
+          "hs_enabled": "Hledat i na HellSpy"
         }
       }
     }

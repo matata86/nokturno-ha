@@ -117,6 +117,10 @@ class NokturnoDownloadsSensor(SensorEntity):
             "notify_targets": self.notify_targets,
             # dny do vypršení předplatného WebShare — plní `check_subscription` v __init__.py
             "subscription": self._engine.sub_status,
+            # postup načítání streamů právě otevřeného titulu — {} když nic neběží
+            "stream_progress": self._engine.stream_progress,
+            # postup právě probíhajícího hledání titulu — {} když nic neběží
+            "search_progress": self._engine.search_progress,
         }
 
 

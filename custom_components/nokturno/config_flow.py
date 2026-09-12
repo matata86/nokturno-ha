@@ -35,6 +35,7 @@ from .const import (
     CONF_SORT,
     CONF_STREAMUJ_PASS,
     CONF_STREAMUJ_USER,
+    CONF_TMDB_KEY,
     CONF_WS_PASS,
     CONF_HS_ENABLED,
     CONF_SUB_WARN_DAYS,
@@ -48,7 +49,7 @@ from .const import (
 )
 
 ACCOUNT_KEYS = [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS,
-                CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY]
+                CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_TMDB_KEY]
 
 ACCOUNTS = {
     vol.Optional(CONF_WS_USER, default=""): str,
@@ -57,6 +58,9 @@ ACCOUNTS = {
     vol.Optional(CONF_STREAMUJ_PASS, default=""): str,
     vol.Optional(CONF_LUNA_URL, default=DEFAULT_LUNA_URL): str,
     vol.Optional(CONF_LUNA_TOKEN, default=""): str,
+    # vlastní databáze filmů/seriálů, když Luna neběží — zdarma klíč z themoviedb.org
+    # (Nastavení → API → Request an API Key → Developer → zkopírovat "API Key (v3 auth)")
+    vol.Optional(CONF_TMDB_KEY, default=""): str,
 }
 
 

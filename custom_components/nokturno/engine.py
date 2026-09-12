@@ -13,12 +13,14 @@ import re
 import unicodedata
 import urllib.parse
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 from .const import CONF_HS_ENABLED, LANGS, SORT_ORDERS
+from .lib.cinemeta_api import CinemetaApi, CinemetaError
 from .lib.enrich import DEAD_IMAGES, _cinemeta, _fetch, _fetch_title, enrich, enrich_one
 from .lib.luna_api import LunaApi, LunaError, clean_label, parse_base_url, parse_token
+from .lib.tmdb_api import TmdbApi, TmdbError
 from .lib.prowlarr import ProwlarrApi, ProwlarrError
 from .lib.qbittorrent import QbitApi, QbitError
 from .lib.sosac_api import SosacError, names_match
@@ -35,6 +37,7 @@ HS_LIMIT = 25    # totéž pro HellSpy
 # značka dílu v názvu souboru: „S01E03", „s1 e3", „1x03"
 EPISODE_ANY_RE = re.compile(r"(?<![a-z0-9])s\d{1,2}\s?e\d{1,2}(?!\d)|(?<!\d)\d{1,2}x\d{2}(?!\d)", re.I)
 AUDIO_PROBE_MAX = 24          # u kolika streamů se ještě vyplatí číst hlavičku souboru
+ENRICH_PROGRESS_ESTIMATE = 10  # počáteční odhad délky enrichu, než search() zjistí skutečný počet
 AUDIO_TTL = 30 * 24 * 3600    # obsah souboru se nemění, stačí zjistit jednou
 SOLO_LIMIT = 8   # kolik z nich nechat v seznamu, když k nim Luna nemá protějšek
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
@@ -125,8 +128,13 @@ class Engine:
         self._ws = None
         self._ws_ready = False
         self._hs = None
+        self._cinemeta = None
+        self._sosac_db = None
+        self._tmdb = None
         self._prowlarr = self._qbit = None
         self.sub_status = {}   # {"vip": bool, "days": int, "until": str} — plní check_subscription()
+        self.stream_progress = {}   # {"id": item_id, "done": int, "total": int} — plní streams() přes on_progress
+        self.search_progress = {}   # {"query": str, "done": int, "total": int} — plní search() přes on_progress
 
     # --- konfigurace --------------------------------------------------------
 
@@ -135,6 +143,7 @@ class Engine:
         self._luna = self._sosac = self._ws = None
         self._ws_ready = False
         self._hs = None
+        self._tmdb = None
         self._prowlarr = self._qbit = None
 
     def _opt(self, key, default=""):
@@ -193,6 +202,35 @@ class Engine:
         if self._hs is None and self._opt(CONF_HS_ENABLED, False):
             self._hs = HellspyApi(cache=self.store)
         return self._hs
+
+    @property
+    def cinemeta(self):
+        """Vlastní databáze filmů a seriálů (Stremio/Cinemeta) — bez účtu, funguje
+        vždy, i bez Luny a Sosáče. Poslední záchrana v `search()`/`meta()`, když ani
+        TMDB, ani veřejný katalog Sosáče nic nenajdou (viz `sosac_db`, `tmdb`)."""
+        if self._cinemeta is None:
+            self._cinemeta = CinemetaApi(cache=self.store)
+        return self._cinemeta
+
+    @property
+    def sosac_db(self):
+        """Veřejný katalog Sosáče (žádný účet, žádný přepínač) — česká databáze
+        filmů/seriálů, funguje vždy. `self.sosac` výš zůstává jen pro přihlášené
+        přehrávání; katalog samotný účet nepotřebuje."""
+        if self._sosac_db is None:
+            self._sosac_db = SosacDirect(cache=self.store, index_store=self.store)
+        return self._sosac_db
+
+    @property
+    def tmdb(self):
+        """Vlastní klíč uživatele (zdarma, viz nápověda u nastavení) — přednostní
+        náhrada za veřejný katalog Sosáče/Cinemetu, když Luna neběží: umí česky
+        i to, co ony ne (popis, obsazení). Bez klíče se prostě nepoužije."""
+        if self._tmdb is None:
+            key = self._opt("tmdb_api_key").strip()
+            if key:
+                self._tmdb = TmdbApi(key, cache=self.store)
+        return self._tmdb
 
     @property
     def prowlarr(self):
@@ -302,11 +340,15 @@ class Engine:
             "background": self._art(meta.get("background")),
             "description": (meta.get("description") or "")[:4000],
             "rating": meta.get("imdbRating") or "",
-            "source": "sosac" if is_sosac_id(meta.get("id")) else "luna",
+            "source": meta.get("source") or ("sosac" if is_sosac_id(meta.get("id")) else "luna"),
             "alt": alt,
         }
 
-    def search(self, ctype="movie", query="", limit=20):
+    # kroků před enrichem (Luna, Sosáč) — enrich bývá nejdelší (síťové dotazy na
+    # TMDB/Cinemetu položku po položce), na něm se dopočítá reálný zbytek do 100 %
+    SEARCH_SOURCE_STEPS = 2
+
+    def search(self, ctype="movie", query="", limit=20, on_progress=None):
         """Sloučené výsledky z Luny a Sosáče (stejný titul jen jednou).
 
         Sosáč vrací u položek vždy mrtvý náhled (`movies.sosac.tv`), takže `_needs()`
@@ -316,6 +358,9 @@ class Engine:
 
         Dotaz zakončený `*` obejde cache a vynutí čerstvá data (hvězdička se před
         hledáním odřízne) — výsledek se přesto zapíše do cache pro příští normální dotaz.
+
+        `on_progress(done, total)`, je-li dán, se volá po každé fázi — stejný vzor
+        jako `streams()` (viz tam i `__init__.py`, který ho na hass bezpečně napojuje).
         """
         query = (query or "").strip()
         force = query.endswith("*")
@@ -325,9 +370,36 @@ class Engine:
         if not query:
             raise NokturnoError("Prázdný dotaz.")
 
+        total = self.SEARCH_SOURCE_STEPS + ENRICH_PROGRESS_ESTIMATE
+        done = [0]
+
+        def tick():
+            if not on_progress:
+                return
+            done[0] = min(done[0] + 1, total)
+            on_progress(done[0], total)
+
+        def on_count(n):
+            nonlocal total
+            total = self.SEARCH_SOURCE_STEPS + n
+            if on_progress:
+                on_progress(min(done[0], total), total)
+
         def _fetch():
             luna_metas, sosac_metas, errors = [], [], []
-            if self.luna:
+            # Řetězec zdrojů metadat, v pořadí priority — každý se zkusí, jen když
+            # předchozí nic nevrátil (chybí, nemá klíč, spadl, nebo prostě nic nenašel).
+            # TMDB má přednost i před Lunou, jakmile má uživatel vlastní klíč — je to
+            # jediný zdroj, co umí česky popis i obsazení bez závislosti na Luně běžet.
+            # Luna zůstává zdrojem streamů (viz api_for/cross_streams) nezávisle na tomhle.
+            if self.tmdb:
+                try:
+                    luna_metas = self.tmdb.catalog(ctype, "popular", search=query)
+                    for m in luna_metas:
+                        m["source"] = "tmdb"
+                except TmdbError as err:
+                    errors.append(f"TMDB: {err}")
+            if not luna_metas and self.luna:
                 try:
                     cid = "search.movie" if ctype == "movie" else "search.series"
                     cache_key = f"luna:search:{ctype}:{cid}:{query}"
@@ -335,19 +407,45 @@ class Engine:
                                                     lambda: self.luna.catalog(ctype, cid, search=query))
                 except LunaError as err:
                     errors.append(f"Luna: {err}")
+            if not luna_metas:
+                try:
+                    luna_metas = self.sosac_db.catalog(ctype, "top", search=query)
+                    for m in luna_metas:
+                        m["source"] = "sosac"
+                except SosacError as err:
+                    errors.append(f"Sosáč: {err}")
+            if not luna_metas:
+                try:
+                    luna_metas = self.cinemeta.catalog(ctype, "top", search=query)
+                    for m in luna_metas:
+                        m["source"] = "cinemeta"
+                except CinemetaError as err:
+                    errors.append(f"Cinemeta: {err}")
+            tick()
+            # přihlášený Sosáč se přidává vždycky, nezávisle na tom, co je primární
+            # zdroj metadat výš — najde tak i tituly, které tam TMDB/Luna/Cinemeta nemá
             if self.sosac:
                 try:
                     sosac_metas = self.sosac.search(ctype, query)
                 except SosacError as err:
                     errors.append(f"Sosáč: {err}")
+            tick()
             if not luna_metas and not sosac_metas and errors:
                 raise NokturnoError("; ".join(errors))
             merged = self._by_year(self._merge(luna_metas, sosac_metas), want_year)[: int(limit or 20)]
-            enrich([m for m, _alt in merged if is_sosac_id(m.get("id"))], self.luna, self.store, ctype)
+            # dřív jen položky Sosáče (ty jediné popis neměly) — bez Luny ho ale
+            # nemají ani ty z Cinemety/veřejného Sosáče, `enrich()` si sama vybere,
+            # co doopravdy chybí (TMDB/tt… položky už popis většinou mají)
+            enrich([m for m, _alt in merged], self.luna, self.store, ctype,
+                   on_tick=tick, on_count=on_count)
             return [self._item(meta, ctype, alt) for meta, alt in merged]
 
         cache_key = f"search:{ctype}:{query}:{int(limit or 20)}:{want_year or ''}"
-        return self.store.cached_if(cache_key, 0 if force else SEARCH_CACHE_TTL, _fetch)
+        found = self.store.cached_if(cache_key, 0 if force else SEARCH_CACHE_TTL, _fetch)
+        if on_progress and done[0] < total:
+            done[0] = total
+            on_progress(done[0], total)
+        return found
 
     # --- historie hledání -----------------------------------------------------
 
@@ -514,12 +612,36 @@ class Engine:
 
     # --- detail -------------------------------------------------------------
 
+    def _meta_for(self, meta_type, item_id):
+        """Detail titulu — u tt… id má TMDB přednost i před Lunou, jakmile má uživatel
+        vlastní klíč (stejná priorita jako v `search()`); Luna zůstává zdroj streamů,
+        ne metadat. Bez TMDB/Luny zaskočí veřejný katalog Sosáče (u sosac-native id),
+        nebo Cinemeta (poslední záchrana, anglicky)."""
+        if not is_sosac_id(item_id) and self.tmdb:
+            try:
+                return self.tmdb.meta(meta_type, item_id)
+            except TmdbError:
+                pass
+        try:
+            return self.api_for(item_id).meta(meta_type, item_id)
+        except NokturnoError:
+            if is_sosac_id(item_id):
+                return self.sosac_db.meta(meta_type, item_id)
+            if str(item_id).startswith("tt"):
+                if self.tmdb:
+                    try:
+                        return self.tmdb.meta(meta_type, item_id)
+                    except TmdbError:
+                        pass
+                return self.cinemeta.meta(meta_type, item_id)
+            raise
+
     def meta(self, ctype, item_id, series_id=None):
         base_id, season, episode = split_episode_id(item_id)
         if season is not None and series_id:
             base_id = series_id
         meta_type = "series" if season is not None else ctype
-        meta = self.api_for(base_id).meta(meta_type, base_id)
+        meta = self._meta_for(meta_type, base_id)
         if is_sosac_id(base_id):
             enrich_one(meta, self.luna, self.store, meta_type)
         video = None
@@ -530,7 +652,7 @@ class Engine:
 
     def episodes(self, series_id, season=None):
         """Epizody seriálu; bez `season` všechny."""
-        meta = self.api_for(series_id).meta("series", series_id)
+        meta = self._meta_for("series", series_id)
         out = []
         for video in meta.get("videos") or []:
             s = int(video.get("season") or 0)
@@ -797,7 +919,7 @@ class Engine:
             return probe_media(link)
         return self.store.cached(f"media:{url}", AUDIO_TTL, load) or {}
 
-    def _fill_audio(self, streams):
+    def _fill_audio(self, streams, on_tick=None, on_count=None):
         """Doplní zvuk, titulky a rozlišení tam, kde je zdroj neřekl, a ověří je
         tam, kde je řekl jen název souboru.
 
@@ -805,6 +927,10 @@ class Engine:
         je jen to, co si někdo napsal do názvu. Údaj přitom leží v hlavičce
         souboru a servery umí vydat jen její výřez, takže se čte pár desítek kB.
         Běží to souběžně a výsledek se pamatuje, takže se za soubor platí jednou.
+
+        `on_tick`, je-li dán, se zavolá po každém dočteném souboru — tahle
+        část bývá zdaleka nejdelší, takže se na ní zakládá ukazatel průběhu
+        (viz `streams()` a `__init__.py`).
         """
         # streamy bez počtu kanálů v názvu jdou první — tam chybí úplně všechno.
         # Streamy, které už jazyk podle názvu mají („CZ Dabing"), se ale taky
@@ -814,11 +940,20 @@ class Engine:
         candidates = [s for s in streams if not s.get("_tracks")
                       and str(s.get("url") or "").startswith(("hs:", "ws:", "streamuj:"))]
         todo = sorted(candidates, key=lambda s: bool(s.get("channels")))[:AUDIO_PROBE_MAX]
+        # skutečný počet čtených hlaviček bývá výrazně nižší než limit —
+        # ukazatel průběhu si podle něj dopočítá reálné 100 %, ne odhad
+        if on_count:
+            on_count(len(todo))
         if not todo:
             return streams
         with ThreadPoolExecutor(max_workers=8) as pool:
-            found = list(pool.map(lambda s: self._media_from_file(s["url"]), todo))
-        for stream, info in zip(todo, found):
+            futures = {pool.submit(self._media_from_file, s["url"]): s for s in todo}
+            results = {}
+            for future in as_completed(futures):
+                results[id(futures[future])] = future.result()
+                if on_tick:
+                    on_tick()
+        for stream, info in ((s, results[id(s)]) for s in todo):
             if not info:
                 continue
             text = describe_media(info)
@@ -1224,33 +1359,63 @@ class Engine:
         seconds = minutes * 60 if minutes else DEFAULT_RUNTIME_S
         return mbps * 1_000_000 * seconds / 8 / 2 ** 30
 
-    def streams(self, ctype, item_id, alt=None, series_id=None):
+    # kroků v _fetch_streams(), než začne (obvykle nejdelší) čtení hlaviček
+    STREAM_SOURCE_STEPS = 5
+
+    def streams(self, ctype, item_id, alt=None, series_id=None, on_progress=None):
         """Seřazené streamy titulu ze všech dostupných zdrojů.
 
         Síťové dohledání streamů se cachuje 72 h, ale JEN když něco našlo (`cached_if`) —
         prázdný výsledek by mohl být jen dočasný výpadek zdroje, takže se zkusí znovu
         hned příště. Řazení/filtrování podle uživatelských preferencí (jazyk, velikost,
         pořadí) běží vždy nad čerstvě načtenými daty, aby se projevila okamžitě.
+
+        `on_progress(done, total)`, je-li dán, se volá po každé fázi — synchronně,
+        přímo z tohohle (executor) vlákna. Volající (`__init__.py`) si musí sám
+        ošetřit bezpečný přechod zpátky na event loop, engine o hass/asyncio nic neví.
         """
+        total = self.STREAM_SOURCE_STEPS + AUDIO_PROBE_MAX
+        done = [0]
+
+        def tick():
+            if not on_progress:
+                return
+            done[0] = min(done[0] + 1, total)
+            on_progress(done[0], total)
+
+        def on_count(n):
+            # titul obvykle nemá zdaleka AUDIO_PROBE_MAX streamů k ověření —
+            # bez přepočtu by ukazatel skončil vysoko pod 100 % ještě před koncem
+            nonlocal total
+            total = self.STREAM_SOURCE_STEPS + n
+            if on_progress:
+                on_progress(min(done[0], total), total)
+
         meta, video = self.meta(ctype, item_id, series_id)
         base_id = split_episode_id(item_id)[0]
 
         def _fetch_streams():
             nonlocal meta
-            api = self.api_for(base_id)
             try:
+                api = self.api_for(base_id)
                 found = api.streams(ctype, item_id, include_search=True) if isinstance(api, LunaApi) \
                     else api.streams(ctype, item_id)
-            except Exception as err:  # noqa: BLE001 – výpadek zdroje = prázdno, ne chyba služby
+            except Exception as err:  # noqa: BLE001 – výpadek zdroje (i chybějící Luna/Sosáč
+                                       # u titulu z Cinemety/TMDB) = prázdno, ne chyba služby;
+                                       # cross/WebShare/HellSpy níž to samy doženou
                 _LOGGER.warning("streamy %s: %s", item_id, err)
                 found = []
+            tick()
             # titul otevřený jen podle IMDb id (z databáze filmů) má v metadatech mezinárodní přepis
             # („Sunday League…“), pod kterým Sosáč nic nenajde — podstrčíme mu český název z TMDB
             if not found and not alt and not is_sosac_id(base_id) and str(base_id).startswith("tt"):
                 meta = self._with_local_title(ctype, base_id, meta)
             found += self._cross_streams(ctype, item_id, meta, alt)
+            tick()
             found += self._webshare_streams(meta, video, ctype, alt)
+            tick()
             found += self._hellspy_streams(meta, video, ctype, alt)
+            tick()
             for stream in found:
                 parse_stream(stream)
                 # bez kvality v názvu („Matrix (1999).mkv") by soubor spadl na konec seznamu,
@@ -1263,6 +1428,7 @@ class Engine:
             found = self._merge_direct(found)
             # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
             subs = self._webshare_subtitles(meta, video, ctype, alt)
+            tick()
             if subs:
                 for stream in found:
                     if not stream.get("subtitles"):
@@ -1278,6 +1444,10 @@ class Engine:
 
         cache_key = f"streams:{ctype}:{item_id}:{alt or ''}"
         found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams)
+        # z cache se vrátí rovnou, bez jediného tick() výše — doskočit na konec fáze zdrojů
+        if on_progress and done[0] < self.STREAM_SOURCE_STEPS:
+            done[0] = self.STREAM_SOURCE_STEPS
+            on_progress(done[0], total)
         max_gb = self._effective_max_gb(video or meta)
         lang = self._opt("pref_lang", "")
         order = self._opt("sort_streams", "quality")
@@ -1295,7 +1465,10 @@ class Engine:
         # a před seřazením se rozpočet utratil za řádky, které skončí dole; teď padne
         # na začátek seznamu, tedy na to, co má uživatel před očima. Po doplnění
         # kanálů se řadí znovu, protože 5.1 může pořadím pohnout.
-        ordered = sort(self._ensure_bitrate(self._fill_audio(sort(found)), video or meta))
+        ordered = sort(self._ensure_bitrate(self._fill_audio(sort(found), tick, on_count), video or meta))
+        if on_progress and done[0] < total:
+            done[0] = total
+            on_progress(done[0], total)
         return [self._describe(s, i) for i, s in enumerate(ordered)]
 
     # co WebShare vrací u nedostupných souborů — hlášky jsou anglické a nic neříkající

@@ -400,8 +400,18 @@ def _art_by_title(engine: Engine, items: list[dict]) -> None:
         item["thumbnail"] = meta.get("poster") or ""
 
 
+CONTINUE_CACHE_KEY = "continue_cache"
+
+
 async def kodi_continue(hass: HomeAssistant, entity_id: str | None, engine: Engine | None = None) -> list[dict]:
-    """„Pokračovat ve sledování" ze všech Kodi (nebo jen z jednoho), vypnutá se přeskočí."""
+    """„Pokračovat ve sledování" ze všech Kodi (nebo jen z jednoho), vypnutá se přeskočí.
+
+    Když neodpoví ANI JEDNO Kodi (typicky obě vypnutá), vrátí se naposledy známý
+    stav z `engine.store` místo prázdného seznamu — položky se dřív prostě
+    neukázaly, i když je karta jinak umí zobrazit bez živého spojení (jen
+    přehrání samotné logicky nepůjde, dokud se Kodi nezapne). Cachuje/čte se jen
+    dotaz na VŠECHNA Kodi (bez `entity_id` filtru), aby se necachoval jen dílčí pohled.
+    """
     import asyncio
 
     kodis = kodi_endpoints(hass, entity_id)
@@ -410,10 +420,12 @@ async def kodi_continue(hass: HomeAssistant, entity_id: str | None, engine: Engi
     results = await asyncio.gather(*(_kodi_continue_one(hass, k) for k in kodis), return_exceptions=True)
     items = []
     seen = {}
+    any_reached = False
     for kodi, result in zip(kodis, results):
         if isinstance(result, Exception):
             _LOGGER.debug("rozkoukané z %s: %s", kodi["name"], result)
             continue
+        any_reached = True
         for item in result:
             key = (
                 (item.get("title") or "").strip().lower(),
@@ -432,6 +444,12 @@ async def kodi_continue(hass: HomeAssistant, entity_id: str | None, engine: Engi
                 existing["players"].append({"entity_id": item["entity_id"], "player": item["player"]})
     if engine and any(not (i.get("fanart") or i.get("thumbnail")) for i in items):
         await hass.async_add_executor_job(_art_by_title, engine, items)
+    if engine and entity_id is None:
+        if any_reached:
+            await hass.async_add_executor_job(engine.store.save, CONTINUE_CACHE_KEY, items)
+        else:
+            # ani jedno Kodi neodpovědělo — poslední živý stav je pořád lepší než nic
+            items = await hass.async_add_executor_job(engine.store.load, CONTINUE_CACHE_KEY, [])
     return items
 
 
@@ -1069,7 +1087,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not call_data.get("id"):
             raise HomeAssistantError("Chybí `id` titulu nebo `query`.")
         ctype, item_id, series, alt = episode_target(engine, call_data)
-        return ctype, item_id, series, alt, await _in_executor(engine.streams, ctype, item_id, alt, series)
+
+        def on_progress(done, total):
+            # volá se z executor vlákna (uvnitř engine.streams) — na event loop
+            # (kde jedině smí `async_dispatcher_send` běžet) se musí přeskočit bezpečně
+            engine.stream_progress = {"id": item_id, "done": done, "total": total}
+            hass.loop.call_soon_threadsafe(async_dispatcher_send, hass, SIGNAL_DOWNLOADS)
+
+        streams = await _in_executor(engine.streams, ctype, item_id, alt, series, on_progress)
+        engine.stream_progress = {}
+        async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
+        return ctype, item_id, series, alt, streams
 
     async def _chosen_stream(call_data):
         """Vybraný stream (`stream` index) nebo přímé `url`, jinak nejlepší. `query` místo `id` se dohledá."""
@@ -1098,7 +1126,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             results = await _in_executor(engine.search_catalog,
                                          "series" if kind == "catalog_series" else "movie", call.data["query"], limit)
         else:
-            results = await _in_executor(engine.search, kind, call.data["query"], limit)
+            query = call.data["query"]
+
+            def on_progress(done, total):
+                # stejný vzor jako u streams() — volá se z executor vlákna
+                engine.search_progress = {"query": query, "done": done, "total": total}
+                hass.loop.call_soon_threadsafe(async_dispatcher_send, hass, SIGNAL_DOWNLOADS)
+
+            try:
+                results = await _in_executor(engine.search, kind, query, limit, on_progress)
+            finally:
+                engine.search_progress = {}
+                async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
         if results:
             await hass.async_add_executor_job(engine.add_history, call.data["query"])
             async_dispatcher_send(hass, SIGNAL_WATCHLIST)

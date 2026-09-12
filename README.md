@@ -35,7 +35,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně** a **HellSp
 - **Odeslání do mobilu** — notifikace s odkazem, klepnutím se spustí ve VLC (posílá se jako Android intent s typem videa, jinak by telefon soubor jen stáhl).
 - **Stahování do `/media/nokturno`** s frontou, průběhem, rychlostí a odhadem času; přerušené stahování (restart HA, výpadek) se po startu samo dokončí od místa, kde skončilo; hotové soubory jsou vidět v kartě **na úvodní obrazovce**, dají se přehrát, smazat nebo poslat do mobilu odkazem přes Nabu Casa. Titulky se stáhnou vedle videa a mažou se spolu s ním.
 - **Odkazy použitelné mimo domácí síť** (ikona 🌐) — přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
-- **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat.
+- **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat. Když zrovna neodpoví ani jedno Kodi (vypnutá), ukáže se naposledy známý stav místo prázdné sekce — přehrání samotné logicky počká, až Kodi zapneš.
 - **Společné zhlédnuto a Můj seznam pro všechna Kodi** — integrace je střed synchronizace: zhlédnuté, rozkoukané (i pozice) a Můj seznam se sdílí mezi všemi Kodi s doplňkem Nokturno v síti. V nastavení integrace je klíč, který se opíše do každého Kodi (*Nastavení → Synchronizace*). Film rozkoukaný v obýváku pak pokračuje v pracovně na stejném místě.
 - **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB. Když stream není a máš nastavený Prowlarr, kontrola sáhne i na trackery.
 - **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
@@ -73,8 +73,20 @@ Průvodce má dva kroky. **Účty** — vyplň jen zdroje, které chceš použí
 | Streamuj.tv — uživatel, heslo | účet Streamuj.tv (přehrávač Sosáče) | streamy Sosáče, tedy české tituly a dabing. Katalogy a hledání jdou z veřejných exportů, přihlášení je potřeba až na přehrání. |
 | Luna — adresa, token | běžící addon [Luna](https://github.com/matata86/ha-addons) v síti | katalogy a metadata z TMDB (české názvy, popisy, plakáty) a streamy z WebShare přes Lunu. Token lze vložit i jako celou instalační URL, adresa se z ní vytáhne sama. |
 | HellSpy — jen přepínač | nic, rozhraní je veřejné | další soubory k titulu z hellspy.to. Nabízí se původní soubor, ne překódování, takže velikost i kvalita v seznamu odpovídají tomu, co se přehraje. Rychlost bez účtu kolísá, naměřeno 37 až 400 Mb/s. |
+| TMDB — API klíč | zdarma klíč z [themoviedb.org](https://www.themoviedb.org/signup) (ikona profilu → *Nastavení* → *API* → *Request an API Key* → *Developer* → zkopírovat **API Key (v3 auth)**) | vlastní databáze filmů a seriálů — jakmile je klíč vyplněný, katalog i hledání jedou přes TMDB **přednostně i před Lunou** (umí i český popis a obsazení, ne jen název); Luna zůstává zdrojem streamů. Bez klíče je primární Luna (je-li dostupná), jinak zdarma veřejný katalog Sosáče a nakonec Cinemeta (obojí bez popisu, nebo jen anglicky). |
 
-Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Bez Luny chybí české popisy a plakáty, bez WebShare fulltext a odkazy mimo síť, bez Streamuj.tv streamy Sosáče. HellSpy je vypnutý a zapíná se v předvolbách.
+Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Katalog i hledání titulů fungují dokonce i úplně bez jediného vyplněného zdroje (viz [Vlastní databáze filmů a seriálů](#vlastní-databáze-filmů-a-seriálů) níž). HellSpy je vypnutý a zapíná se v předvolbách.
+
+### Vlastní databáze filmů a seriálů
+
+Katalog a hledání titulů běžely dřív jen přes Lunu (nebo Sosáč) — bez nich integrace neměla odkud vzít ani základní metadata. Teď se použije řetězec zdrojů metadat, v tomhle pořadí (každý se zkusí, jen když předchozí nic nevrátil):
+
+1. **TMDB** — jakmile má uživatel vlastní zdarma klíč (viz tabulka výš), má přednost **i před Lunou** — umí česky i to, co Luna neřekne (popis, obsazení). Luna zůstává zdrojem streamů, ne metadat.
+2. **Luna** — bez TMDB klíče, když je dostupná (beze změny oproti dřívějšku)
+3. **Veřejný katalog Sosáče** — bez TMDB i Luny, bez účtu, české tituly a žánry, ale bez popisu
+4. **Cinemeta** — poslední záchrana, funguje vždy, ale jen anglicky
+
+Streamy samotné (WebShare/HellSpy/Luna) se pak hledají stejně jako dřív — vlastní databáze řeší jen „co je to za titul", ne odkud stream stáhnout. Tlačítko **Hledat v databázi filmů** (viz [Databáze filmů](#databáze-filmů) níž) běží nezávisle na tomhle pořadí — vždy přes Cinemetu, protože slouží k dohledání titulů, které žádný zdroj (ani vlastní databáze) ještě nezná.
 
 **Předvolby přehrávání** (jdou kdykoli změnit v *Nastavení → Zařízení a služby → Nokturno → Konfigurovat*):
 
@@ -136,7 +148,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 <img src="docs/01-uvod.png" width="420" alt="Úvodní obrazovka">
 
 - **Pole pro hledání** a tlačítko **Hledat** (během dotazu se v něm točí kolečko). Přepínač **Filmy / Seriály** se ukáže až u výsledků, a jen když dotaz našel obojí. Rok napsaný do dotazu se použije jako filtr — „Duna 2021" vrátí jen film z roku 2021.
-- **Štítky** s posledními dotazy — klepnutím se hledání zopakuje, křížek historii smaže.
+- **Štítky** s posledními dotazy (nejvýš 10, sdíleno s doplňkem pro Kodi) — klepnutím se hledání zopakuje, křížek historii smaže.
 - **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
 - **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Díl, který je zatím jen na trackeru, je označený „(jen torrent)" — pustit ho znamená napřed ho stáhnout. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
 - **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Záložka v detailu **dílu** uloží ten díl, ne celý seriál; v seznamu je pak i s číslem („Okresní přebor — 1×01 Pohřeb") a klepnutí otevře rovnou jeho streamy. Zelené „lze pustit" u těch, které už mají stream, „jen torrent" u těch, které leží jen na trackerech, „hlídám" u těch, které zatím nikde nejsou; klepnutí otevře streamy. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.

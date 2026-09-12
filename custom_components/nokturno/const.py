@@ -8,6 +8,7 @@ CONF_WS_USER = "ws_username"
 CONF_WS_PASS = "ws_password"
 CONF_STREAMUJ_USER = "streamuj_username"
 CONF_STREAMUJ_PASS = "streamuj_password"
+CONF_TMDB_KEY = "tmdb_api_key"
 
 CONF_KODI_ENTITY = "kodi_entity"
 CONF_PREF_LANG = "pref_lang"

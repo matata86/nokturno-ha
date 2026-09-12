@@ -1,6 +1,5 @@
 # Nokturno pro Home Assistant
 
-[![Podpoř autora na Ko-fi](https://img.shields.io/badge/Ko--fi-podpo%C5%99%20autora-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/matata86)
 [![HACS: vlastní repozitář](https://img.shields.io/badge/HACS-vlastn%C3%AD%20repozit%C3%A1%C5%99-41BDF5.svg)](https://hacs.xyz/)
 
 [![Otevřít repozitář v HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=matata86&repository=nokturno-ha&category=integration)
@@ -380,4 +379,3 @@ MIT
 
 ---
 
-Líbí se ti to? ☕ [Podpoř autora na Ko-fi](https://ko-fi.com/matata86)

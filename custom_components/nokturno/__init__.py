@@ -61,6 +61,7 @@ from .const import (
     SERVICE_DETAIL,
     SERVICE_EPISODES,
     SERVICE_PLAY,
+    SERVICE_REMOVE_PROGRESS,
     SERVICE_RESOLVE,
     SERVICE_SEARCH,
     SERVICE_SHARE_FILE,
@@ -113,10 +114,6 @@ STREAMS_SCHEMA = vol.Schema({
     vol.Optional("series"): vol.Any(cv.string, None),
     vol.Optional("season"): vol.Any(vol.Coerce(int), None),
     vol.Optional("episode"): vol.Any(vol.Coerce(int), None),
-    # jen pro čítače: karta název i rok zná, takže se kvůli nim nemusí znovu
-    # sahat na metadata (`title`/`year` na výběr streamů nemají žádný vliv)
-    vol.Optional("title"): vol.Any(cv.string, None),
-    vol.Optional("year"): vol.Any(cv.string, vol.Coerce(int), None),
 })
 
 PLAY_SCHEMA = STREAMS_SCHEMA.extend({
@@ -201,6 +198,7 @@ WATCH_SCHEMA = vol.Schema({
 })
 
 CONTINUE_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTITY_ID): cv.string})
+REMOVE_PROGRESS_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.string, vol.Required("file"): cv.string})
 
 SEEN_SCHEMA = vol.Schema({vol.Optional("id"): vol.Any(cv.string, None)})
 
@@ -389,6 +387,53 @@ async def _kodi_continue_one(hass: HomeAssistant, kodi: dict) -> list[dict]:
             "player": kodi["name"],
         })
     return items
+
+
+async def _kodi_remove_progress(hass: HomeAssistant, entity_id: str, file: str) -> None:
+    """Odebrání titulu z Pokračovat ve sledování — na tomtéž Kodi a se stejným
+    `id`/`series`/`alt`, jaké karta dostala v `file` z `continue_watching` (viz
+    `_kodi_continue_one`). Jede přes `Files.GetDirectory` jako to hledání samo,
+    ne přes `Addons.ExecuteAddon`, který RunPlugin akce nespustí (viz pristupy.md);
+    doplněk proto akci `remove_progress` končí `endOfDirectory(succeeded=False)`,
+    ať Kodi na výpis složky nečeká navěky."""
+    kodis = kodi_endpoints(hass, entity_id)
+    if not kodis:
+        raise HomeAssistantError("Tohle Kodi není v Home Assistantu nastavené.")
+    kodi = kodis[0]
+    query = dict(urllib.parse.parse_qsl((file or "").split("?", 1)[-1]))
+    # klíč ve `watched.json` se liší podle zdroje (viz store.py v jádru) — pro
+    # WebShare/HellSpy soubory ho `action=play_ws`/`play_hs` nenese přímo jako
+    # `id`, musí se poskládat stejně jako v add_ws_file()/add_hs_file()
+    action = query.get("action")
+    if action == "play_ws":
+        key = f"ws:{query.get('ident', '')}"
+    elif action == "play_hs":
+        key = f"hs:{query.get('id', '')}:{query.get('hash', '')}"
+    else:
+        key = query.get("id", "")
+    if not key or key in ("ws:", "hs::"):
+        raise HomeAssistantError("Z odkazu titulu nejde poznat, co odebrat.")
+    params = {"action": "remove_progress", "id": key}
+    if query.get("series"):
+        params["series"] = query["series"]
+    if query.get("alt"):
+        params["alt"] = query["alt"]
+    directory = KODI_PLUGIN + "?" + urllib.parse.urlencode(params)
+    session = async_get_clientsession(hass)
+    payload = {"jsonrpc": "2.0", "id": 1, "method": "Files.GetDirectory",
+               "params": {"directory": directory, "media": "video"}}
+    kwargs = {"json": payload, "timeout": 30}
+    if kodi["auth"]:
+        import aiohttp
+        kwargs["auth"] = aiohttp.BasicAuth(*kodi["auth"])
+    # `remove_progress` v doplňku končí `endOfDirectory(succeeded=False)` (viz jeho
+    # docstring) — přesně jako `history_clear`/`clear_cache` v default.py, aby Kodi
+    # nečekalo na výpis složky, který nikdy nepřijde. Přes JSON-RPC ale `succeeded=False`
+    # znamená „tohle není platný výpis", takže Kodi vrátí chybu -32602 i po úspěšném
+    # provedení akce — ověřeno na `watched.json` (resume se doopravdy vynuloval).
+    # Skutečné selhání (Kodi nedostupné, špatná adresa) spadne dřív, na `session.post`.
+    async with session.post(kodi["url"], **kwargs) as resp:
+        await resp.json(content_type=None)
 
 
 def _art_by_title(engine: Engine, items: list[dict]) -> None:
@@ -982,6 +1027,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         items = await kodi_continue(hass, call.data.get(ATTR_ENTITY_ID), engine)
         return {"count": len(items), "items": items}
 
+    async def handle_remove_progress(call: ServiceCall):
+        await _kodi_remove_progress(hass, call.data[ATTR_ENTITY_ID], call.data["file"])
+
     async def handle_seen(call: ServiceCall):
         """Označí nový díl (u jednoho nebo všech seriálů) za viděný — zhasne v kartě i v senzoru."""
         data = watchlist()
@@ -1031,14 +1079,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         if not ok:
             _LOGGER.debug("statistiky neodeslány: %s", why)
-
-    def _note_view(item_id, title="", year=None, kind="movie"):
-        """Zobrazení streamů titulu — stejná událost jako v Kodi doplňku."""
-        if not options.get(CONF_STATS_ENABLED, True):
-            return
-        stats.note_use()
-        if item_id:
-            stats.note_play(item_id, title or "", year, kind)
 
     async def stats_tick(_now=None):
         await hass.async_add_executor_job(_stats_send)
@@ -1163,13 +1203,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"count": len(results), "results": results}
 
     async def handle_streams(call: ServiceCall):
-        ctype, item_id, series, _alt, streams = await _streams(call.data)
-        year = call.data.get("year")
-        await hass.async_add_executor_job(
-            _note_view, item_id, call.data.get("title") or "",
-            int(year) if str(year or "").isdigit() else None,
-            "series" if series or ctype == "series" else "movie",
-        )
+        _ctype, _item_id, _series, _alt, streams = await _streams(call.data)
+        if options.get(CONF_STATS_ENABLED, True):
+            await hass.async_add_executor_job(stats.note_use)
         return {"count": len(streams), "streams": streams}
 
     async def handle_torrents(call: ServiceCall):
@@ -1390,6 +1426,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_DELETE_FILE, handle_delete_file, DELETE_SCHEMA, SupportsResponse.NONE),
         (SERVICE_SHARE_FILE, handle_share_file, SHARE_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CONTINUE, handle_continue, CONTINUE_SCHEMA, SupportsResponse.ONLY),
+        (SERVICE_REMOVE_PROGRESS, handle_remove_progress, REMOVE_PROGRESS_SCHEMA, SupportsResponse.NONE),
         (SERVICE_WATCH, handle_watch, WATCH_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_CHECK_SERIES, handle_check_series, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_CLEAR_HISTORY, handle_clear_history, vol.Schema({}), SupportsResponse.NONE),
@@ -1440,7 +1477,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for name in (SERVICE_SEARCH, SERVICE_STREAMS, SERVICE_EPISODES, SERVICE_RESOLVE, SERVICE_PLAY,
                          SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_START_DOWNLOAD,
                          SERVICE_DELETE_FILE,
-                         SERVICE_SHARE_FILE, SERVICE_CONTINUE, SERVICE_WATCH, SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
+                         SERVICE_SHARE_FILE, SERVICE_CONTINUE, SERVICE_REMOVE_PROGRESS, SERVICE_WATCH,
+                         SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
                          SERVICE_CLEAR_CACHE,
                          SERVICE_SEEN, SERVICE_TRAKT_AUTH, SERVICE_TRAKT_LIST, SERVICE_TRAKT_WATCHED,
                          SERVICE_WANT, SERVICE_FULLTEXT):

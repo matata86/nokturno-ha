@@ -370,6 +370,24 @@ continue_watching:
         entity:
           domain: media_player
 
+remove_progress:
+  name: Odebrat z Pokračovat ve sledování
+  description: Vynuluje rozkoukanost titulu na daném Kodi — bez ptaní zmizí ze seznamu Pokračovat ve sledování, zhlédnutí to neovlivní.
+  fields:
+    entity_id:
+      name: Kodi
+      description: Kodi, na kterém titul je rozkoukaný (stejné jako u položky z Pokračovat ve sledování).
+      required: true
+      selector:
+        entity:
+          domain: media_player
+    file:
+      name: Soubor
+      description: Pole `file` položky z odpovědi `continue_watching` — nese id titulu, které se má odebrat.
+      required: true
+      selector:
+        text:
+
 watch_series:
   name: Sledovat seriál
   description: Přidá seriál mezi sledované (nové díly se hlásí), s `remove` ho odebere.

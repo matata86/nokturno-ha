@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.47.0";
+const CARD_VERSION = "1.48.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -42,7 +42,7 @@ class NokturnoCard extends HTMLElement {
       seasons: [], season: null, item: null, title: "", busy: false, searching: false, loading: null, error: "",
       byType: { movie: [], series: [] }, bothTypes: false,
       player: config.player || (config.players || [])[0] || "", phone: config.phone || "",
-      continueItems: null, stack: [],
+      continueItems: null, continueSource: null, stack: [],
     };
     this._started = false;
   }
@@ -59,28 +59,59 @@ class NokturnoCard extends HTMLElement {
       this._started = true;
       // ha-input a spol. se do stránky dotahují líně — bez čekání by zůstala prázdná místa
       this._ready().then(() => this._render());
-    } else if (this._root) {
-      this._renderDownloads();
-      this._renderProgress();
-      // změna sledovaných seriálů nebo historie → překreslit úvod / detail (a zahodit dočasné stavy)
-      const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history")]);
-      if (key !== this._sensorKey) {
-        this._sensorKey = key;
-        this._watchOverride = {};
-        this._wantOverride = {};
-        if (this._state.view === "search" || this._state.view === "episodes") this._paint();
-      }
+      return;
     }
+    // HA sem posílá nový `hass` při změně libovolné entity — na plném dashboardu i
+    // několikrát za sekundu. Karta ale závisí jen na senzorech integrace; dokud se ty
+    // nezměnily, nemá co dělat. Bez téhle zkratky se při každém tiknutí libovolného
+    // senzoru v domě znovu skládalo HTML stažených souborů a procházely všechny
+    // entity — na dashboardu se stovkami entit to prohlížeč dovedlo k „stránka
+    // neodpovídá“.
+    if (!this._root || !this._sensorsChanged()) return;
+    this._renderDownloads();
+    this._renderProgress();
+    // změna sledovaných seriálů nebo historie → překreslit úvod / detail (a zahodit dočasné stavy)
+    const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history")]);
+    if (key !== this._sensorKey) {
+      this._sensorKey = key;
+      this._watchOverride = {};
+      this._wantOverride = {};
+      if (this._state.view === "search" || this._state.view === "episodes") this._paint();
+    }
+  }
+
+  /** Id senzorů integrace. Procházet všechny entity při každé změně `hass` je drahé,
+   *  proto se seznam drží a obnovuje jen jednou za minutu (nová entita se objeví
+   *  nejpozději za tu dobu). Senzor stahování z konfigurace je v seznamu vždy první. */
+  _sensorIds() {
+    const now = Date.now();
+    if (this._sensorIdsCache && now - this._sensorIdsAt < 60000) return this._sensorIdsCache;
+    const states = (this._hass && this._hass.states) || {};
+    const ids = Object.keys(states).filter((id) =>
+      id.startsWith("sensor.") && id.includes("nokturno") && id !== this._config.downloads);
+    this._sensorIdsCache = [this._config.downloads, ...ids].filter(Boolean);
+    this._sensorIdsAt = now;
+    return this._sensorIdsCache;
+  }
+
+  /** Změnil se od minula některý senzor integrace? Stavové objekty HA jsou neměnné —
+   *  nový vzniká jen při skutečné změně, takže stačí porovnat odkazy. */
+  _sensorsChanged() {
+    const states = (this._hass && this._hass.states) || {};
+    const snap = this._sensorIds().map((id) => states[id]);
+    const prev = this._sensorSnap;
+    this._sensorSnap = snap;
+    return !prev || prev.length !== snap.length || snap.some((s, i) => s !== prev[i]);
   }
 
   /** Atribut z toho senzoru integrace, který ho má (historie je u stahování, seriály u „Nové díly“). */
   _sensorAttr(name) {
     const states = (this._hass && this._hass.states) || {};
-    const own = states[this._config.downloads];
-    if (own && own.attributes[name] !== undefined) return own.attributes[name];
-    const other = Object.values(states).find((s) =>
-      s.entity_id.startsWith("sensor.") && s.entity_id.includes("nokturno") && s.attributes[name] !== undefined);
-    return other ? other.attributes[name] : null;
+    for (const id of this._sensorIds()) {
+      const s = states[id];
+      if (s && s.attributes[name] !== undefined) return s.attributes[name];
+    }
+    return null;
   }
 
   getCardSize() { return 12; }
@@ -170,6 +201,7 @@ class NokturnoCard extends HTMLElement {
     this._state.title = item.title;
     this._state.episode = null;
     this._state.descOpen = false;
+    this._state.continueSource = null;
     if (item.type === "file") {
       // soubor z fulltextu WebShare — žádný detail titulu, rovnou jeden „stream“
       this._state.streams = [{ index: 0, label: item.size || item.title, source: "WebShare", url: item.id }];
@@ -246,9 +278,7 @@ class NokturnoCard extends HTMLElement {
   async _loadStreams(data) {
     this._state.stack.push(this._state.view);
     await this._guard(async () => {
-      // název a rok jdou s dotazem jen kvůli čítačům používání (viz stats v integraci)
-      const it = this._state.item || {};
-      const res = await this._call("streams", { title: it.title, year: it.year, ...data });
+      const res = await this._call("streams", { ...data });
       this._state.streams = res.streams || [];
       this._state.streamTarget = data;
       this._state.torrents = false;   // torrenty se u nového titulu hledají znovu
@@ -512,6 +542,9 @@ class NokturnoCard extends HTMLElement {
     this._state.descOpen = false;
     this._state.episode = null;
     this._state.title = item.label || item.title;
+    // jen odsud jde titul z Pokračovat ve sledování odebrat — potřebuje vědět
+    // na kterém Kodi je rozkoukaný a jeho přesný odkaz (`remove_progress` v integraci)
+    this._state.continueSource = item.entity_id ? { entity_id: item.entity_id, file: item.file } : null;
     if (id) {
       this._state.item = {
         id, type, title: item.title || item.label, year: item.year,
@@ -940,6 +973,20 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
+  /** Odebrání z Pokračovat ve sledování — jen u titulu otevřeného odtamtud (`continueSource`,
+      nastaví ho `_openContinue`). Ikonka pak zmizí, ať nejde poslat dvakrát a na cizí Kodi. */
+  async _removeProgress() {
+    const source = this._state.continueSource;
+    if (!source) return;
+    this._state.continueSource = null;
+    this._state.continueItems = null;   // vynutí čerstvý seznam, až se příště otevře
+    this._paint();
+    await this._guard(async () => {
+      await this._call("remove_progress", source, false);
+      this._toast("Odebráno z Pokračovat ve sledování");
+    });
+  }
+
   /** Hlídat titul, který zatím žádný zdroj nemá — stačí název z vyhledávacího pole. */
   /** Databáze filmů (IMDb/TMDB) — najde i tituly, které zatím žádný zdroj nemá. */
   async _searchCatalog() {
@@ -1063,6 +1110,9 @@ class NokturnoCard extends HTMLElement {
             return `<ha-icon-button data-want="1" title="${saved ? "Odebrat ze seznamu k zhlédnutí" : "Přidat do seznamu k zhlédnutí"}">
             <ha-icon icon="${saved ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
           </ha-icon-button>`; })() : ""}
+          ${st.continueSource ? `<ha-icon-button data-removeprogress="1" title="Odebrat z Pokračovat ve sledování">
+            <ha-icon icon="mdi:close-circle-outline"></ha-icon>
+          </ha-icon-button>` : ""}
         </div>
       </div>`;
     // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání.
@@ -1325,7 +1375,7 @@ class NokturnoCard extends HTMLElement {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
                   "watch", "wopen", "wremove", "wseen", "trakt", "want", "catalog", "research",
-                  "torrent", "findtorrents", "findfulltext"];
+                  "torrent", "findtorrents", "findfulltext", "removeprogress"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -1347,6 +1397,7 @@ class NokturnoCard extends HTMLElement {
       return this._openItem({ id: w.id, type: "series", title: w.title, alt: w.alt, poster: w.poster });
     }
     if (data.want !== undefined) return this._toggleWant();
+    if (data.removeprogress !== undefined) return this._removeProgress();
     if (data.wantquery !== undefined) return this._wantQuery();
     if (data.catalog !== undefined) return this._searchCatalog();
     if (data.research !== undefined) { st.catalog = false; return this._search(); }

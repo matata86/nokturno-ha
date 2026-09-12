@@ -1,51 +1,25 @@
-"""Konstanty integrace Nokturno."""
+"""Konstanty integrace Nokturno.
+
+Klíče nastavení, které čte jádro (účty zdrojů, torrenty, předvolby streamů),
+jsou ve sdíleném `lib/const.py` a vtahují se sem hvězdičkou — **needituj je
+tady**, mění se v repu `nokturno-core` a rozesílá skriptem `tools/sync_core.py`.
+Zdejší zůstávají jen ty, které jsou vlastní Home Assistantu.
+"""
+from .lib.const import *  # noqa: F401,F403
 
 DOMAIN = "nokturno"
 
-CONF_LUNA_URL = "luna_url"
-CONF_LUNA_TOKEN = "luna_token"
-CONF_WS_USER = "ws_username"
-CONF_WS_PASS = "ws_password"
-CONF_STREAMUJ_USER = "streamuj_username"
-CONF_STREAMUJ_PASS = "streamuj_password"
-CONF_TMDB_KEY = "tmdb_api_key"
-
+# --- vlastní Home Assistantu ---------------------------------------------
 CONF_KODI_ENTITY = "kodi_entity"
-CONF_PREF_LANG = "pref_lang"
-CONF_PREF_SURROUND = "pref_surround"
-CONF_HIDE_SD = "hide_sd"
-CONF_MAX_BITRATE = "max_bitrate_mbps"
-CONF_SORT = "sort_streams"
-CONF_DOWNLOAD_DIR = "download_dir"
-CONF_EXTERNAL_HOST = "external_host"
 CONF_NOTIFY_TARGET = "notify_target"
 CONF_TRAKT_ID = "trakt_client_id"
 CONF_TRAKT_SECRET = "trakt_client_secret"
-# Torrenty: hledání přes Prowlarr, stahování přes qBittorrent. Bez obojího se
-# torrentový zdroj vůbec nenabídne.
-CONF_PROWLARR_URL = "prowlarr_url"
-CONF_PROWLARR_KEY = "prowlarr_key"
-CONF_QBIT_URL = "qbit_url"
-CONF_QBIT_USER = "qbit_username"
-CONF_QBIT_PASS = "qbit_password"
-
-CONF_HS_ENABLED = "hs_enabled"   # HellSpy je veřejný, stačí přepínač
 CONF_SUB_WARN_DAYS = "sub_warn_days"   # kolik dní předem upozornit na konec předplatného WebShare
-SUB_CHECK_INTERVAL_HOURS = 12
-
 CONF_STATS_ENABLED = "stats_enabled"
 CONF_SYNC_KEY = "sync_key"   # klíč, kterým se Kodi doplňky hlásí na /api/nokturno/sync
 
+SUB_CHECK_INTERVAL_HOURS = 12
 STATS_INTERVAL_HOURS = 6
-
-DEFAULT_LUNA_URL = "http://192.168.1.10:7126"
-DEFAULT_PROWLARR_URL = "http://192.168.1.10:9696"
-DEFAULT_QBIT_URL = "http://192.168.1.10:9091"
-DEFAULT_DOWNLOAD_DIR = "/media/nokturno"
-DEFAULT_SORT = "quality"
-
-SORT_ORDERS = ["source", "quality", "size_desc", "size_asc"]
-LANGS = ["", "CZ", "SK", "EN"]
 
 # Kodi doplněk, přes který se přehrává (evidence zhlédnuto/rozkoukáno zůstane v Kodi)
 KODI_PLUGIN = "plugin://plugin.video.nokturno/"
@@ -78,9 +52,9 @@ SERVICE_FULLTEXT = "fulltext_search"
 
 SIGNAL_DOWNLOADS = f"{DOMAIN}_downloads_updated"
 SIGNAL_WATCHLIST = f"{DOMAIN}_watchlist_updated"
+SIGNAL_TRAKT = f"{DOMAIN}_trakt_updated"
 EVENT_DOWNLOAD_DONE = f"{DOMAIN}_download_done"
 EVENT_NEW_EPISODE = f"{DOMAIN}_new_episode"
+EVENT_TRAKT_AVAILABLE = f"{DOMAIN}_trakt_available"
 WATCH_INTERVAL_HOURS = 6
 TRAKT_INTERVAL_HOURS = 24
-SIGNAL_TRAKT = f"{DOMAIN}_trakt_updated"
-EVENT_TRAKT_AVAILABLE = f"{DOMAIN}_trakt_available"

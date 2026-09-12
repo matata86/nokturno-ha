@@ -1,5 +1,6 @@
-"""Knihovny převzaté z Kodi doplňku Nokturno (plugin.video.nokturno).
+"""Klienti jednotlivých zdrojů a pomocné moduly nad nimi.
 
-Soubory jsou kopie z `resources/lib/` doplňku — čistý Python bez závislosti na Kodi.
-Při úpravě zdroje v doplňku je sem překopíruj znovu (jediná změna: relativní importy).
+Každý modul je samostatně spustitelný a testovatelný, bez hostitele:
+
+    python3 -m nokturno_core.lib.luna_api http://192.168.1.10:7126 e1.XXXX
 """

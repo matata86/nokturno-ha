@@ -16,7 +16,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-from .const import CONF_HS_ENABLED, LANGS, SORT_ORDERS
+from .lib.const import CONF_HS_ENABLED, LANGS, SORT_ORDERS
 from .lib.cinemeta_api import CinemetaApi, CinemetaError
 from .lib.enrich import DEAD_IMAGES, _cinemeta, _fetch, _fetch_title, enrich, enrich_one
 from .lib.luna_api import LunaApi, LunaError, clean_label, parse_base_url, parse_token

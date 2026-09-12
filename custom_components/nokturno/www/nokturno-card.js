@@ -237,6 +237,8 @@ class NokturnoCard extends HTMLElement {
       } catch (err) { /* stejně tak film */ }
       st.streams = streams;
       st.streamTarget = { id: item.id, type };
+      st.torrents = false;
+      st.fulltext = false;
       st.view = "streams";
     });
   }
@@ -250,6 +252,7 @@ class NokturnoCard extends HTMLElement {
       this._state.streams = res.streams || [];
       this._state.streamTarget = data;
       this._state.torrents = false;   // torrenty se u nového titulu hledají znovu
+      this._state.fulltext = false;   // stejně tak ruční fulltext
       this._state.view = "streams";
     });
   }
@@ -393,6 +396,16 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
+  /** Které fulltextové zdroje jsou nastavené — senzor stahování to hlásí v `sources`. */
+  _fulltextSources() {
+    const sensor = this._hass && this._hass.states[this._config.downloads];
+    const src = (sensor && sensor.attributes.sources) || {};
+    const out = [];
+    if (src.webshare) out.push("ws");
+    if (src.hellspy) out.push("hs");
+    return out;
+  }
+
   /** Prowlarr nastavený? Senzor stahování to hlásí v atributu `sources`. */
   _hasTorrents() {
     const sensor = this._hass && this._hass.states[this._config.downloads];
@@ -409,6 +422,24 @@ class NokturnoCard extends HTMLElement {
       this._state.streams = (res.streams || []).concat(this._state.streams);
       this._state.torrents = true;
       if (!(res.streams || []).length) this._toast("Na trackerech nic nenašel");
+    });
+    this._state.finding = false;
+    this._paint();
+  }
+
+  /** Ruční, uvolněné hledání na WebShare/HellSpy — pro případ, že přísný
+      automatický filtr (viz `engine._title_queries`) skutečnou shodu zahodil,
+      protože název souboru je neobvyklý. Výsledek karta označí jako neověřený,
+      posouzení nechává na uživateli. */
+  async _findFulltext() {
+    this._state.finding = true;
+    await this._guard(async () => {
+      const res = await this._call("fulltext_search", { ...this._state.streamTarget });
+      const known = new Set(this._state.streams.map((s) => s.url));
+      const added = (res.streams || []).filter((s) => !known.has(s.url));
+      this._state.streams = this._state.streams.concat(added);
+      this._state.fulltext = true;
+      if (!added.length) this._toast("Fulltext nic dalšího nenašel");
     });
     this._state.finding = false;
     this._paint();
@@ -570,7 +601,8 @@ class NokturnoCard extends HTMLElement {
         .searchrow { display:flex; gap:8px; align-items:stretch; }
         ha-control-button#go { flex:1; }
         ha-control-button#go ha-icon { --mdc-icon-size:20px; margin-right:4px; vertical-align:-4px; }
-        ha-control-button#go .pct { margin-left:4px; font-size:.8rem; opacity:.85; }
+        ha-control-button#go .pct { margin-left:4px; font-size:.8rem; opacity:.85; white-space:nowrap; }
+        ha-control-button#go::part(base), ha-control-button#go { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         ha-control-button#clearcache { flex:0 0 40px; --control-button-padding: 0; }
         ha-control-button#clearcache ha-icon { --mdc-icon-size:18px; }
         ha-control-select { --control-select-thickness:40px; }
@@ -1039,14 +1071,25 @@ class NokturnoCard extends HTMLElement {
       <button class="chip" data-findtorrents="1"${st.busy ? " disabled" : ""} title="Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání">
         <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:magnify-scan"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? "Hledám torrenty…" : "Hledat torrenty"}
       </button></div>`;
-    if (!st.streams.length) return head + torrentBtn + `<div class="muted empty">Pro tento titul se nenašel žádný stream.${
+    // ruční, uvolněné hledání na WebShare/HellSpy — pro případ, že přísný filtr
+    // skutečnou shodu zahodil (nebo naopak, i mezi nalezenými je dobré umět ověřit).
+    // Proto je dole i u titulu, který streamy už má — ne jen v prázdném stavu.
+    const fsrc = this._fulltextSources();
+    const fLabel = fsrc.length === 2 ? "WebShare a HellSpy" : fsrc.length === 1
+      ? (fsrc[0] === "ws" ? "WebShare" : "HellSpy") : "";
+    const fulltextBtn = st.fulltext || !fsrc.length ? "" : `<div class="chips" style="margin:8px 0 2px">
+      <button class="chip" data-findfulltext="1"${st.busy ? " disabled" : ""} title="Uvolněné hledání podle slov v názvu souboru — najde i to, co přísný filtr zahodí jako podobný, ale jiný titul">
+        <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:text-search"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? "Hledám…" : `Zkusit fulltext na ${fLabel}`}
+      </button></div>`;
+    if (!st.streams.length) return head + torrentBtn + fulltextBtn + `<div class="muted empty">Pro tento titul se nenašel žádný stream.${
       st.item && st.item.source === "katalog" ? " Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví." : ""}</div>`;
     const legend = st.streams.some((s) => s.direct)
       ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = hraje i mimo domácí síť</div>` : "";
     return head + torrentBtn + legend + `<div>${st.streams.map((s, i) => `
       <div class="stream" title="${this._esc(this._streamTitle(s))}">
         <span class="tag" style="background:${SOURCE_COLORS[s.source] || "#777"}">${s.source || "?"}${
-          s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="Hraje i mimo domácí síť"></ha-icon>` : ""}</span>
+          s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="Hraje i mimo domácí síť"></ha-icon>` : ""}${
+          s._loose ? `<ha-icon class="ext" icon="mdi:help-circle-outline" title="Neověřeno — z ručního fulltextového hledání, může to být i jiný titul"></ha-icon>` : ""}</span>
         <span class="label">${this._esc(s.label.replace(s.source + "  ·  ", ""))}</span>
         <span class="icons wide">${s.kind === "torrent"
           // torrent není odkaz na video: nedá se přehrát ani poslat do mobilu,
@@ -1057,7 +1100,7 @@ class NokturnoCard extends HTMLElement {
           <ha-control-button data-dl="${i}" title="Stáhnout"><ha-icon icon="mdi:download"></ha-icon></ha-control-button>
           <ha-control-button data-link="${i}" title="Zkopírovat odkaz"><ha-icon icon="mdi:link-variant"></ha-icon></ha-control-button>`}
         </span>
-      </div>`).join("")}</div>`;
+      </div>`).join("")}</div>${fulltextBtn}`;
   }
 
   /** TMDB občas jeden obrázek odmítne — zkusíme ho ještě dvakrát, teprve pak necháme podklad. */
@@ -1282,7 +1325,7 @@ class NokturnoCard extends HTMLElement {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
                   "watch", "wopen", "wremove", "wseen", "trakt", "want", "catalog", "research",
-                  "torrent", "findtorrents"];
+                  "torrent", "findtorrents", "findfulltext"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -1364,6 +1407,7 @@ class NokturnoCard extends HTMLElement {
     if (data.link !== undefined) return this._openLink(st.streams[+data.link]);
     if (data.torrent !== undefined) return this._downloadTorrent(st.streams[+data.torrent]);
     if (data.findtorrents !== undefined) return this._findTorrents();
+    if (data.findfulltext !== undefined) return this._findFulltext();
     return undefined;
   }
 

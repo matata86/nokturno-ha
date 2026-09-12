@@ -74,6 +74,7 @@ SERVICE_TRAKT_LIST = "trakt_watchlist"
 SERVICE_WANT = "want_to_watch"
 SERVICE_TORRENTS = "torrents"
 SERVICE_TORRENT = "download_torrent"
+SERVICE_FULLTEXT = "fulltext_search"
 
 SIGNAL_DOWNLOADS = f"{DOMAIN}_downloads_updated"
 SIGNAL_WATCHLIST = f"{DOMAIN}_watchlist_updated"

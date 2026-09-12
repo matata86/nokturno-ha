@@ -69,6 +69,7 @@ from .const import (
     SERVICE_TRAKT_LIST,
     SERVICE_TRAKT_WATCHED,
     SERVICE_WANT,
+    SERVICE_FULLTEXT,
     SERVICE_TORRENT,
     SERVICE_TORRENTS,
     SERVICE_SEND_LINK,
@@ -167,6 +168,10 @@ SHARE_SCHEMA = vol.Schema({
 TORRENTS_SCHEMA = STREAMS_SCHEMA.extend({
     # kolik streamů karta už ukazuje — torrenty na ně navazují číslováním
     vol.Optional("offset", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=500)),
+})
+
+FULLTEXT_SCHEMA = STREAMS_SCHEMA.extend({
+    vol.Optional("source"): vol.All(cv.ensure_list, [vol.In(["ws", "hs"])]),
 })
 
 TORRENT_SCHEMA = vol.Schema({
@@ -805,15 +810,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                       # titul zatím jen na trackeru — pustit ho znamená napřed stáhnout
                       "torrent": bool(streams) and all(s.get("kind") == "torrent" for s in streams),
                       "checked": dt_util.now().isoformat()}
-            if streams and not before.get("streams") and before:
-                newly.append(record)
+            before_streams = before.get("streams") or 0
+            # hlásí se i nárůst u titulu, který streamy už měl — nová kvalita/jazyk
+            # nebo prostě další zdroj navíc je taky dobrá zpráva, ne jen první nález
+            if streams and before and len(streams) > before_streams:
+                newly.append({**record, "_prev": before_streams})
             fresh[item["id"]] = record
         await hass.async_add_executor_job(engine.store.save, "trakt_list", fresh)
         async_dispatcher_send(hass, SIGNAL_TRAKT)
         for record in newly:
             hass.bus.async_fire(EVENT_TRAKT_AVAILABLE, {k: record[k] for k in ("id", "title", "type", "streams")})
-            await notify("Nokturno — už je k dispozici",
-                         f"{record['title']}{f' ({record['year']})' if record.get('year') else ''} má nově {record['streams']} streamů.")
+            year = f" ({record['year']})" if record.get("year") else ""
+            if record["_prev"]:
+                await notify("Nokturno — přibyl nový zdroj",
+                             f"{record['title']}{year} má teď {record['streams']} zdrojů (dřív {record['_prev']}).")
+            else:
+                await notify("Nokturno — už je k dispozici",
+                             f"{record['title']}{year} má nově {record['streams']} streamů.")
         return fresh
 
     async def handle_trakt_list(call: ServiceCall):
@@ -1170,6 +1183,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                                   int(call.data.get("offset") or 0))
         return {"count": len(rows), "streams": rows}
 
+    async def handle_fulltext(call: ServiceCall):
+        """Ruční, uvolněné hledání na WebShare/HellSpy — tlačítko „Zkusit fulltext"
+        na kartě, pro případ, že přísný automatický filtr skutečnou shodu zahodil
+        (nebo naopak: i mezi nalezenými streamy se dá ověřit, jestli nejsou omylem)."""
+        call_data = await _with_query(dict(call.data))
+        if not call_data.get("id"):
+            raise HomeAssistantError("Chybí `id` titulu nebo `query`.")
+        ctype, item_id, series, alt = episode_target(engine, call_data)
+        sources = tuple(call.data.get("source") or ("ws", "hs"))
+        rows = await _in_executor(engine.fulltext_streams, ctype, item_id, series, alt, sources)
+        return {"count": len(rows), "streams": rows}
+
     async def handle_detail(call: ServiceCall):
         """Detail titulu z databáze filmů (popis, plakát) — pro tituly, které zdroje nemají."""
         return await _in_executor(engine.catalog_detail, call.data.get("type", "movie"), call.data["id"])
@@ -1374,6 +1399,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_TRAKT_LIST, handle_trakt_list, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_WANT, handle_want, WANT_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TORRENTS, handle_torrents, TORRENTS_SCHEMA, SupportsResponse.ONLY),
+        (SERVICE_FULLTEXT, handle_fulltext, FULLTEXT_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_TORRENT, handle_torrent, TORRENT_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_WATCHED, handle_trakt_watched, TRAKT_WATCHED_SCHEMA, SupportsResponse.OPTIONAL),
     )
@@ -1417,6 +1443,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                          SERVICE_SHARE_FILE, SERVICE_CONTINUE, SERVICE_WATCH, SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
                          SERVICE_CLEAR_CACHE,
                          SERVICE_SEEN, SERVICE_TRAKT_AUTH, SERVICE_TRAKT_LIST, SERVICE_TRAKT_WATCHED,
-                         SERVICE_WANT):
+                         SERVICE_WANT, SERVICE_FULLTEXT):
                 hass.services.async_remove(DOMAIN, name)
     return unloaded

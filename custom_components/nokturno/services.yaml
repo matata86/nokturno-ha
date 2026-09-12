@@ -592,3 +592,48 @@ torrents:
         number:
           min: 0
           max: 500
+
+fulltext_search:
+  name: Ruční fulltextové hledání
+  description: >-
+    Hledá na WebShare a HellSpy s uvolněným filtrem — najde i to, co běžné
+    hledání zahodí jako podobný, ale jiný titul. Výsledek se bere jako
+    neověřený, posouzení nechává na uživateli.
+  fields:
+    id:
+      name: ID titulu
+      selector:
+        text:
+    query:
+      name: Název
+      selector:
+        text:
+    type:
+      name: Typ
+      default: movie
+      selector:
+        select:
+          options: [movie, series]
+    series:
+      name: ID seriálu
+      selector:
+        text:
+    season:
+      name: Série
+      selector:
+        number:
+          min: 0
+          max: 100
+    episode:
+      name: Díl
+      selector:
+        number:
+          min: 0
+          max: 1000
+    source:
+      name: Zdroj
+      description: Kde hledat — bez vyplnění se zkusí oboje.
+      selector:
+        select:
+          multiple: true
+          options: [ws, hs]

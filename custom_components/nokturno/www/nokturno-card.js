@@ -1094,13 +1094,16 @@ class NokturnoCard extends HTMLElement {
   _renderProgress() {
     if (!this._root) return;
     const pct = (prog) => (prog && prog.total) ? Math.round((prog.done / prog.total) * 100) + " %" : "";
+    const streamText = pct(this._sensorAttr("stream_progress"));
+    const searchText = pct(this._sensorAttr("search_progress"));
     const maskEls = this._root.querySelectorAll(".mask .pct");
     if (maskEls.length) {
-      const text = pct(this._sensorAttr("stream_progress"));
-      maskEls.forEach((el) => { el.textContent = text; });
+      maskEls.forEach((el) => { el.textContent = streamText; });
     }
+    // tlačítko Hledat se točí při každém načítání, ne jen při hledání — ukáže
+    // tedy procenta hledání, a když zrovna neběží, procenta načítání streamů
     const goPct = this._root.querySelector("#go .pct");
-    if (goPct) goPct.textContent = pct(this._sensorAttr("search_progress"));
+    if (goPct) goPct.textContent = searchText || streamText;
   }
 
   _renderDownloads() {

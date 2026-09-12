@@ -258,6 +258,7 @@ class Engine:
         ve smyčce událostí, kam blokující volání nepatří."""
         return {"luna": self.luna is not None, "sosac": self.sosac is not None,
                 "webshare": bool(self._opt("ws_username").strip()),
+                "hellspy": bool(self._opt(CONF_HS_ENABLED, False)),
                 "torrent": self.prowlarr is not None}
 
     def api_for(self, item_id):
@@ -821,11 +822,16 @@ class Engine:
                 out.append(name)
         return out
 
-    def _title_queries(self, meta, video=None, ctype="movie", alt=None):
+    def _title_queries(self, meta, video=None, ctype="movie", alt=None, strict=True):
         """Dotazy pro fulltextové zdroje a filtr, který z výsledku nechá jen ten titul.
 
         Sdílí to WebShare i HellSpy — oba hledají v názvech souborů, takže potřebují
         totéž: víc variant názvu a pak zahodit všechno, co se jen podobá.
+
+        `strict=False` (ruční „Zkusit fulltext“ z karty) vrací k poloze v názvu
+        shovívavější filtr — stačí, aby soubor obsahoval všechna slova kdekoli.
+        Používá se jen na výslovné vyžádání, kdy uživatel vidí i výsledky, které
+        by přísný filtr zahodil (a počítá s tím, že mezi nimi může být i omyl).
         """
         title = meta.get("_title") or meta.get("name") or ""
         origs = self.original_titles(meta, ctype, alt)
@@ -860,10 +866,31 @@ class Engine:
             # soubor bez roku v názvu propustíme, soubor s jiným rokem ne
             return not years or any(abs(y - want_year) <= 1 for y in years)
 
+        def phrase_leads(tokens, group):
+            """Slova názvu musí být v souboru za sebou a skoro na začátku.
+
+            Pouhé „všechna slova někde v názvu" propustí i úplně jiný titul,
+            který ta slova jen náhodou obsahuje — např. český idiom „Seber si
+            svých pět švestek" vs. film „Pět švestek": obě slova tam jsou,
+            ale patří k jiné větě. Skutečný název souboru na nich vždycky
+            začíná (nejvýš za značkou webu/edicí v závorce), překódovaný
+            balíček zdrojů (rok, kvalita, kodek…) přijde až za ním.
+            """
+            n = len(group)
+            for i in range(len(tokens) - n + 1):
+                if tokens[i:i + n] == group:
+                    return i <= 2
+            return False
+
         def relevant(name):
             folded = _fold(name)
-            if wanted and not any(all(w in folded for w in group) for group in wanted):
-                return False
+            if wanted:
+                if strict:
+                    tokens = [t for t in re.split(r"[^a-z0-9]+", folded) if t]
+                    if not any(phrase_leads(tokens, group) for group in wanted):
+                        return False
+                elif not any(all(w in folded for w in group) for group in wanted):
+                    return False
             if not video and EPISODE_ANY_RE.search(folded):
                 # u filmu nemá soubor se značkou dílu co dělat. Jednoslovný název
                 # („Avatar") projde kontrolou slov a díly seriálu rok v názvu nemají,
@@ -875,7 +902,7 @@ class Engine:
 
         return [q.strip() for q in dict.fromkeys(queries) if q.strip()], relevant
 
-    def _webshare_streams(self, meta, video=None, ctype="movie", alt=None):
+    def _webshare_streams(self, meta, video=None, ctype="movie", alt=None, strict=True):
         """Tytéž soubory přímo z WebShare — jejich odkazy fungují i mimo domácí síť.
 
         Streamy přes Lunu míří na její lokální adresu (`http://192.168.1.10:7126/…`),
@@ -885,7 +912,7 @@ class Engine:
         """
         if not self.ws:
             return []
-        queries, relevant = self._title_queries(meta, video, ctype, alt)
+        queries, relevant = self._title_queries(meta, video, ctype, alt, strict)
         out, seen = [], set()
         for query in queries:
             try:
@@ -1009,12 +1036,12 @@ class Engine:
                 stream["_bitrate_est"] = not duration
         return streams
 
-    def _hellspy_streams(self, meta, video=None, ctype="movie", alt=None):
+    def _hellspy_streams(self, meta, video=None, ctype="movie", alt=None, strict=True):
         """Tentýž titul na HellSpy. Nabízí se původní soubor, ne překódování, takže
         název i velikost popisují to, co se opravdu přehraje — viz `lib/hellspy_api`."""
         if not self.hs:
             return []
-        queries, relevant = self._title_queries(meta, video, ctype, alt)
+        queries, relevant = self._title_queries(meta, video, ctype, alt, strict)
         out, seen = [], set()
         for query in queries:
             try:
@@ -1230,6 +1257,29 @@ class Engine:
         meta, video = self.meta(ctype, item_id, series_id)
         rows = self._torrent_streams(meta, video, ctype)
         return [self._describe_torrent(row, offset + i) for i, row in enumerate(rows)]
+
+    def fulltext_streams(self, ctype, item_id, series_id=None, alt=None, sources=("ws", "hs")):
+        """Ruční, méně přísné hledání na WebShare/HellSpy — na vyžádání z karty.
+
+        Běžné `_webshare_streams`/`_hellspy_streams` filtrují přísně (viz
+        `_title_queries`, `strict=True`): jméno souboru musí mít slova názvu
+        skoro na začátku, jinak to je jiný titul, který je jen náhodou obsahuje.
+        To ale někdy zahodí i skutečnou shodu s neobvyklým názvem souboru.
+        Tohle tlačítko pustí uvolněný filtr a nechá posouzení na uživateli —
+        proto se výsledek značí `"_loose": True`, ať karta dá najevo, že
+        nejde o automaticky ověřenou shodu.
+        """
+        meta, video = self.meta(ctype, item_id, series_id)
+        found = []
+        if "ws" in sources:
+            found += self._webshare_streams(meta, video, ctype, alt, strict=False)
+        if "hs" in sources:
+            found += self._hellspy_streams(meta, video, ctype, alt, strict=False)
+        found = self._merge_direct(found)
+        for stream in found:
+            stream["_loose"] = True
+            parse_stream(stream)
+        return found
 
     # stavy qBittorrentu → co z toho má karta ukázat
     QBIT_STATES = {

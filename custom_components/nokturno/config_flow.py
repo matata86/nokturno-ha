@@ -51,18 +51,6 @@ from .const import (
 ACCOUNT_KEYS = [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS,
                 CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_TMDB_KEY]
 
-ACCOUNTS = {
-    vol.Optional(CONF_WS_USER, default=""): str,
-    vol.Optional(CONF_WS_PASS, default=""): str,
-    vol.Optional(CONF_STREAMUJ_USER, default=""): str,
-    vol.Optional(CONF_STREAMUJ_PASS, default=""): str,
-    vol.Optional(CONF_LUNA_URL, default=DEFAULT_LUNA_URL): str,
-    vol.Optional(CONF_LUNA_TOKEN, default=""): str,
-    # vlastní databáze filmů/seriálů, když Luna neběží — zdarma klíč z themoviedb.org
-    # (Nastavení → API → Request an API Key → Developer → zkopírovat "API Key (v3 auth)")
-    vol.Optional(CONF_TMDB_KEY, default=""): str,
-}
-
 
 def preferences_schema(data: dict) -> vol.Schema:
     """Předvolby přehrávání — stejné jako v Kodi doplňku."""
@@ -99,29 +87,30 @@ def preferences_schema(data: dict) -> vol.Schema:
 
 
 class NokturnoConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Jediná instance — účty v prvním kroku, předvolby ve druhém."""
+    """Jediná instance — jeden formulář se vším, stejný jako pozdější Nastavení
+    integrace (`NokturnoOptionsFlow`), ať se uživatel při přidávání nemusí
+    proklikávat víc kroků a hned vidí, co všechno jde (i nepovinně) nastavit."""
 
     VERSION = 1
-
-    def __init__(self):
-        self._data = {}
 
     async def async_step_user(self, user_input=None):
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         if user_input is not None:
-            self._data = dict(user_input)
-            return await self.async_step_preferences()
-        return self.async_show_form(step_id="user", data_schema=vol.Schema(ACCOUNTS))
-
-    async def async_step_preferences(self, user_input=None):
-        if user_input is not None:
             if user_input.get(CONF_PREF_LANG) == "—":
                 user_input[CONF_PREF_LANG] = ""
-            # klíč pro synchronizaci Kodi doplňků — vzniká jednou, uživatel si ho opíše do Kodi
-            self._data.setdefault(CONF_SYNC_KEY, secrets.token_hex(6))
-            return self.async_create_entry(title="Nokturno", data=self._data, options=user_input)
-        return self.async_show_form(step_id="preferences", data_schema=preferences_schema({}))
+            accounts = {key: user_input.pop(key) for key in ACCOUNT_KEYS if key in user_input}
+            # klíč pro synchronizaci s Kodi doplňkem — vzniká jednou, uživatel si ho opíše do Kodi
+            if not accounts.get(CONF_SYNC_KEY):
+                accounts[CONF_SYNC_KEY] = secrets.token_hex(6)
+            return self.async_create_entry(title="Nokturno", data=accounts, options=user_input)
+        # sync_key ukázat rovnou vyplněný — ať ho jde zkopírovat do Kodi hned napoprvé,
+        # ne až po dodatečném otevření Nastavení integrace
+        defaults = {CONF_SYNC_KEY: secrets.token_hex(6), CONF_LUNA_URL: DEFAULT_LUNA_URL}
+        schema = vol.Schema({
+            vol.Optional(key, default=defaults.get(key, "")): str for key in ACCOUNT_KEYS
+        }).extend(preferences_schema({}).schema)
+        return self.async_show_form(step_id="user", data_schema=schema)
 
     @staticmethod
     @callback

@@ -595,9 +595,11 @@ class NokturnoCard extends HTMLElement {
         .grid.files .thumb { aspect-ratio:16/9; }
         .thumb img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
         /* než se načtou streamy, je přes obrázek vidět, na co se kliklo */
-        .mask { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+        .mask { position:absolute; inset:0; display:flex; flex-direction:column; gap:6px;
+                align-items:center; justify-content:center;
                 background: rgba(0,0,0,.55); color:#fff; border-radius:12px; }
         .mask ha-icon { --mdc-icon-size:34px; }
+        .mask .pct { font-size:.85rem; font-weight:600; min-height:1em; }
         /* dva řádky pro každý název — jinak si delší názvy posunou sousední dlaždice */
         .poster .t { font-size:.8rem; margin-top:5px; line-height:1.25; height:2.5em; overflow:hidden;
                      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
@@ -806,7 +808,7 @@ class NokturnoCard extends HTMLElement {
             <span class="thumb"><ha-icon icon="mdi:filmstrip"></ha-icon>
               ${c.fanart || c.thumbnail ? `<img src="${this._esc(c.fanart || c.thumbnail)}" referrerpolicy="no-referrer" />` : ""}
               ${manyKodi ? `<span class="where">${this._esc(c.player)}</span>` : ""}
-              ${st.busy && st.loading === `cont:${i}` ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon></span>` : ""}
+              ${st.busy && st.loading === `cont:${i}` ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon><span class="pct"></span></span>` : ""}
             </span>
             <div class="t">${this._esc(c.label)}</div>
           </button>`).join("")}</div>`;
@@ -981,7 +983,7 @@ class NokturnoCard extends HTMLElement {
         <span class="thumb">
           <ha-icon icon="mdi:filmstrip"></ha-icon>
           ${r.poster ? `<img src="${this._esc(r.poster)}" referrerpolicy="no-referrer" />` : ""}
-          ${st.busy && st.loading === `res:${i}` ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon></span>` : ""}
+          ${st.busy && st.loading === `res:${i}` ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon><span class="pct"></span></span>` : ""}
         </span>
         <div class="t">${this._esc(r.title)}${r.year ? ` <span class="year">(${r.year})</span>` : ""}</div>
         ${r.size ? `<div class="y">${this._esc(r.size)}</div>` : ""}
@@ -1082,19 +1084,23 @@ class NokturnoCard extends HTMLElement {
       <div class="hero">
         ${art ? `<span class="heroart">
           <img src="${this._esc(art)}" referrerpolicy="no-referrer" />
-          ${st.busy ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon></span>` : ""}
+          ${st.busy ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon><span class="pct"></span></span>` : ""}
         </span>` : ""}
         ${text ? `<div class="desc${st.descOpen ? " open" : ""}" data-toggle="desc" title="Klepnutím rozbalíš">${this._esc(text)}</div>` : ""}
       </div>`;
   }
 
-  /** Procenta hledání z atributu senzoru — patchne jen text v tlačítku Hledat, bez celého překreslení. */
+  /** Procenta z atributů senzoru (streamy i hledání) — patchne jen text, bez celého překreslení. */
   _renderProgress() {
     if (!this._root) return;
+    const pct = (prog) => (prog && prog.total) ? Math.round((prog.done / prog.total) * 100) + " %" : "";
+    const maskEls = this._root.querySelectorAll(".mask .pct");
+    if (maskEls.length) {
+      const text = pct(this._sensorAttr("stream_progress"));
+      maskEls.forEach((el) => { el.textContent = text; });
+    }
     const goPct = this._root.querySelector("#go .pct");
-    if (!goPct) return;
-    const prog = this._sensorAttr("search_progress");
-    goPct.textContent = (prog && prog.total) ? Math.round((prog.done / prog.total) * 100) + " %" : "";
+    if (goPct) goPct.textContent = pct(this._sensorAttr("search_progress"));
   }
 
   _renderDownloads() {

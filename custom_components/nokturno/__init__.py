@@ -635,6 +635,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # čítače leží vedle ostatních dat integrace; Stats si soubor drží sám
     stats = await hass.async_add_executor_job(Stats, hass.config.path(f".storage/{DOMAIN}"))
     stats_version = str((await async_get_integration(hass, DOMAIN)).version or "")
+    # po aktualizaci integrace (i downgradu) smazat cache API — jinak by staré
+    # odpovědi (chybějící pole, jiný tvar dat po změně kódu) přežily klidně
+    # týdny, než by je vytlačilo přirozené vypršení TTL
+    if await hass.async_add_executor_job(engine.store.load, "cache_version", "") != stats_version:
+        await hass.async_add_executor_job(engine.store.clear_cache)
+        await hass.async_add_executor_job(engine.store.save, "cache_version", stats_version)
     downloader = Downloader(hass, options.get(CONF_DOWNLOAD_DIR) or DEFAULT_DOWNLOAD_DIR,
                             store=engine.store)
     # odkazy z WebShare po pár hodinách vyprší — po restartu si downloader vyžádá nový

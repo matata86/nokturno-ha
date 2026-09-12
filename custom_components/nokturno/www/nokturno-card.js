@@ -61,6 +61,7 @@ class NokturnoCard extends HTMLElement {
       this._ready().then(() => this._render());
     } else if (this._root) {
       this._renderDownloads();
+      this._renderProgress();
       // změna sledovaných seriálů nebo historie → překreslit úvod / detail (a zahodit dočasné stavy)
       const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history")]);
       if (key !== this._sensorKey) {
@@ -569,6 +570,7 @@ class NokturnoCard extends HTMLElement {
         .searchrow { display:flex; gap:8px; align-items:stretch; }
         ha-control-button#go { flex:1; }
         ha-control-button#go ha-icon { --mdc-icon-size:20px; margin-right:4px; vertical-align:-4px; }
+        ha-control-button#go .pct { margin-left:4px; font-size:.8rem; opacity:.85; }
         ha-control-button#clearcache { flex:0 0 40px; --control-button-padding: 0; }
         ha-control-button#clearcache ha-icon { --mdc-icon-size:18px; }
         ha-control-select { --control-select-thickness:40px; }
@@ -697,7 +699,7 @@ class NokturnoCard extends HTMLElement {
         <div class="bar" id="search">
           <ha-input id="q" placeholder="Název filmu nebo seriálu" with-clear></ha-input>
           <div class="searchrow">
-            <ha-control-button id="go" title="Hledat ve WebShare, Sosáči a Luně"><ha-icon icon="mdi:magnify"></ha-icon> Hledat</ha-control-button>
+            <ha-control-button id="go" title="Hledat ve WebShare, Sosáči a Luně"><ha-icon icon="mdi:magnify"></ha-icon> Hledat<span class="pct"></span></ha-control-button>
             <ha-control-button id="clearcache" title="Vymazat cache hledání a streamů"><ha-icon icon="mdi:trash-can-outline"></ha-icon></ha-control-button>
           </div>
           <ha-control-select id="type"></ha-control-select>
@@ -733,6 +735,7 @@ class NokturnoCard extends HTMLElement {
     go.toggleAttribute("disabled", !!this._state.busy);
     go.querySelector("ha-icon").className = this._state.busy ? "spin" : "";
     go.querySelector("ha-icon").setAttribute("icon", this._state.busy ? "mdi:loading" : "mdi:magnify");
+    if (!this._state.busy) go.querySelector(".pct").textContent = "";
     const body = this._root.querySelector("#body");
     const st = this._state;
     const kind = this._root.querySelector("#type");
@@ -1083,6 +1086,15 @@ class NokturnoCard extends HTMLElement {
         </span>` : ""}
         ${text ? `<div class="desc${st.descOpen ? " open" : ""}" data-toggle="desc" title="Klepnutím rozbalíš">${this._esc(text)}</div>` : ""}
       </div>`;
+  }
+
+  /** Procenta hledání z atributu senzoru — patchne jen text v tlačítku Hledat, bez celého překreslení. */
+  _renderProgress() {
+    if (!this._root) return;
+    const goPct = this._root.querySelector("#go .pct");
+    if (!goPct) return;
+    const prog = this._sensorAttr("search_progress");
+    goPct.textContent = (prog && prog.total) ? Math.round((prog.done / prog.total) * 100) + " %" : "";
   }
 
   _renderDownloads() {

@@ -3,14 +3,15 @@
     "step": {
       "user": {
         "title": "Nokturno — účty",
-        "description": "Vyplň jen zdroje, které chceš používat. Údaje jsou stejné jako v Kodi doplňku.",
+        "description": "Vyplň jen zdroje, které chceš používat. Údaje jsou stejné jako v Kodi doplňku. Bez Luny je katalog/hledání přes vlastní databázi (TMDB s vlastním klíčem, jinak veřejný Sosáč/Cinemeta).",
         "data": {
           "ws_username": "WebShare — e-mail",
           "ws_password": "WebShare — heslo (nebo uložený hash)",
           "streamuj_username": "Streamuj.tv — uživatel (pro Sosáč)",
           "streamuj_password": "Streamuj.tv — heslo",
           "luna_url": "Luna — adresa serveru",
-          "luna_token": "Luna — token (nebo celá instalační URL)"
+          "luna_token": "Luna — token (nebo celá instalační URL)",
+          "tmdb_api_key": "TMDB — API klíč (nepovinné, jen bez Luny — pro české tituly a popisy)"
         }
       },
       "preferences": {
@@ -69,7 +70,8 @@
           "qbit_password": "qBittorrent — heslo",
           "hs_enabled": "Hledat i na HellSpy",
           "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
-          "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)"
+          "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)",
+          "tmdb_api_key": "TMDB — API klíč (nepovinné, jen bez Luny — pro české tituly a popisy)"
         }
       }
     }

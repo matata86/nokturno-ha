@@ -102,7 +102,10 @@ RELEASE_TAGS = frozenset((
 def _years(folded):
     """Roky v názvu souboru. `\\b` mezi číslicí a podtržítkem hranici nevidí
     („Jak_vycvicit_draka_2025"), proto se podtržítka napřed mění na mezery."""
-    return {int(y) for y in YEAR_RE.findall(folded.replace("_", " "))}
+    text = folded.replace("_", " ")
+    # rok slepený s „r“/„rok“ („Seber si svých pět švestek r1983“) \b nepozná
+    glued = re.findall(r"(?<![a-z0-9])r(?:ok)?[ .-]?(19\d{2}|20\d{2})(?!\d)", text)
+    return {int(y) for y in YEAR_RE.findall(text) + glued}
 
 
 def _title_pattern(text):
@@ -118,6 +121,16 @@ def _title_pattern(text):
     if long_idx:
         return [raw[i] for i in long_idx], raw[long_idx[-1] + 1:], False
     return raw, [], True
+
+
+def _prefix_ok(folded, spans, first):
+    """Smí název titulu v souboru stát až za textem před ním? (viz `_title_leads`)"""
+    before = [t for t, _e in spans[:first]]
+    if all(t in RELEASE_TAGS or t.isdigit() for t in before):
+        return True
+    start = spans[first][1] - len(spans[first][0])
+    prefix = folded[:start].rstrip(" ._")
+    return prefix.endswith(("-", "–", "|", ":", "]", ")"))
 
 
 def _title_leads(folded, pattern, movie, variants=()):
@@ -157,9 +170,16 @@ def _title_leads(folded, pattern, movie, variants=()):
         long_spans = [(i, t) for i, (t, _e) in enumerate(spans) if len(t) > 2]
         tokens = [t for _i, t in long_spans]
         for i in range(min(3, len(tokens) - n + 1)):
-            if tokens[i:i + n] == group:
-                last = long_spans[i + n - 1][0]
-                break
+            if tokens[i:i + n] != group:
+                continue
+            first = long_spans[i][0]
+            # Název smí začínat až za jiným textem jen tehdy, když je to značka (webu,
+            # jazyka, kvality) nebo předpona oddělená závorkou či pomlčkou. Jinak prošel
+            # český idiom „Seber si svých pět švestek“ u filmu „Pět švestek“ (2026).
+            if first and not _prefix_ok(folded, spans, first):
+                continue
+            last = long_spans[i + n - 1][0]
+            break
         else:
             return False
         after = spans[last + 1:]
@@ -1749,7 +1769,7 @@ class Engine:
 
         # „streams2“: seznamy uložené před doplněním českých názvů z Wikidat byly u titulů
         # bez Luny/TMDB ořezané přísným filtrem — nový klíč je jednorázově obnoví
-        cache_key = f"streams3:{ctype}:{item_id}:{alt or ''}"   # 3 = názvy bez koncovky z cizího písma
+        cache_key = f"streams4:{ctype}:{item_id}:{alt or ''}"   # 4 = přísnější filtr názvu (idiom, rok „r1983“)
         found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams,
                                      ok=lambda data: bool(data) and not failures)
         # vlastní úložiště mimo 72h cache streamů — nový soubor se má ukázat hned,

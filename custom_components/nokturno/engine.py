@@ -29,11 +29,14 @@ from .lib.sosac_direct import SosacDirect, is_direct_id
 from .lib.store import Store
 from .lib.streams import arrange, estimate_rank, langs_from_name, parse_stream
 from .lib.hellspy_api import HellspyApi, HellspyError
+from .lib.sledujteto_api import SledujtetoApi, SledujtetoError
+from .lib.wikidata_api import local_titles
 from .lib.mediainfo import describe as describe_media, probe as probe_media, quality_from_size
 from .lib.webshare_api import WebshareApi, WebshareError, human_size
 
 WS_LIMIT = 25    # kolik souborů brát z fulltextu WebShare
 HS_LIMIT = 25    # totéž pro HellSpy
+ST_LIMIT = 25    # totéž pro Sledujteto
 # značka dílu v názvu souboru: „S01E03", „s1 e3", „1x03"
 EPISODE_ANY_RE = re.compile(r"(?<![a-z0-9])s\d{1,2}\s?e\d{1,2}(?!\d)|(?<!\d)\d{1,2}x\d{2}(?!\d)", re.I)
 AUDIO_PROBE_MAX = 24          # u kolika streamů se ještě vyplatí číst hlavičku souboru
@@ -48,7 +51,7 @@ STREAMS_CACHE_TTL = 259200    # 72 h – seznam streamů k titulu, ale JEN když
 _LOGGER = logging.getLogger(__name__)
 
 SOURCE_NAMES = {"main": "Luna", "search": "WebShare", "ws": "WebShare", "sosac": "Sosáč",
-                "hs": "HellSpy", "torrent": "Torrent"}
+                "hs": "HellSpy", "st": "Sledujteto", "torrent": "Torrent"}
 
 QUALITY_NAMES = {4: "4K", 3: "Full HD", 2: "HD", 1: "SD", 0: ""}
 
@@ -206,6 +209,7 @@ class Engine:
         self._ws = None
         self._ws_ready = False
         self._hs = None
+        self._st = None
         self._cinemeta = None
         self._sosac_db = None
         self._tmdb = None
@@ -221,6 +225,7 @@ class Engine:
         self._luna = self._sosac = self._ws = None
         self._ws_ready = False
         self._hs = None
+        self._st = None
         self._tmdb = None
         self._prowlarr = self._qbit = None
 
@@ -282,6 +287,17 @@ class Engine:
         return self._hs
 
     @property
+    def st(self):
+        """Sledujteto — účet (e-mail + heslo). Nepřihlašuje se tady, ale až první
+        dotaz: `sources()` čte tuhle vlastnost i ze smyčky událostí HA. Token si
+        klient drží v úložišti jádra, přehrávat jde jen s Premium účtem."""
+        if self._st is None:
+            email = str(self._opt("st_email") or "").strip()
+            if email and self._opt("st_password"):
+                self._st = SledujtetoApi(email, self._opt("st_password"), cache=self.store)
+        return self._st
+
+    @property
     def cinemeta(self):
         """Vlastní databáze filmů a seriálů (Stremio/Cinemeta) — bez účtu, funguje
         vždy, i bez Luny a Sosáče. Poslední záchrana v `search()`/`meta()`, když ani
@@ -337,6 +353,7 @@ class Engine:
         return {"luna": self.luna is not None, "sosac": self.sosac is not None,
                 "webshare": bool(self._opt("ws_username").strip()),
                 "hellspy": bool(self._opt(CONF_HS_ENABLED, False)),
+                "sledujteto": bool(str(self._opt("st_email") or "").strip()),
                 "torrent": self.prowlarr is not None}
 
     def api_for(self, item_id):
@@ -871,16 +888,24 @@ class Engine:
             "length_est": bool(stream.get("_length_est")),
             "langs": codes,
             "channels": channels,
+            # stopy zvuku i s kodekem (z hlavičky souboru nebo z údajů zdroje) —
+            # `channels` výš nese jen počet kanálů podle jazyka
+            "audio": [{"lang": tr.get("lang") or "", "channels": tr.get("channels") or "",
+                       "codec": tr.get("codec") or ""} for tr in tracks],
             "subs": stream.get("subs") or [],
             "url": stream.get("url") or "",
             "subtitles": stream.get("subtitles") or [],
         }
 
     def original_titles(self, meta, ctype, alt=None):
-        """Další názvy titulu pro fulltext: originál ze Sosáče (`_orig`), anglický název z Cinemety.
+        """Další názvy titulu pro fulltext: originál ze Sosáče (`_orig`), anglický název
+        z Cinemety a český/slovenský z Wikidat.
 
         Luna originál neposílá, přitom soubory na WebShare se často jmenují originálem
-        („Outlander: Blood of My Blood“, „The Matrix“).
+        („Outlander: Blood of My Blood“, „The Matrix“). A naopak bez Luny a TMDB (doplněk
+        pro Stremio) je název titulu jen anglický, zatímco soubory jsou česky — bez českého
+        názvu z Wikidat je přísný filtr zahazoval všechny („Harry Potter and the Goblet
+        of Fire“ × „Harry Potter a Ohnivý pohár 2005 CZ dabing HD“).
         """
         title = meta.get("_title") or meta.get("name") or ""
         names = [meta.get("_orig") or ""]
@@ -898,6 +923,16 @@ class Engine:
                 except Exception:  # noqa: BLE001
                     return {"name": ""}
             names.append((self.store.cached(f"cmname:{ctype}:{imdb}", 30 * 86400, load) or {}).get("name", ""))
+
+            def load_local():
+                try:
+                    return {"ok": True, "names": local_titles(imdb)}
+                except Exception as err:  # noqa: BLE001 – jen doplňkový zdroj názvů
+                    _LOGGER.debug("Wikidata %s: %s", imdb, err)
+                    return {"ok": False, "names": []}
+            # výpadek Wikidat se necachuje, jinak by titul měsíc zůstal bez českého názvu
+            local = self.store.cached_if(f"wdname:{imdb}", 30 * 86400, load_local, ok=lambda d: d.get("ok"))
+            names += (local or {}).get("names") or []
         out, seen = [], {_fold(title)}
         for name in names:
             key = _fold(name)
@@ -1054,6 +1089,7 @@ class Engine:
             if text:
                 stream["detail"] = f"{stream['detail']} | {text}" if stream.get("detail") else text
             stream["_tracks"] = info.get("audio") or []
+            stream["_media"] = info
             if info.get("duration"):
                 # z hlavičky je i skutečná délka streamu — přesnější základ pro
                 # datový tok v `_ensure_bitrate()` než odhad ze stopáže titulu
@@ -1135,6 +1171,61 @@ class Engine:
                     "source": "hs",
                     "_direct": True,
                 })
+        return out
+
+    def _sledujteto_streams(self, meta, video=None, ctype="movie", alt=None, strict=True, failures=None):
+        """Tentýž titul na Sledujteto — stejné dotazy i přísný filtr jako WebShare
+        a HellSpy (`_title_queries`), jen přes přihlášený účet. Přehrávání chce
+        Premium; hledání jde i bez něj, takže se streamy ukážou vždy a případné
+        „vyžaduje Premium" se ozve až při přehrání (viz `resolve`)."""
+        if not self.st:
+            return []
+        queries, relevant = self._title_queries(meta, video, ctype, alt, strict)
+        out, seen = [], set()
+        for query in queries:
+            try:
+                files, _total = self.st.search(query, limit=ST_LIMIT)
+                # diagnostika: kolik výsledků přišlo a kolik prošlo přísným filtrem názvu
+                # (názvy jsou veřejné tituly videí, nic z účtu)
+                odmitnute = [f.get("name") for f in files if not relevant(f.get("name") or "")]
+                _LOGGER.info("Sledujteto „%s“: %d výsledků, relevantních %d%s", query, len(files),
+                             len(files) - len(odmitnute),
+                             f", zahozeno např. {odmitnute[:3]}" if odmitnute else "")
+            except SledujtetoError as err:
+                _LOGGER.warning("Sledujteto hledání „%s“: %s", query, err)
+                if failures is not None:
+                    failures.append(("Sledujteto", err))
+                if err.status in (401, 403):
+                    break   # špatný účet — další dotazy by dopadly stejně
+                continue
+            if self.st.last_keys and not getattr(self, "_st_keys_logged", False):
+                # velikost souboru jejich doplněk nepoužívá, klíč neznáme jistě — jednou do logu
+                self._st_keys_logged = True
+                _LOGGER.info("Sledujteto: klíče výsledku hledání %s, ukázka %s", self.st.last_keys,
+                             getattr(self.st, "last_sample", {}))
+            for f in files:
+                name = f.get("name") or ""
+                if f["id"] in seen or not relevant(name):
+                    continue
+                seen.add(f["id"])
+                info = f.get("media") or {}
+                # technické údaje dává přímo API — jako přečtená hlavička, soubor se číst nemusí
+                text = describe_media(info) if info.get("audio") else ""
+                real = quality_from_size(info.get("width") or 0, info.get("height") or 0)
+                stream = {
+                    "url": f"st:{f['id']}",
+                    "label": name,
+                    "detail": " | ".join(x for x in (f.get("size_h") or "", text) if x),
+                    "quality": real or f.get("quality") or "",
+                    "source": "st",
+                    "subtitles": list(f.get("subtitles") or []),
+                    "_duration": f.get("duration") or 0,
+                    "_direct": True,
+                }
+                if info.get("audio") or info.get("height"):
+                    stream["_tracks"] = info.get("audio") or []
+                    stream["_media"] = info
+                out.append(stream)
         return out
 
     def _webshare_subtitles(self, meta, video=None, ctype="movie", alt=None):
@@ -1331,8 +1422,8 @@ class Engine:
         rows = self._torrent_streams(meta, video, ctype)
         return [self._describe_torrent(row, offset + i) for i, row in enumerate(rows)]
 
-    def fulltext_streams(self, ctype, item_id, series_id=None, alt=None, sources=("ws", "hs")):
-        """Ruční, méně přísné hledání na WebShare/HellSpy — na vyžádání z karty.
+    def fulltext_streams(self, ctype, item_id, series_id=None, alt=None, sources=("ws", "hs", "st")):
+        """Ruční, méně přísné hledání na WebShare/HellSpy/Sledujteto — na vyžádání z karty.
 
         Běžné `_webshare_streams`/`_hellspy_streams` filtrují přísně (viz
         `_title_queries`, `strict=True`): jméno souboru musí mít slova názvu
@@ -1348,6 +1439,8 @@ class Engine:
             found += self._webshare_streams(meta, video, ctype, alt, strict=False)
         if "hs" in sources:
             found += self._hellspy_streams(meta, video, ctype, alt, strict=False)
+        if "st" in sources:
+            found += self._sledujteto_streams(meta, video, ctype, alt, strict=False)
         found = self._merge_direct(found)
         for stream in found:
             stream["_loose"] = True
@@ -1483,7 +1576,7 @@ class Engine:
         return mbps * 1_000_000 * seconds / 8 / 2 ** 30
 
     # kroků v _fetch_streams(), než začne (obvykle nejdelší) čtení hlaviček
-    STREAM_SOURCE_STEPS = 5
+    STREAM_SOURCE_STEPS = 6
 
     def streams(self, ctype, item_id, alt=None, series_id=None, on_progress=None, failures=None):
         """Seřazené streamy titulu ze všech dostupných zdrojů.
@@ -1545,6 +1638,7 @@ class Engine:
                 ("Sosáč/Luna", lambda: self._cross_streams(ctype, item_id, meta, alt, failures)),
                 ("WebShare", lambda: self._webshare_streams(meta, video, ctype, alt, failures=failures)),
                 ("HellSpy", lambda: self._hellspy_streams(meta, video, ctype, alt, failures=failures)),
+                ("Sledujteto", lambda: self._sledujteto_streams(meta, video, ctype, alt, failures=failures)),
             ):
                 try:
                     found += fetch()
@@ -1578,7 +1672,9 @@ class Engine:
                     stream["subs"] = sorted(stream["subs"])
             return found
 
-        cache_key = f"streams:{ctype}:{item_id}:{alt or ''}"
+        # „streams2“: seznamy uložené před doplněním českých názvů z Wikidat byly u titulů
+        # bez Luny/TMDB ořezané přísným filtrem — nový klíč je jednorázově obnoví
+        cache_key = f"streams3:{ctype}:{item_id}:{alt or ''}"   # 3 = názvy bez koncovky z cizího písma
         found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams,
                                      ok=lambda data: bool(data) and not failures)
         # z cache se vrátí rovnou, bez jediného tick() výše — doskočit na konec fáze zdrojů
@@ -1660,6 +1756,13 @@ class Engine:
                 return api.file_link(file_id, file_hash)
             except HellspyError as err:
                 raise NokturnoError(f"HellSpy: {err}") from err
+        if url.startswith("st:"):
+            if self.st is None:
+                raise NokturnoError("Účet Sledujteto není nastavený.")
+            try:
+                return self.st.file_link(url[3:])
+            except SledujtetoError as err:
+                raise NokturnoError(f"Sledujteto: {err}") from err
         if url.startswith("streamuj:"):
             sosac = self.sosac
             if sosac is None:

@@ -17,11 +17,11 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.48.0";
+const CARD_VERSION = "1.49.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
-                        "HellSpy": "#d9584a", "Torrent": "#3f9e6f" };
+                        "HellSpy": "#d9584a", "Sledujteto": "#2a9d8f", "Torrent": "#3f9e6f" };
 const KINDS = [
   { value: "movie", label: "Filmy" },
   { value: "series", label: "Seriály" },
@@ -437,6 +437,7 @@ class NokturnoCard extends HTMLElement {
     const out = [];
     if (src.webshare) out.push("ws");
     if (src.hellspy) out.push("hs");
+    if (src.sledujteto) out.push("st");
     return out;
   }
 
@@ -1142,8 +1143,8 @@ class NokturnoCard extends HTMLElement {
     // skutečnou shodu zahodil (nebo naopak, i mezi nalezenými je dobré umět ověřit).
     // Proto je dole i u titulu, který streamy už má — ne jen v prázdném stavu.
     const fsrc = this._fulltextSources();
-    const fLabel = fsrc.length === 2 ? "WebShare a HellSpy" : fsrc.length === 1
-      ? (fsrc[0] === "ws" ? "WebShare" : "HellSpy") : "";
+    const fNames = fsrc.map((k) => ({ ws: "WebShare", hs: "HellSpy", st: "Sledujteto" })[k]);
+    const fLabel = fNames.length > 1 ? `${fNames.slice(0, -1).join(", ")} a ${fNames[fNames.length - 1]}` : (fNames[0] || "");
     const fulltextBtn = st.fulltext || !fsrc.length ? "" : `<div class="chips" style="margin:8px 0 2px">
       <button class="chip" data-findfulltext="1"${st.busy ? " disabled" : ""} title="Uvolněné hledání podle slov v názvu souboru — najde i to, co přísný filtr zahodí jako podobný, ale jiný titul">
         <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:text-search"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? "Hledám…" : `Zkusit fulltext na ${fLabel}`}

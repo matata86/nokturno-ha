@@ -169,7 +169,7 @@ TORRENTS_SCHEMA = STREAMS_SCHEMA.extend({
 })
 
 FULLTEXT_SCHEMA = STREAMS_SCHEMA.extend({
-    vol.Optional("source"): vol.All(cv.ensure_list, [vol.In(["ws", "hs"])]),
+    vol.Optional("source"): vol.All(cv.ensure_list, [vol.In(["ws", "hs", "st"])]),
 })
 
 TORRENT_SCHEMA = vol.Schema({
@@ -1087,6 +1087,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             kodi=hass.config.as_dict().get("version", ""),
             lang=(hass.config.language or "")[:8],
             agent="HomeAssistant nokturno",
+            # jen jestli je zdroj v nastavení aktivní, nic z účtů
+            sources=[k for k, v in engine.sources().items() if v] + (["tmdb"] if engine.tmdb is not None else []),
+            product="ha",
         )
         if not ok:
             _LOGGER.debug("statistiky neodeslány: %s", why)
@@ -1249,7 +1252,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not call_data.get("id"):
             raise HomeAssistantError("Chybí `id` titulu nebo `query`.")
         ctype, item_id, series, alt = episode_target(engine, call_data)
-        sources = tuple(call.data.get("source") or ("ws", "hs"))
+        sources = tuple(call.data.get("source") or ("ws", "hs", "st"))
         rows = await _in_executor(engine.fulltext_streams, ctype, item_id, series, alt, sources)
         return {"count": len(rows), "streams": rows}
 

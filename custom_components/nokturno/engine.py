@@ -885,7 +885,10 @@ class Engine:
             folded = _fold(name)
             if wanted:
                 if strict:
-                    tokens = [t for t in re.split(r"[^a-z0-9]+", folded) if t]
+                    # stejné síto jako `words()` u názvu titulu — jinak „Harry Potter
+                    # a Kámen mudrců" nikdy nesedí: z názvu se „a" vyřadí, ze souboru
+                    # ne, a slova pak nejdou za sebou (spadly všechny přesné shody)
+                    tokens = [t for t in re.split(r"[^a-z0-9]+", folded) if len(t) > 2]
                     if not any(phrase_leads(tokens, group) for group in wanted):
                         return False
                 elif not any(all(w in folded for w in group) for group in wanted):

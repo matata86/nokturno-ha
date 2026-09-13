@@ -30,6 +30,7 @@ from .lib.store import Store
 from .lib.streams import arrange, estimate_rank, langs_from_name, parse_stream
 from .lib.hellspy_api import HellspyApi, HellspyError
 from .lib.sledujteto_api import SledujtetoApi, SledujtetoError
+from .lib.storage_api import StorageApi, StorageError, match_texts, parse_ref
 from .lib.wikidata_api import local_titles
 from .lib.mediainfo import describe as describe_media, probe as probe_media, quality_from_size
 from .lib.webshare_api import WebshareApi, WebshareError, human_size
@@ -51,7 +52,15 @@ STREAMS_CACHE_TTL = 259200    # 72 h – seznam streamů k titulu, ale JEN když
 _LOGGER = logging.getLogger(__name__)
 
 SOURCE_NAMES = {"main": "Luna", "search": "WebShare", "ws": "WebShare", "sosac": "Sosáč",
-                "hs": "HellSpy", "st": "Sledujteto", "torrent": "Torrent"}
+                "hs": "HellSpy", "st": "Sledujteto", "torrent": "Torrent", "dav": "Úložiště"}
+
+# vlastní úložiště (WebDAV) — až tři, každé s adresou, jménem, heslem a názvem;
+# klíče jsou vypsané celé, ať je najde kontrola nastavení v testech konzumentů
+STORAGE_OPTIONS = (
+    ("dav1_url", "dav1_username", "dav1_password", "dav1_name"),
+    ("dav2_url", "dav2_username", "dav2_password", "dav2_name"),
+    ("dav3_url", "dav3_username", "dav3_password", "dav3_name"),
+)
 
 QUALITY_NAMES = {4: "4K", 3: "Full HD", 2: "HD", 1: "SD", 0: ""}
 
@@ -210,6 +219,7 @@ class Engine:
         self._ws_ready = False
         self._hs = None
         self._st = None
+        self._storages = None
         self._cinemeta = None
         self._sosac_db = None
         self._tmdb = None
@@ -226,6 +236,7 @@ class Engine:
         self._ws_ready = False
         self._hs = None
         self._st = None
+        self._storages = None
         self._tmdb = None
         self._prowlarr = self._qbit = None
 
@@ -298,6 +309,41 @@ class Engine:
         return self._st
 
     @property
+    def storages(self):
+        """Nastavená vlastní úložiště. Síť se tu nevolá — soubory se procházejí
+        až při prvním hledání (`_storage_streams`), seznam se pak hodinu pamatuje."""
+        if self._storages is None:
+            self._storages = []
+            for slot, (url, user, password, name) in enumerate(STORAGE_OPTIONS, start=1):
+                if not str(self._opt(url) or "").strip():
+                    continue
+                try:
+                    self._storages.append(StorageApi(self._opt(url), self._opt(user), self._opt(password),
+                                                     self._opt(name), slot=slot, cache=self.store))
+                except StorageError as err:
+                    _LOGGER.warning("úložiště %d: %s", slot, err)
+        return self._storages
+
+    def storage_for(self, url):
+        """`dav:<slot>:<cesta>` → (úložiště, cesta). Adresa serveru se bere z nastavení, ne z odkazu."""
+        try:
+            slot, path = parse_ref(url)
+        except StorageError as err:
+            raise NokturnoError(f"Úložiště: {err}") from err
+        api = next((s for s in self.storages if s.slot == slot), None)
+        if api is None:
+            raise NokturnoError("Tohle úložiště už není v nastavení.")
+        return api, path
+
+    def storage_request(self, url):
+        """(adresa, hlavičky) souboru z vlastního úložiště — pro proxy doplňku pro Stremio."""
+        api, path = self.storage_for(url)
+        try:
+            return api.request(path)
+        except StorageError as err:
+            raise NokturnoError(f"Úložiště: {err}") from err
+
+    @property
     def cinemeta(self):
         """Vlastní databáze filmů a seriálů (Stremio/Cinemeta) — bez účtu, funguje
         vždy, i bez Luny a Sosáče. Poslední záchrana v `search()`/`meta()`, když ani
@@ -354,6 +400,7 @@ class Engine:
                 "webshare": bool(self._opt("ws_username").strip()),
                 "hellspy": bool(self._opt(CONF_HS_ENABLED, False)),
                 "sledujteto": bool(str(self._opt("st_email") or "").strip()),
+                "storage": bool(self.storages),
                 "torrent": self.prowlarr is not None}
 
     def api_for(self, item_id):
@@ -851,7 +898,7 @@ class Engine:
         quality = QUALITY_NAMES.get(stream.get("quality_rank") or 0, "")
         if quality and stream.get("_estimated"):
             quality = "~" + quality  # odhad z velikosti, ne údaj ze zdroje
-        source = SOURCE_NAMES.get(stream.get("source"), "")
+        source = stream.get("_storage") or SOURCE_NAMES.get(stream.get("source"), "")
         size = stream.get("size_gb") or 0
         name = full[:51] + "…" if len(full) > 52 else full
         length_min = round(stream["_length_s"] / 60) if stream.get("_length_s") else 0
@@ -1067,7 +1114,7 @@ class Engine:
         # souboru, takže název sám o sobě není důkaz — jen se čeká, až na ně
         # dojde řada v limitu.
         candidates = [s for s in streams if not s.get("_tracks")
-                      and str(s.get("url") or "").startswith(("hs:", "ws:", "streamuj:"))]
+                      and str(s.get("url") or "").startswith(("hs:", "ws:", "streamuj:", "dav:"))]
         todo = sorted(candidates, key=lambda s: bool(s.get("channels")))[:AUDIO_PROBE_MAX]
         # skutečný počet čtených hlaviček bývá výrazně nižší než limit —
         # ukazatel průběhu si podle něj dopočítá reálné 100 %, ne odhad
@@ -1226,6 +1273,34 @@ class Engine:
                     stream["_tracks"] = info.get("audio") or []
                     stream["_media"] = info
                 out.append(stream)
+        return out
+
+    def _storage_streams(self, meta, video=None, ctype="movie", alt=None, strict=True, failures=None):
+        """Tentýž titul ve vlastních úložištích — stejný přísný filtr jako fulltext,
+        jen se nehledá po síti, ale v zapamatovaném seznamu souborů. Soubor se
+        přiřadí i podle složky nad ním (`match_texts`)."""
+        if not self.storages:
+            return []
+        _queries, relevant = self._title_queries(meta, video, ctype, alt, strict)
+        out = []
+        for api in self.storages:
+            try:
+                files = api.files()
+            except StorageError as err:
+                _LOGGER.warning("úložiště %s: %s", api.name, err)
+                if failures is not None:
+                    failures.append((api.name, err))
+                continue
+            for f in files:
+                if any(relevant(text) for text in match_texts(f["path"])):
+                    out.append({
+                        "url": f"dav:{api.slot}:{f['path']}",
+                        "label": f["name"],
+                        "detail": f.get("size_h") or "",
+                        "source": "dav",
+                        "_storage": api.name,
+                        "_direct": True,
+                    })
         return out
 
     def _webshare_subtitles(self, meta, video=None, ctype="movie", alt=None):
@@ -1677,6 +1752,25 @@ class Engine:
         cache_key = f"streams3:{ctype}:{item_id}:{alt or ''}"   # 3 = názvy bez koncovky z cizího písma
         found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams,
                                      ok=lambda data: bool(data) and not failures)
+        # vlastní úložiště mimo 72h cache streamů — nový soubor se má ukázat hned,
+        # jak ho uvidí seznam úložiště (ten si drží vlastní hodinovou paměť)
+        try:
+            local = self._storage_streams(meta, video, ctype, alt, failures=failures)
+        except Exception as err:  # noqa: BLE001 – úložiště nesmí shodit ostatní zdroje
+            _LOGGER.warning("streamy %s (úložiště): %s", item_id, err)
+            failures.append(("Úložiště", err))
+            local = []
+        for stream in local:
+            parse_stream(stream)
+            if not stream.get("quality_rank"):
+                guess = estimate_rank(stream.get("size_gb"))
+                if guess:
+                    stream["quality_rank"] = guess
+                    stream["_estimated"] = True
+            for key in ("langs", "subs"):
+                if isinstance(stream.get(key), set):
+                    stream[key] = sorted(stream[key])
+        found = local + list(found or [])
         # z cache se vrátí rovnou, bez jediného tick() výše — doskočit na konec fáze zdrojů
         if on_progress and done[0] < self.STREAM_SOURCE_STEPS:
             done[0] = self.STREAM_SOURCE_STEPS
@@ -1763,6 +1857,12 @@ class Engine:
                 return self.st.file_link(url[3:])
             except SledujtetoError as err:
                 raise NokturnoError(f"Sledujteto: {err}") from err
+        if url.startswith("dav:"):
+            api, path = self.storage_for(url)
+            try:
+                return api.kodi_url(path)
+            except StorageError as err:
+                raise NokturnoError(f"Úložiště: {err}") from err
         if url.startswith("streamuj:"):
             sosac = self.sosac
             if sosac is None:

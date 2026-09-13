@@ -1102,7 +1102,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"count": len(items), "items": items}
 
     async def handle_remove_progress(call: ServiceCall):
-        await _kodi_remove_progress(hass, call.data[ATTR_ENTITY_ID], call.data["file"])
+        """Odebrání na VŠECH Kodi, ne jen na tom, odkud karta položku vzala.
+
+        `kodi_continue` slučuje stejný titul z víc Kodi do jedné položky a karta si
+        pamatuje jen první přehrávač — na druhém Kodi pak položka zůstala a hned se
+        vrátila (Hospoda 1x02 na Obýváku i v Office). Kodi, kde položka není, odebrání
+        nijak neublíží; vypnuté Kodi se přeskočí, selže jen to, kam karta mířila."""
+        import asyncio
+
+        target = call.data[ATTR_ENTITY_ID]
+        others = [k["entity_id"] for k in kodi_endpoints(hass) if k["entity_id"] and k["entity_id"] != target]
+        await _kodi_remove_progress(hass, target, call.data["file"])
+        results = await asyncio.gather(*(_kodi_remove_progress(hass, e, call.data["file"]) for e in others),
+                                       return_exceptions=True)
+        for entity, result in zip(others, results):
+            if isinstance(result, Exception):
+                _LOGGER.debug("odebrání z Pokračovat na %s: %s", entity, result)
 
     async def handle_seen(call: ServiceCall):
         """Označí nový díl (u jednoho nebo všech seriálů) za viděný — zhasne v kartě i v senzoru."""

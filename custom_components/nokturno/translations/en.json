@@ -31,7 +31,19 @@
           "qbit_password": "qBittorrent — password",
           "hs_enabled": "Search HellSpy too",
           "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
-          "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)"
+          "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
+          "dav1_url": "Storage 1 — folder address (WebDAV)",
+          "dav1_username": "Storage 1 — username",
+          "dav1_password": "Storage 1 — password",
+          "dav1_name": "Storage 1 — name shown with streams",
+          "dav2_url": "Storage 2 — folder address (WebDAV)",
+          "dav2_username": "Storage 2 — username",
+          "dav2_password": "Storage 2 — password",
+          "dav2_name": "Storage 2 — name shown with streams",
+          "dav3_url": "Storage 3 — folder address (WebDAV)",
+          "dav3_username": "Storage 3 — username",
+          "dav3_password": "Storage 3 — password",
+          "dav3_name": "Storage 3 — name shown with streams"
         }
       }
     },
@@ -70,7 +82,19 @@
           "hs_enabled": "Search HellSpy too",
           "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
           "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
-          "tmdb_api_key": "TMDB — API klíč (nepovinné, ale má přednost i před Lunou — pro české tituly a popisy)"
+          "tmdb_api_key": "TMDB — API klíč (nepovinné, ale má přednost i před Lunou — pro české tituly a popisy)",
+          "dav1_url": "Storage 1 — folder address (WebDAV)",
+          "dav1_username": "Storage 1 — username",
+          "dav1_password": "Storage 1 — password",
+          "dav1_name": "Storage 1 — name shown with streams",
+          "dav2_url": "Storage 2 — folder address (WebDAV)",
+          "dav2_username": "Storage 2 — username",
+          "dav2_password": "Storage 2 — password",
+          "dav2_name": "Storage 2 — name shown with streams",
+          "dav3_url": "Storage 3 — folder address (WebDAV)",
+          "dav3_username": "Storage 3 — username",
+          "dav3_password": "Storage 3 — password",
+          "dav3_name": "Storage 3 — name shown with streams"
         }
       }
     }

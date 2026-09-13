@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
+from .engine import STORAGE_OPTIONS
 from .const import (
     CONF_DOWNLOAD_DIR,
     CONF_PROWLARR_URL,
@@ -50,8 +51,10 @@ from .const import (
     SORT_ORDERS,
 )
 
+# vlastní úložiště (WebDAV), až tři — adresa, jméno, heslo, název; klíče drží jádro
+STORAGE_KEYS = [key for slot in STORAGE_OPTIONS for key in slot]
 ACCOUNT_KEYS = [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS, CONF_ST_EMAIL, CONF_ST_PASS,
-                CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_TMDB_KEY]
+                CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_TMDB_KEY, *STORAGE_KEYS]
 
 
 def preferences_schema(data: dict) -> vol.Schema:

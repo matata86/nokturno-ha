@@ -1793,6 +1793,8 @@ class Engine:
         # na začátek seznamu, tedy na to, co má uživatel před očima. Po doplnění
         # kanálů se řadí znovu, protože 5.1 může pořadím pohnout.
         ordered = sort(self._ensure_bitrate(self._fill_audio(sort(found), tick, on_count), video or meta))
+        # vlastní úložiště vždy nahoru — mezi desítkami streamů zdrojů se jinak ztrácí
+        ordered = [s for s in ordered if s.get("source") == "dav"] + [s for s in ordered if s.get("source") != "dav"]
         if on_progress and done[0] < total:
             done[0] = total
             on_progress(done[0], total)

@@ -28,6 +28,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.start import async_at_started
@@ -677,6 +678,67 @@ class NokturnoFilesView(HomeAssistantView):
         return self.json({"files": out})
 
 
+class NokturnoStorageView(HomeAssistantView):
+    """Soubor z vlastního úložiště (WebDAV s heslem) přes Home Assistant.
+
+    Přehrávače mimo Kodi (Chromecast, prohlížeč, telefon) hlavičku `Authorization`
+    neumí poslat, proto dostanou podepsaný odkaz sem (`storage_link`) a HA soubor
+    stáhne a pošle dál sám — i s `Range`, takže jde přetáčet. Adresa i heslo
+    úložiště z HA neodejdou. Adresu serveru bere jádro z nastavení podle slotu,
+    cestu hlídá `storage_api.safe_path`, takže přes tenhle pohled nejde jinam.
+    """
+
+    url = "/api/nokturno/storage/{slot}/{path:.+}"
+    name = "api:nokturno:storage"
+    requires_auth = True      # podepsaný odkaz (authSig) projde, bez podpisu jen přihlášený
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def get(self, request, slot, path):
+        from aiohttp import web
+
+        try:
+            engine = _entry_data(self.hass)["engine"]
+            url, headers = await self.hass.async_add_executor_job(engine.storage_request, f"dav:{slot}:{path}")
+        except (HomeAssistantError, NokturnoError) as err:
+            return web.Response(status=404, text=str(err))
+        for name in ("Range", "If-Range"):
+            if request.headers.get(name):
+                headers[name] = request.headers[name]
+        session = async_get_clientsession(self.hass)
+        try:
+            upstream = await session.get(url, headers=headers, timeout=None)
+        except Exception as err:  # noqa: BLE001 – síť, DNS, TLS
+            _LOGGER.info("úložiště neodpovídá: %s", err)
+            return web.Response(status=502, text="Úložiště neodpovídá.")
+        async with upstream:
+            if upstream.status in (401, 403):
+                return web.Response(status=502, text="Úložiště odmítlo jméno nebo heslo.")
+            response = web.StreamResponse(status=upstream.status)
+            for name in ("Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag"):
+                if upstream.headers.get(name):
+                    response.headers[name] = upstream.headers[name]
+            await response.prepare(request)
+            async for chunk in upstream.content.iter_chunked(256 * 1024):
+                await response.write(chunk)
+            await response.write_eof()
+            return response
+
+
+def storage_link(hass: HomeAssistant, ref: str, external: bool = False, hours: int = 12) -> str:
+    """`dav:<slot>:<cesta>` → absolutní podepsaný odkaz na `NokturnoStorageView`."""
+    from datetime import timedelta as _timedelta
+
+    slot, _sep, path = ref[4:].partition(":")
+    signed = async_sign_path(hass, f"/api/nokturno/storage/{slot}/{path}", _timedelta(hours=hours))
+    try:
+        base = get_url(hass, prefer_external=external)
+    except NoURLAvailableError as err:
+        raise HomeAssistantError("Home Assistant nemá nastavenou adresu (Nastavení → Síť).") from err
+    return base.rstrip("/") + _encode_signed(signed)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await async_register_card(hass)
     # starší instalace klíč nemají — doplnit jednou (spustí to jeden reload přes update listener)
@@ -685,6 +747,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.data.get(f"{DOMAIN}_sync_view"):
         hass.http.register_view(NokturnoSyncView(hass))
         hass.http.register_view(NokturnoFilesView(hass))
+        hass.http.register_view(NokturnoStorageView(hass))
         hass.data[f"{DOMAIN}_sync_view"] = True
     options = {**entry.data, **entry.options}
     if options.get(CONF_EXTERNAL_HOST) and await async_tailscale_running(hass) is False:
@@ -1268,7 +1331,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_resolve(call: ServiceCall):
         _c, _i, _s, _a, stream = await _chosen_stream(call.data)
         # odkaz je určený pro cizí přehrávač → rovnou v podobě funkční i mimo domácí síť
-        url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)
+        if str(stream.get("url", "")).startswith("dav:"):
+            url = storage_link(hass, stream["url"], external=True)
+        else:
+            url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)
         return {"url": url, "label": stream.get("label", ""), "subtitles": stream.get("subtitles") or []}
 
     async def handle_play(call: ServiceCall):
@@ -1286,7 +1352,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry_reg = registry.async_get(entity_id)
             is_kodi = bool(entry_reg and entry_reg.platform == "kodi")
             plugin_ok = is_kodi and not call_data.get("direct")
-            if plugin_ok and str(stream.get("url", "")).startswith("ws:"):
+            if str(stream.get("url", "")).startswith("dav:"):
+                # vlastní úložiště: Kodi umí heslo v hlavičce za svislítkem a nepotřebuje
+                # mít úložiště nastavené v doplňku; ostatní přehrávače jdou přes HA
+                media_id = (await _in_executor(engine.resolve, stream["url"]) if is_kodi
+                            else storage_link(hass, stream["url"]))
+            elif plugin_ok and str(stream.get("url", "")).startswith("ws:"):
                 # soubor z fulltextu WebShare — doplněk má vlastní akci, odkaz si přeloží sám
                 media_id = KODI_PLUGIN + "?" + urllib.parse.urlencode({
                     "action": "play_ws", "ident": stream["url"][3:],
@@ -1310,7 +1381,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def handle_download(call: ServiceCall):
         ctype, item_id, series, alt, stream = await _chosen_stream(call.data)
-        url = await _in_executor(engine.resolve, stream["url"])
+        is_storage = str(stream.get("url", "")).startswith("dav:")
+        # stahovač jede přes aiohttp, hlavičky za svislítkem nezná → soubor z úložiště přes vlastní proxy
+        url = storage_link(hass, stream["url"], hours=48) if is_storage else await _in_executor(engine.resolve, stream["url"])
         name = call.data.get("name")
         if not name and item_id:
             meta, video = await _in_executor(engine.meta, ctype, item_id, series)
@@ -1323,12 +1396,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise HomeAssistantError(f"Na disku je jen {downloader.free_gb:.1f} GB, soubor má {needed:.1f} GB.")
         subs = [await _in_executor(engine.resolve, u) for u in (stream.get("subtitles") or [])]
         job = downloader.add(url, name or "nokturno", {"stream": stream.get("label", "")},
-                             subtitles=subs, source_url=stream.get("url", ""))
+                             subtitles=subs, source_url="" if is_storage else stream.get("url", ""))
         return {"download_id": job["id"], "path": job["path"], "name": job["name"]}
 
     async def handle_send_link(call: ServiceCall):
         _c, _i, _s, _a, stream = await _chosen_stream(call.data)
-        url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)
+        if str(stream.get("url", "")).startswith("dav:"):
+            url = storage_link(hass, stream["url"], external=True, hours=24)
+        else:
+            url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)
         name = call.data.get("name") or stream.get("label") or "Nokturno"
         title = call.data.get("title", "Nokturno")
         raw = call.data["notify_service"]

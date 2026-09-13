@@ -1155,7 +1155,7 @@ class NokturnoCard extends HTMLElement {
       ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = hraje i mimo domácí síť</div>` : "";
     return head + torrentBtn + legend + `<div>${st.streams.map((s, i) => `
       <div class="stream" title="${this._esc(this._streamTitle(s))}">
-        <span class="tag" style="background:${SOURCE_COLORS[s.source] || "#777"}">${s.source || "?"}${
+        <span class="tag" style="background:${SOURCE_COLORS[s.source] || (String(s.url || "").startsWith("dav:") ? "#5f9e3a" : "#777")}">${s.source || "?"}${
           s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="Hraje i mimo domácí síť"></ha-icon>` : ""}${
           s._loose ? `<ha-icon class="ext" icon="mdi:help-circle-outline" title="Neověřeno — z ručního fulltextového hledání, může to být i jiný titul"></ha-icon>` : ""}</span>
         <span class="label">${this._esc(s.label.replace(s.source + "  ·  ", ""))}</span>

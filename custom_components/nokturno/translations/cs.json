@@ -31,7 +31,19 @@
           "qbit_password": "qBittorrent — heslo",
           "hs_enabled": "Hledat i na HellSpy",
           "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
-          "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)"
+          "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)",
+          "dav1_url": "Úložiště 1 — adresa složky (WebDAV)",
+          "dav1_username": "Úložiště 1 — uživatel",
+          "dav1_password": "Úložiště 1 — heslo",
+          "dav1_name": "Úložiště 1 — název u streamů",
+          "dav2_url": "Úložiště 2 — adresa složky (WebDAV)",
+          "dav2_username": "Úložiště 2 — uživatel",
+          "dav2_password": "Úložiště 2 — heslo",
+          "dav2_name": "Úložiště 2 — název u streamů",
+          "dav3_url": "Úložiště 3 — adresa složky (WebDAV)",
+          "dav3_username": "Úložiště 3 — uživatel",
+          "dav3_password": "Úložiště 3 — heslo",
+          "dav3_name": "Úložiště 3 — název u streamů"
         }
       }
     },
@@ -70,7 +82,19 @@
           "hs_enabled": "Hledat i na HellSpy",
           "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
           "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)",
-          "tmdb_api_key": "TMDB — API klíč (nepovinné, ale má přednost i před Lunou — pro české tituly a popisy)"
+          "tmdb_api_key": "TMDB — API klíč (nepovinné, ale má přednost i před Lunou — pro české tituly a popisy)",
+          "dav1_url": "Úložiště 1 — adresa složky (WebDAV)",
+          "dav1_username": "Úložiště 1 — uživatel",
+          "dav1_password": "Úložiště 1 — heslo",
+          "dav1_name": "Úložiště 1 — název u streamů",
+          "dav2_url": "Úložiště 2 — adresa složky (WebDAV)",
+          "dav2_username": "Úložiště 2 — uživatel",
+          "dav2_password": "Úložiště 2 — heslo",
+          "dav2_name": "Úložiště 2 — název u streamů",
+          "dav3_url": "Úložiště 3 — adresa složky (WebDAV)",
+          "dav3_username": "Úložiště 3 — uživatel",
+          "dav3_password": "Úložiště 3 — heslo",
+          "dav3_name": "Úložiště 3 — název u streamů"
         }
       }
     }

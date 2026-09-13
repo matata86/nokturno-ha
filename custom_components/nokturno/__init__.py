@@ -401,6 +401,35 @@ async def _kodi_continue_one(hass: HomeAssistant, kodi: dict) -> list[dict]:
     return items
 
 
+def _continue_key(file: str) -> tuple[str, str]:
+    """(klíč titulu, id seriálu) z plugin odkazu položky Pokračovat ve sledování."""
+    query = dict(urllib.parse.parse_qsl((file or "").split("?", 1)[-1]))
+    action = query.get("action")
+    if action == "play_ws":
+        return f"ws:{query.get('ident', '')}", ""
+    if action == "play_hs":
+        return f"hs:{query.get('id', '')}:{query.get('hash', '')}", ""
+    return query.get("id", ""), query.get("series", "")
+
+
+def _removed_by_user(store, item: dict) -> bool:
+    """Odebral uživatel položku z Pokračovat ve sledování? Rozhoduje stav v HA,
+    ne jednotlivé Kodi — Kodi, které bylo při odebrání vypnuté, ji jinak vrátí.
+
+    - „Další díl": seriál má v `next_hidden` skrytý právě tenhle díl (synchronizuje se).
+    - rozkoukané: HA o titulu ví a rozkoukanost je vynulovaná bez zhlédnutí. Novější
+      rozkoukání z Kodi přijde synchronizací s novějším časem a položku zase ukáže.
+    """
+    key, series = _continue_key(item.get("file") or "")
+    if not key:
+        return False
+    if series and store.next_hidden(series) == key:
+        return True
+    rec = store.load("watched", {}).get(key)
+    return isinstance(rec, dict) and not rec.get("playcount") and float(rec.get("resume") or 0) <= 0 \
+        and float(rec.get("total") or 0) <= 0
+
+
 async def _kodi_remove_progress(hass: HomeAssistant, entity_id: str, file: str) -> None:
     """Odebrání titulu z Pokračovat ve sledování — na tomtéž Kodi a se stejným
     `id`/`series`/`alt`, jaké karta dostala v `file` z `continue_watching` (viz
@@ -504,6 +533,11 @@ async def kodi_continue(hass: HomeAssistant, entity_id: str | None, engine: Engi
             else:
                 # stejný titul rozehraný na víc Kodi – necháme jednu položku, karta nabídne výběr zdroje
                 existing["players"].append({"entity_id": item["entity_id"], "player": item["player"]})
+    if engine:
+        # odebrané v HA se nevrací, ani když je nabídne Kodi, které bylo při odebrání vypnuté
+        removed = await hass.async_add_executor_job(
+            lambda: [i for i in items if _removed_by_user(engine.store, i)])
+        items = [i for i in items if i not in removed]
     if engine and any(not (i.get("fanart") or i.get("thumbnail")) for i in items):
         await hass.async_add_executor_job(_art_by_title, engine, items)
     if engine and entity_id is None:
@@ -1111,8 +1145,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         import asyncio
 
         target = call.data[ATTR_ENTITY_ID]
+        # nejdřív do stavu HA — platí hned pro kartu a ostatní Kodi si to převezmou
+        # synchronizací, i když jsou teď vypnutá
+        key, series = _continue_key(call.data["file"])
+        if key:
+            def remember():
+                engine.store.set_resume(key, 0, 0)
+                if series:
+                    engine.store.hide_next(series, key)
+            await hass.async_add_executor_job(remember)
         others = [k["entity_id"] for k in kodi_endpoints(hass) if k["entity_id"] and k["entity_id"] != target]
-        await _kodi_remove_progress(hass, target, call.data["file"])
+        try:
+            await _kodi_remove_progress(hass, target, call.data["file"])
+        except HomeAssistantError as err:
+            if not key:
+                raise
+            _LOGGER.debug("odebrání z Pokračovat na %s: %s", target, err)
         results = await asyncio.gather(*(_kodi_remove_progress(hass, e, call.data["file"]) for e in others),
                                        return_exceptions=True)
         for entity, result in zip(others, results):

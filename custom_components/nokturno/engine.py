@@ -39,7 +39,6 @@ EPISODE_ANY_RE = re.compile(r"(?<![a-z0-9])s\d{1,2}\s?e\d{1,2}(?!\d)|(?<!\d)\d{1
 AUDIO_PROBE_MAX = 24          # u kolika streamů se ještě vyplatí číst hlavičku souboru
 ENRICH_PROGRESS_ESTIMATE = 10  # počáteční odhad délky enrichu, než search() zjistí skutečný počet
 AUDIO_TTL = 30 * 24 * 3600    # obsah souboru se nemění, stačí zjistit jednou
-SOLO_LIMIT = 8   # kolik z nich nechat v seznamu, když k nim Luna nemá protějšek
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
 HISTORY_MAX = 12
 SUBS_MAX = 3
@@ -1144,7 +1143,11 @@ class Engine:
             out.append(stream)
         solo = [s for s in streams if s.get("_direct") and id(s) not in used]
         solo.sort(key=lambda s: -(s.get("size_gb") or 0))
-        merged = out + solo[:SOLO_LIMIT]
+        # Bez ořezu: dřív tu byl strop 8 osamocených souborů (WebShare i HellSpy
+        # dohromady), takže karta HA u titulu bez Luny ukázala zlomek toho, co
+        # Kodi (Toy Story 5: 17 proti 64). Kodi žádný strop nemá, pořadí a filtr
+        # stejně řeší až `arrange()` podle nastavení.
+        merged = out + solo
         # Lunino vlastní "Search" (fulltext přes WebShare uvnitř Luny) umí tentýž
         # soubor vrátit i víckrát — všechny kopie mají stejnou velikost a kvalitu,
         # ale generický popisek bez jména ("(WS) Full HD"), protože Luna sama

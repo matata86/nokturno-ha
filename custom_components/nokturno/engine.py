@@ -243,7 +243,7 @@ class Engine:
             user = self._opt("streamuj_username").strip()
             if user:
                 self._sosac = SosacDirect(user, self._opt("streamuj_password"),
-                                          cache=self.store, index_store=self.store)
+                                          cache=self.store, index_store=self.store.index())
         return self._sosac
 
     @property
@@ -296,7 +296,7 @@ class Engine:
         filmů/seriálů, funguje vždy. `self.sosac` výš zůstává jen pro přihlášené
         přehrávání; katalog samotný účet nepotřebuje."""
         if self._sosac_db is None:
-            self._sosac_db = SosacDirect(cache=self.store, index_store=self.store)
+            self._sosac_db = SosacDirect(cache=self.store, index_store=self.store.index())
         return self._sosac_db
 
     @property

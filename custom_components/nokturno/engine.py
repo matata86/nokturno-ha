@@ -16,7 +16,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-from .lib.const import CONF_HS_ENABLED, LANGS, SORT_ORDERS
+from .lib.const import CONF_HS_ENABLED, DEFAULT_SORT, LANGS, SORT_ORDERS
 from .lib.cinemeta_api import CinemetaApi, CinemetaError
 from .lib.enrich import DEAD_IMAGES, _cinemeta, _fetch, _fetch_title, enrich, enrich_one
 from .lib.luna_api import LunaApi, LunaError, clean_label, parse_base_url, parse_token
@@ -1500,14 +1500,14 @@ class Engine:
             on_progress(done[0], total)
         max_gb = self._effective_max_gb(video or meta)
         lang = self._opt("pref_lang", "")
-        order = self._opt("sort_streams", "quality")
+        order = self._opt("sort_streams", DEFAULT_SORT)
         def sort(items):
             return arrange(
                 items,
                 pref_lang=lang if lang in LANGS else "",
                 hide_sd=bool(self.options.get("hide_sd")),
                 max_size_gb=max_gb,
-                order=order if order in SORT_ORDERS else "quality",
+                order=order if order in SORT_ORDERS else DEFAULT_SORT,
                 pref_surround=bool(self.options.get("pref_surround")),
             )
 

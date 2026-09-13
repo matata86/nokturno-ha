@@ -1,0 +1,102 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nokturno",
+        "description": "Vyplň len zdroje a voľby, ktoré chceš používať — pokojne nič. Aj bez jediného vyplneného poľa integrácia ponúkne katalóg a vyhľadávanie (cez verejnú databázu Sosáč/Cinemeta, s kľúčom TMDB aj po česky). Údaje sú rovnaké ako v doplnku Nokturno pre Kodi. Čokoľvek sa dá kedykoľvek neskôr zmeniť v Nastaveniach integrácie.",
+        "data": {
+          "ws_username": "WebShare — e-mail",
+          "ws_password": "WebShare — heslo (alebo uložený hash)",
+          "streamuj_username": "Streamuj.tv — používateľ (pre Sosáč)",
+          "streamuj_password": "Streamuj.tv — heslo",
+          "st_email": "Sledujteto — e-mail",
+          "st_password": "Sledujteto — heslo (prehrávanie len s Premium)",
+          "luna_url": "Luna — adresa servera",
+          "luna_token": "Luna — token (alebo celá inštalačná URL)",
+          "tmdb_api_key": "TMDB — API kľúč (nepovinné, ale má prednosť aj pred Lunou — pre české názvy a popisy)",
+          "kodi_entity": "Predvolený prehrávač (Kodi)",
+          "pref_lang": "Preferovaný jazyk zvuku",
+          "pref_surround": "Preferovať priestorový zvuk (5.1 a viac)",
+          "hide_sd": "Skryť SD streamy",
+          "sort_streams": "Radenie streamov",
+          "download_dir": "Priečinok na sťahovanie",
+          "external_host": "Adresa mimo domácej siete (Tailscale/VPN) — pre odkazy do mobilu",
+          "notify_target": "Upozornenia na stiahnutie a nové diely (napr. notify.mobile_app_telefon; prázdne = upozornenie v HA)",
+          "trakt_client_id": "Trakt.tv — Client ID (z trakt.tv/oauth/applications)",
+          "trakt_client_secret": "Trakt.tv — Client Secret",
+          "prowlarr_url": "Prowlarr — adresa (hľadanie torrentov)",
+          "prowlarr_key": "Prowlarr — API kľúč",
+          "qbit_url": "qBittorrent — adresa",
+          "qbit_username": "qBittorrent — meno (len keď web UI vyžaduje prihlásenie)",
+          "qbit_password": "qBittorrent — heslo",
+          "hs_enabled": "Hľadať aj na HellSpy",
+          "max_bitrate_mbps": "Max. dátový tok (Mb/s, 0 = bez obmedzenia)",
+          "sub_warn_days": "Upozorniť N dní pred koncom predplatného WebShare (0 = vypnuté)",
+          "dav1_url": "Úložisko 1 — adresa priečinka (WebDAV)",
+          "dav1_username": "Úložisko 1 — používateľ",
+          "dav1_password": "Úložisko 1 — heslo",
+          "dav1_name": "Úložisko 1 — názov pri streamoch",
+          "dav2_url": "Úložisko 2 — adresa priečinka (WebDAV)",
+          "dav2_username": "Úložisko 2 — používateľ",
+          "dav2_password": "Úložisko 2 — heslo",
+          "dav2_name": "Úložisko 2 — názov pri streamoch",
+          "dav3_url": "Úložisko 3 — adresa priečinka (WebDAV)",
+          "dav3_username": "Úložisko 3 — používateľ",
+          "dav3_password": "Úložisko 3 — heslo",
+          "dav3_name": "Úložisko 3 — názov pri streamoch"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Nokturno je už nastavené."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nokturno",
+        "data": {
+          "ws_username": "WebShare — e-mail",
+          "ws_password": "WebShare — heslo (alebo uložený hash)",
+          "streamuj_username": "Streamuj.tv — používateľ (pre Sosáč)",
+          "streamuj_password": "Streamuj.tv — heslo",
+          "st_email": "Sledujteto — e-mail",
+          "st_password": "Sledujteto — heslo (prehrávanie len s Premium)",
+          "luna_url": "Luna — adresa servera",
+          "luna_token": "Luna — token",
+          "kodi_entity": "Predvolený prehrávač (Kodi)",
+          "pref_lang": "Preferovaný jazyk zvuku",
+          "pref_surround": "Preferovať priestorový zvuk (5.1 a viac)",
+          "hide_sd": "Skryť SD streamy",
+          "sort_streams": "Radenie streamov",
+          "download_dir": "Priečinok na sťahovanie",
+          "external_host": "Adresa mimo domácej siete (Tailscale/VPN) — pre odkazy do mobilu",
+          "notify_target": "Upozornenia na stiahnutie a nové diely (napr. notify.mobile_app_telefon; prázdne = upozornenie v HA)",
+          "trakt_client_id": "Trakt.tv — Client ID (z trakt.tv/oauth/applications)",
+          "trakt_client_secret": "Trakt.tv — Client Secret",
+          "prowlarr_url": "Prowlarr — adresa (hľadanie torrentov)",
+          "prowlarr_key": "Prowlarr — API kľúč",
+          "qbit_url": "qBittorrent — adresa",
+          "qbit_username": "qBittorrent — meno (len keď web UI vyžaduje prihlásenie)",
+          "qbit_password": "qBittorrent — heslo",
+          "hs_enabled": "Hľadať aj na HellSpy",
+          "max_bitrate_mbps": "Max. dátový tok (Mb/s, 0 = bez obmedzenia)",
+          "sub_warn_days": "Upozorniť N dní pred koncom predplatného WebShare (0 = vypnuté)",
+          "tmdb_api_key": "TMDB — API kľúč (nepovinné, ale má prednosť aj pred Lunou — pre české názvy a popisy)",
+          "dav1_url": "Úložisko 1 — adresa priečinka (WebDAV)",
+          "dav1_username": "Úložisko 1 — používateľ",
+          "dav1_password": "Úložisko 1 — heslo",
+          "dav1_name": "Úložisko 1 — názov pri streamoch",
+          "dav2_url": "Úložisko 2 — adresa priečinka (WebDAV)",
+          "dav2_username": "Úložisko 2 — používateľ",
+          "dav2_password": "Úložisko 2 — heslo",
+          "dav2_name": "Úložisko 2 — názov pri streamoch",
+          "dav3_url": "Úložisko 3 — adresa priečinka (WebDAV)",
+          "dav3_username": "Úložisko 3 — používateľ",
+          "dav3_password": "Úložisko 3 — heslo",
+          "dav3_name": "Úložisko 3 — názov pri streamoch"
+        }
+      }
+    }
+  }
+}

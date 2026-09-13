@@ -27,6 +27,131 @@ const KINDS = [
   { value: "series", label: "Seriály" },
 ];
 
+/* Slovenčina. Klíč je přesný český text z karty, hodnota jeho slovenská verze;
+   {0}, {1}… jsou dosazované hodnoty. Karta mluví slovensky, když má uživatel v HA
+   jazyk začínající na „sk“, jinak česky jako dřív. Nový text: v kódu česky přes
+   `this._t("…")` a sem jeho překlad — chybějící klíč se prostě ukáže česky. */
+const SK = {
+  "Cache hledání a streamů vymazána": "Cache vyhľadávania a streamov vymazaná",
+  "Není nastavený žádný přehrávač.": "Nie je nastavený žiadny prehrávač.",
+  "Spouštím na {0}": "Spúšťam na {0}",
+  "Do kterého mobilu?": "Do ktorého mobilu?",
+  "Kde přehrát?": "Kde prehrať?",
+  "Zavřít": "Zavrieť",
+  "Smazat": "Zmazať",
+  "Zpět": "Späť",
+  "Stahuji do {0}": "Sťahujem do {0}",
+  "úložiště": "úložiska",
+  "Na trackerech nic nenašel": "Na trackeroch sa nič nenašlo",
+  "Fulltext nic dalšího nenašel": "Fulltext nič ďalšie nenašiel",
+  "Torrent zařazen do stahování": "Torrent zaradený do sťahovania",
+  "Nenašel jsem žádný mobil s aplikací Home Assistant.": "Nenašiel som žiadny mobil s aplikáciou Home Assistant.",
+  "Odkaz odeslán: {0}": "Odkaz odoslaný: {0}",
+  "Odkaz zkopírován — vlož ho do VLC nebo prohlížeče": "Odkaz skopírovaný — vlož ho do VLC alebo prehliadača",
+  "Zkopíruj odkaz (Ctrl+C):": "Skopíruj odkaz (Ctrl+C):",
+  "Titul se nepodařilo najít.": "Titul sa nepodarilo nájsť.",
+  "Název filmu nebo seriálu": "Názov filmu alebo seriálu",
+  "Hledat ve WebShare, Sosáči a Luně": "Hľadať vo WebShare, Sosáči a Lune",
+  "Hledat": "Hľadať",
+  "Vymazat cache hledání a streamů": "Vymazať cache vyhľadávania a streamov",
+  "Zopakovat hledání „{0}“": "Zopakovať hľadanie „{0}“",
+  "Smazat historii": "Zmazať históriu",
+  "Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.": "Zadaj názov — hľadá sa vo WebShare, Sosáči aj Lune naraz.",
+  "Pokračovat ve sledování": "Pokračovať v sledovaní",
+  "K zhlédnutí": "Na pozretie",
+  "Otevřít streamy — {0} k dispozici": "Otvoriť streamy — {0} k dispozícii",
+  "Zatím žádný stream; hlídám a dám vědět": "Zatiaľ žiadny stream; strážim a dám vedieť",
+  "jen torrent": "len torrent",
+  "lze pustit": "dá sa pustiť",
+  "hlídám": "strážim",
+  "zatím ne": "zatiaľ nie",
+  "· {0} streamů": "· {0} streamov",
+  "nový díl": "nový diel",
+  "sleduji": "sledujem",
+  "ke sledování": "na sledovanie",
+  "zatím bez streamu": "zatiaľ bez streamu",
+  "odvysíláno": "odvysielané",
+  "Označit nový díl jako viděný": "Označiť nový diel ako videný",
+  "Otevřít": "Otvoriť",
+  "Přestat sledovat": "Prestať sledovať",
+  "Seriál už nesleduji": "Seriál už nesledujem",
+  "Nové díly budu hlásit": "Nové diely budem hlásiť",
+  "Odebráno ze seznamu": "Odobraté zo zoznamu",
+  "Přidáno — dám vědět, až bude ke sledování": "Pridané — dám vedieť, keď bude na sledovanie",
+  "Odebráno z Pokračovat ve sledování": "Odobraté z Pokračovať v sledovaní",
+  "Napiš název — hledat budu rovnou v databázi filmů.": "Napíš názov — hľadať budem rovno v databáze filmov.",
+  "V databázi filmů nic takového není.": "V databáze filmov nič také nie je.",
+  "Napiš nejdřív název do pole pro hledání.": "Najprv napíš názov do poľa na hľadanie.",
+  "Hlídám „{0}\" — dám vědět, až bude ke sledování": "Strážim „{0}“ — dám vedieť, keď bude na sledovanie",
+  "Zpět na úvodní obrazovku": "Späť na úvodnú obrazovku",
+  "Zpět na výsledky z WebShare, Sosáče a Luny": "Späť na výsledky z WebShare, Sosáča a Luny",
+  "Zpět k výsledkům ze zdrojů": "Späť k výsledkom zo zdrojov",
+  "Hledat v databázi filmů (IMDb/TMDB) — najde i tituly, které zdroje nemají": "Hľadať v databáze filmov (IMDb/TMDB) — nájde aj tituly, ktoré zdroje nemajú",
+  "Hledat v databázi filmů": "Hľadať v databáze filmov",
+  "Ve zdrojích nic nenalezeno — zkus databázi filmů.": "V zdrojoch sa nič nenašlo — skús databázu filmov.",
+  "Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš do seznamu k zhlédnutí.": "Z databázy filmov — ťuknutím otvoríš detail; záložkou v ňom si titul uložíš do zoznamu na pozretie.",
+  "Sledovat nové díly": "Sledovať nové diely",
+  "Sezóna": "Séria",
+  "Speciály": "Špeciály",
+  "Zobrazit streamy epizody": "Zobraziť streamy epizódy",
+  "Přeskočeno — streamy jsou z ostatních zdrojů.": "Preskočené — streamy sú z ostatných zdrojov.",
+  "Odebrat ze seznamu k zhlédnutí": "Odobrať zo zoznamu na pozretie",
+  "Přidat do seznamu k zhlédnutí": "Pridať do zoznamu na pozretie",
+  "Odebrat z Pokračovat ve sledování": "Odobrať z Pokračovať v sledovaní",
+  "Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání": "Prehľadať torrentové trackery cez Prowlarr — trvá pár sekúnd, preto sa hľadá až na požiadanie",
+  "Hledám torrenty…": "Hľadám torrenty…",
+  "Hledat torrenty": "Hľadať torrenty",
+  "Uvolněné hledání podle slov v názvu souboru — najde i to, co přísný filtr zahodí jako podobný, ale jiný titul": "Voľnejšie hľadanie podľa slov v názve súboru — nájde aj to, čo prísny filter zahodí ako podobný, ale iný titul",
+  "Hledám…": "Hľadám…",
+  "Zkusit fulltext na {0}": "Skúsiť fulltext na {0}",
+  "Pro tento titul se nenašel žádný stream.": "Pre tento titul sa nenašiel žiadny stream.",
+  "Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví.": "Ulož si ho záložkou hore a dám vedieť, hneď ako sa objaví.",
+  "hraje i mimo domácí síť": "hrá aj mimo domácej siete",
+  "Hraje i mimo domácí síť": "Hrá aj mimo domácej siete",
+  "Neověřeno — z ručního fulltextového hledání, může to být i jiný titul": "Neoverené — z ručného fulltextového hľadania, môže to byť aj iný titul",
+  "Zařadit ke stažení do qBittorrentu — až se soubor stáhne, objeví se mezi staženými": "Zaradiť na stiahnutie do qBittorrentu — keď sa súbor stiahne, objaví sa medzi stiahnutými",
+  "Stáhnout torrent": "Stiahnuť torrent",
+  "Přehrát": "Prehrať",
+  "Poslat do mobilu": "Poslať do mobilu",
+  "Stáhnout": "Stiahnuť",
+  "Zkopírovat odkaz": "Skopírovať odkaz",
+  "Klepnutím rozbalíš": "Ťuknutím rozbalíš",
+  "Stahování": "Sťahovanie",
+  "ve frontě": "vo fronte",
+  "čeká na svoje místo ve frontě": "čaká na svoje miesto vo fronte",
+  "Spustit hned": "Spustiť hneď",
+  "Zrušit stahování": "Zrušiť sťahovanie",
+  "Stažené": "Stiahnuté",
+  "· volných {0} GB": "· voľných {0} GB",
+  "Poslat odkaz do mobilu": "Poslať odkaz do mobilu",
+  "Smazat i s titulky": "Zmazať aj s titulkami",
+  "Stahování „{0}\" zrušeno": "Sťahovanie „{0}“ zrušené",
+  "Stahování „{0}\" spuštěno": "Sťahovanie „{0}“ spustené",
+  "Odkaz se nepodařilo vytvořit": "Odkaz sa nepodarilo vytvoriť",
+  "Smazat soubor?": "Zmazať súbor?",
+  "i s titulky": "aj s titulkami",
+  "Když film přišel z torrentu, odebere se i ten z qBittorrentu.": "Keď film prišiel z torrentu, odoberie sa aj ten z qBittorrentu.",
+  "Smazáno": "Zmazané",
+  "zbývá {0} s": "zostáva {0} s",
+  "zbývá {0} min": "zostáva {0} min",
+  "zbývá {0} h {1} min": "zostáva {0} h {1} min",
+  "Titul zatím žádný zdroj nemá — hlídám ho.": "Titul zatiaľ nemá žiadny zdroj — strážim ho.",
+  "{0} sdílí, {1} stahuje": "{0} zdieľa, {1} sťahuje",
+  "stáhne se přes qBittorrent, přehrát půjde až potom": "stiahne sa cez qBittorrent, prehrať pôjde až potom",
+  "Zobrazit nadpis a ikonu": "Zobraziť nadpis a ikonu",
+  "Výchozí přehrávač": "Predvolený prehrávač",
+  "Přehrávače na výběr": "Prehrávače na výber",
+  "Výchozí mobil": "Predvolený mobil",
+  "Senzor stahování": "Senzor sťahovania",
+};
+
+/** Text v jazyce UI z HA (`hass.locale.language`, u starších verzí `hass.language`). */
+function nokturnoText(hass, text, ...args) {
+  const lang = String((hass && ((hass.locale && hass.locale.language) || hass.language)) || "").toLowerCase();
+  const out = lang.startsWith("sk") && SK[text] !== undefined ? SK[text] : text;
+  return args.length ? out.replace(/\{(\d+)\}/g, (m, i) => (args[+i] == null ? "" : String(args[+i]))) : out;
+}
+
 class NokturnoCard extends HTMLElement {
   setConfig(config) {
     this._config = {
@@ -183,7 +308,7 @@ class NokturnoCard extends HTMLElement {
   async _clearCache() {
     await this._guard(async () => {
       await this._call("clear_cache", {}, false);
-      this._toast("Cache hledání a streamů vymazána");
+      this._toast(this._t("Cache hledání a streamů vymazána"));
     });
   }
 
@@ -299,11 +424,11 @@ class NokturnoCard extends HTMLElement {
 
   async _play(stream) {
     const entityId = await this._choose("player");
-    if (!entityId) { if (!this._players().length) this._toast("Není nastavený žádný přehrávač."); return; }
+    if (!entityId) { if (!this._players().length) this._toast(this._t("Není nastavený žádný přehrávač.")); return; }
     this._state.player = entityId;
     await this._guard(async () => {
       await this._call("play", { ...this._target(stream), entity_id: entityId }, false);
-      this._toast(`Spouštím na ${this._friendly(entityId)}`);
+      this._toast(this._t("Spouštím na {0}", this._friendly(entityId)));
     });
   }
 
@@ -394,8 +519,8 @@ class NokturnoCard extends HTMLElement {
     if (list.length === 1) return Promise.resolve(list[0]);
     return this._modal(`<div class="panel">
       <div class="phead">
-        <span class="ptitle">${kind === "phone" ? "Do kterého mobilu?" : "Kde přehrát?"}</span>
-        <button class="pclose" title="Zavřít">×</button>
+        <span class="ptitle">${kind === "phone" ? this._t("Do kterého mobilu?") : this._t("Kde přehrát?")}</span>
+        <button class="pclose" title="${this._t("Zavřít")}">×</button>
       </div>
       ${list.map((v, i) => `<button class="pick" data-pickone="${i}">
         <ha-icon icon="${kind === "phone" ? "mdi:cellphone" : "mdi:cast"}"></ha-icon>
@@ -411,11 +536,11 @@ class NokturnoCard extends HTMLElement {
   _confirm(title, text, label = "Smazat") {
     return this._modal(`<div class="panel">
       <div class="phead"><span class="ptitle">${this._esc(title)}</span>
-        <button class="pclose" title="Zavřít">×</button></div>
+        <button class="pclose" title="${this._t("Zavřít")}">×</button></div>
       <div class="ptext">${this._esc(text)}</div>
       <div class="pfoot">
-        <button class="pbtn" data-no="1">Zpět</button>
-        <button class="pbtn danger" data-yes="1">${this._esc(label)}</button>
+        <button class="pbtn" data-no="1">${this._t("Zpět")}</button>
+        <button class="pbtn danger" data-yes="1">${this._esc(this._t(label))}</button>
       </div>
     </div>`, (wrap, close) => {
       wrap.querySelector("[data-no]").addEventListener("click", () => close(null));
@@ -426,7 +551,7 @@ class NokturnoCard extends HTMLElement {
   async _download(stream) {
     await this._guard(async () => {
       const res = await this._call("download", this._target(stream));
-      this._toast(`Stahuji do ${res.path || "úložiště"}`);
+      this._toast(this._t("Stahuji do {0}", res.path || this._t("úložiště")));
     });
   }
 
@@ -456,7 +581,7 @@ class NokturnoCard extends HTMLElement {
       // torrenty patří nad streamy — kvůli nim se hledalo, tak ať jsou hned vidět
       this._state.streams = (res.streams || []).concat(this._state.streams);
       this._state.torrents = true;
-      if (!(res.streams || []).length) this._toast("Na trackerech nic nenašel");
+      if (!(res.streams || []).length) this._toast(this._t("Na trackerech nic nenašel"));
     });
     this._state.finding = false;
     this._paint();
@@ -474,7 +599,7 @@ class NokturnoCard extends HTMLElement {
       const added = (res.streams || []).filter((s) => !known.has(s.url));
       this._state.streams = this._state.streams.concat(added);
       this._state.fulltext = true;
-      if (!added.length) this._toast("Fulltext nic dalšího nenašel");
+      if (!added.length) this._toast(this._t("Fulltext nic dalšího nenašel"));
     });
     this._state.finding = false;
     this._paint();
@@ -483,13 +608,13 @@ class NokturnoCard extends HTMLElement {
   async _downloadTorrent(stream) {
     await this._guard(async () => {
       await this._call("download_torrent", { url: stream.url, name: stream.file || "" }, false);
-      this._toast("Torrent zařazen do stahování");
+      this._toast(this._t("Torrent zařazen do stahování"));
     });
   }
 
   async _toPhone(stream) {
     const target = await this._choose("phone");
-    if (!target) { if (!this._phones().length) this._toast("Nenašel jsem žádný mobil s aplikací Home Assistant."); return; }
+    if (!target) { if (!this._phones().length) this._toast(this._t("Nenašel jsem žádný mobil s aplikací Home Assistant.")); return; }
     this._state.phone = target;
     await this._guard(async () => {
       await this._call("send_link", {
@@ -497,7 +622,7 @@ class NokturnoCard extends HTMLElement {
         notify_service: target,
         name: `${this._state.title || ""} — ${stream.label}`.trim(),
       }, false);
-      this._toast(`Odkaz odeslán: ${this._phoneName(target)}`);
+      this._toast(this._t("Odkaz odeslán: {0}", this._phoneName(target)));
     });
   }
 
@@ -530,9 +655,9 @@ class NokturnoCard extends HTMLElement {
       const res = await this._call("resolve", this._target(stream));
       if (!res.url) return;
       if (this._copy(res.url)) {
-        this._toast("Odkaz zkopírován — vlož ho do VLC nebo prohlížeče");
+        this._toast(this._t("Odkaz zkopírován — vlož ho do VLC nebo prohlížeče"));
       } else {
-        window.prompt("Zkopíruj odkaz (Ctrl+C):", res.url);
+        window.prompt(this._t("Zkopíruj odkaz (Ctrl+C):"), res.url);
       }
     });
   }
@@ -566,7 +691,7 @@ class NokturnoCard extends HTMLElement {
     return this._guard(async () => {
       const res = await this._call("search", { query: item.title || item.label, type, limit: 1 });
       const found = (res.results || [])[0];
-      if (!found) { this._toast("Titul se nepodařilo najít."); this._state.stack.pop(); return; }
+      if (!found) { this._toast(this._t("Titul se nepodařilo najít.")); this._state.stack.pop(); return; }
       this._state.item = found;
       const streams = await this._call("streams", { id: found.id, type, alt: found.alt, title: found.title, year: found.year });
       this._state.streams = streams.streams || [];
@@ -774,10 +899,10 @@ class NokturnoCard extends HTMLElement {
           <h2>${this._esc(this._config.title)}</h2>
         </div>
         <div class="bar" id="search">
-          <ha-input id="q" placeholder="Název filmu nebo seriálu" with-clear></ha-input>
+          <ha-input id="q" placeholder="${this._t("Název filmu nebo seriálu")}" with-clear></ha-input>
           <div class="searchrow">
-            <ha-control-button id="go" title="Hledat ve WebShare, Sosáči a Luně"><ha-icon icon="mdi:magnify"></ha-icon> Hledat<span class="pct"></span></ha-control-button>
-            <ha-control-button id="clearcache" title="Vymazat cache hledání a streamů"><ha-icon icon="mdi:trash-can-outline"></ha-icon></ha-control-button>
+            <ha-control-button id="go" title="${this._t("Hledat ve WebShare, Sosáči a Luně")}"><ha-icon icon="mdi:magnify"></ha-icon> ${this._t("Hledat")}<span class="pct"></span></ha-control-button>
+            <ha-control-button id="clearcache" title="${this._t("Vymazat cache hledání a streamů")}"><ha-icon icon="mdi:trash-can-outline"></ha-icon></ha-control-button>
           </div>
           <ha-control-select id="type"></ha-control-select>
         </div>
@@ -870,14 +995,14 @@ class NokturnoCard extends HTMLElement {
     const sensor = this._hass && this._hass.states[this._config.downloads];
     const history = (sensor && sensor.attributes.search_history) || [];
     let html = history.length
-      ? `<div class="chips">${history.map((q, i) => `<button class="chip" data-hist="${i}" title="Zopakovat hledání „${this._esc(q)}“">${this._esc(q)}</button>`).join("")}
-         <button class="chip x" data-histclear="1" title="Smazat historii">×</button></div>`
-      : `<div class="muted" style="margin-top:10px">Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.</div>`;
+      ? `<div class="chips">${history.map((q, i) => `<button class="chip" data-hist="${i}" title="${this._t("Zopakovat hledání „{0}“", this._esc(q))}">${this._esc(q)}</button>`).join("")}
+         <button class="chip x" data-histclear="1" title="${this._t("Smazat historii")}">×</button></div>`
+      : `<div class="muted" style="margin-top:10px">${this._t("Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.")}</div>`;
     if (st.continueItems === null) this._loadContinue();
     const cont = st.continueItems || [];
     const manyKodi = new Set(cont.map((c) => c.entity_id)).size > 1;
     if (cont.length) {
-      html += `<div class="section"><ha-icon icon="mdi:play-circle-outline"></ha-icon> Pokračovat ve sledování</div>
+      html += `<div class="section"><ha-icon icon="mdi:play-circle-outline"></ha-icon> ${this._t("Pokračovat ve sledování")}</div>
         <div class="cont">${cont.map((c, i) => `
           <button class="poster" data-cont="${i}" title="${this._esc(c.plot)}">
             <span class="thumb"><ha-icon icon="mdi:filmstrip"></ha-icon>
@@ -890,14 +1015,14 @@ class NokturnoCard extends HTMLElement {
     }
     const trakt = this._traktList();
     if (trakt.length) {
-      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> K zhlédnutí</div>
+      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> ${this._t("K zhlédnutí")}</div>
         <div>${trakt.slice(0, 12).map((t, i) => `
-          <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? `Otevřít streamy — ${t.streams} k dispozici` : "Zatím žádný stream; hlídám a dám vědět"}">
+          <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? this._t("Otevřít streamy — {0} k dispozici", t.streams) : this._t("Zatím žádný stream; hlídám a dám vědět")}">
             <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">
               <ha-icon icon="${t.streams ? "mdi:play-circle-outline" : (t.pending ? "mdi:radar" : "mdi:clock-outline")}" class="ext"></ha-icon>
-              ${t.streams ? (t.torrent ? "jen torrent" : "lze pustit") : (t.pending ? "hlídám" : "zatím ne")}</span>
+              ${this._t(t.streams ? (t.torrent ? "jen torrent" : "lze pustit") : (t.pending ? "hlídám" : "zatím ne"))}</span>
             <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${t.year})</span>` : ""}${
-              t.streams ? ` <span class="muted">· ${t.streams} streamů</span>` : ""}</span>
+              t.streams ? ` <span class="muted">${this._t("· {0} streamů", t.streams)}</span>` : ""}</span>
           </div>`).join("")}</div>`;
     }
     const series = this._watchlist();
@@ -905,17 +1030,17 @@ class NokturnoCard extends HTMLElement {
       html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> Sledované seriály</div>
         <div>${series.map((w, i) => `
           <div class="stream stacked">
-            <span class="tag" style="background:${w.new ? "#2e8b57" : "#777"}">${w.new ? "nový díl" : "sleduji"}</span>
+            <span class="tag" style="background:${w.new ? "#2e8b57" : "#777"}">${w.new ? this._t("nový díl") : this._t("sleduji")}</span>
             <span class="label${w.new ? "" : " label--meta"}">${this._esc(w.title)}${w.new
               ? ` — ${w.new.season}x${String(w.new.episode).padStart(2, "0")} ${this._esc(w.new.title)}`
               : `<span class="muted">${w.available
-                  ? `ke sledování ${w.available.season}x${String(w.available.episode).padStart(2, "0")}${w.available.torrent ? " (jen torrent)" : ""}`
-                  : "zatím bez streamu"}${w.latest && (!w.available || w.latest.episode !== w.available.episode || w.latest.season !== w.available.season)
-                  ? `, odvysíláno ${w.latest.season}x${String(w.latest.episode).padStart(2, "0")}` : ""}</span>`}</span>
+                  ? `${this._t("ke sledování")} ${w.available.season}x${String(w.available.episode).padStart(2, "0")}${w.available.torrent ? ` (${this._t("jen torrent")})` : ""}`
+                  : this._t("zatím bez streamu")}${w.latest && (!w.available || w.latest.episode !== w.available.episode || w.latest.season !== w.available.season)
+                  ? `, ${this._t("odvysíláno")} ${w.latest.season}x${String(w.latest.episode).padStart(2, "0")}` : ""}</span>`}</span>
             <span class="icons">
-              ${w.new ? `<ha-icon-button data-wseen="${i}" title="Označit nový díl jako viděný"><ha-icon icon="mdi:check"></ha-icon></ha-icon-button>` : ""}
-              <ha-icon-button data-wopen="${i}" title="Otevřít"><ha-icon icon="mdi:folder-play-outline"></ha-icon></ha-icon-button>
-              <ha-icon-button data-wremove="${i}" title="Přestat sledovat"><ha-icon icon="mdi:eye-off-outline"></ha-icon></ha-icon-button>
+              ${w.new ? `<ha-icon-button data-wseen="${i}" title="${this._t("Označit nový díl jako viděný")}"><ha-icon icon="mdi:check"></ha-icon></ha-icon-button>` : ""}
+              <ha-icon-button data-wopen="${i}" title="${this._t("Otevřít")}"><ha-icon icon="mdi:folder-play-outline"></ha-icon></ha-icon-button>
+              <ha-icon-button data-wremove="${i}" title="${this._t("Přestat sledovat")}"><ha-icon icon="mdi:eye-off-outline"></ha-icon></ha-icon-button>
             </span>
           </div>`).join("")}</div>`;
     }
@@ -934,7 +1059,7 @@ class NokturnoCard extends HTMLElement {
       await this._call("watch_series", watching
         ? { id: item.id, remove: true }
         : { id: item.id, title: item.title, alt: item.alt || undefined, poster: item.poster || undefined }, false);
-      this._toast(watching ? "Seriál už nesleduji" : "Nové díly budu hlásit");
+      this._toast(watching ? this._t("Seriál už nesleduji") : this._t("Nové díly budu hlásit"));
     });
   }
 
@@ -979,7 +1104,7 @@ class NokturnoCard extends HTMLElement {
         ? { id: target.id, remove: true }
         : { id: target.id, type: target.type, title: target.title, series: target.series || undefined,
             year: target.year || undefined, alt: target.alt || undefined, poster: target.poster || undefined }, false);
-      this._toast(wanted ? "Odebráno ze seznamu" : "Přidáno — dám vědět, až bude ke sledování");
+      this._toast(wanted ? this._t("Odebráno ze seznamu") : this._t("Přidáno — dám vědět, až bude ke sledování"));
     });
   }
 
@@ -993,7 +1118,7 @@ class NokturnoCard extends HTMLElement {
     this._paint();
     await this._guard(async () => {
       await this._call("remove_progress", source, false);
-      this._toast("Odebráno z Pokračovat ve sledování");
+      this._toast(this._t("Odebráno z Pokračovat ve sledování"));
     });
   }
 
@@ -1004,7 +1129,7 @@ class NokturnoCard extends HTMLElement {
     if (!query) {
       // „+“ u seznamu k zhlédnutí s prázdným polem: rovnou nachystat hledání v databázi
       this._state.pendingCatalog = true;
-      this._toast("Napiš název — hledat budu rovnou v databázi filmů.");
+      this._toast(this._t("Napiš název — hledat budu rovnou v databázi filmů."));
       if (this._input && this._input.focus) this._input.focus();
       return;
     }
@@ -1019,17 +1144,17 @@ class NokturnoCard extends HTMLElement {
       this._pickType();
       st.catalog = true;
       st.view = "results";
-      if (!st.results.length) this._toast("V databázi filmů nic takového není.");
+      if (!st.results.length) this._toast(this._t("V databázi filmů nic takového není."));
     });
   }
 
   async _wantQuery() {
     const query = (this._state.query || this._readInput() || "").trim();
-    if (!query) { this._toast("Napiš nejdřív název do pole pro hledání."); return; }
+    if (!query) { this._toast(this._t("Napiš nejdřív název do pole pro hledání.")); return; }
     this._state.searching = true;
     await this._guard(async () => {
       await this._call("want_to_watch", { query, type: this._state.type === "series" ? "series" : "movie" }, false);
-      this._toast(`Hlídám „${query}" — dám vědět, až bude ke sledování`);
+      this._toast(this._t("Hlídám „{0}\" — dám vědět, až bude ke sledování", query));
       this._state.view = "search";
     });
   }
@@ -1055,17 +1180,17 @@ class NokturnoCard extends HTMLElement {
     const st = this._state;
     // databáze filmů je po ruce vždycky — zdroje můžou najít něco jiného, než uživatel hledal
     const home = `<div class="chips">
-      <button class="chip" data-back="search" title="Zpět na úvodní obrazovku"><ha-icon icon="mdi:home-outline" style="--mdc-icon-size:14px"></ha-icon> Úvod</button>
+      <button class="chip" data-back="search" title="${this._t("Zpět na úvodní obrazovku")}"><ha-icon icon="mdi:home-outline" style="--mdc-icon-size:14px"></ha-icon> Úvod</button>
       ${st.catalog
-        ? `<button class="chip" data-research="1" title="Zpět na výsledky z WebShare, Sosáče a Luny"><ha-icon icon="mdi:magnify" style="--mdc-icon-size:14px"></ha-icon> Zpět k výsledkům ze zdrojů</button>`
-        : `<button class="chip" data-catalog="1" title="Hledat v databázi filmů (IMDb/TMDB) — najde i tituly, které zdroje nemají"><ha-icon icon="mdi:database-search-outline" style="--mdc-icon-size:14px"></ha-icon> Hledat v databázi filmů</button>`}
+        ? `<button class="chip" data-research="1" title="${this._t("Zpět na výsledky z WebShare, Sosáče a Luny")}"><ha-icon icon="mdi:magnify" style="--mdc-icon-size:14px"></ha-icon> ${this._t("Zpět k výsledkům ze zdrojů")}</button>`
+        : `<button class="chip" data-catalog="1" title="${this._t("Hledat v databázi filmů (IMDb/TMDB) — najde i tituly, které zdroje nemají")}"><ha-icon icon="mdi:database-search-outline" style="--mdc-icon-size:14px"></ha-icon> ${this._t("Hledat v databázi filmů")}</button>`}
     </div>`;
     if (!st.results.length) return home + `<div class="muted" style="margin-top:10px">${st.catalog
-      ? "V databázi filmů nic takového není."
-      : "Ve zdrojích nic nenalezeno — zkus databázi filmů."}</div>`;
+      ? this._t("V databázi filmů nic takového není.")
+      : this._t("Ve zdrojích nic nenalezeno — zkus databázi filmů.")}</div>`;
     const files = st.results.every((r) => r.type === "file");
     const hint = st.catalog
-      ? `<div class="muted" style="margin-top:8px">Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš do seznamu k zhlédnutí.</div>` : "";
+      ? `<div class="muted" style="margin-top:8px">${this._t("Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš do seznamu k zhlédnutí.")}</div>` : "";
     return home + hint + `<div class="grid${files ? " files" : ""}">` + st.results.map((r, i) => `
       <button class="poster" data-open="${i}" title="${this._esc(
         [r.title + (r.year ? ` (${r.year})` : ""), r.description].filter(Boolean).join("\n"))}">
@@ -1085,18 +1210,18 @@ class NokturnoCard extends HTMLElement {
     return this._hero() + `
       <div class="bar detail">
         <div class="titlerow">
-          <ha-icon-button data-back="back" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
+          <ha-icon-button data-back="back" title="${this._t("Zpět")}"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
           <span class="name">${this._esc(st.item.title)}${st.item.year ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
-          <ha-icon-button data-watch="1" title="${this._isWatched(st.item.id) ? "Přestat sledovat" : "Sledovat nové díly"}">
+          <ha-icon-button data-watch="1" title="${this._isWatched(st.item.id) ? this._t("Přestat sledovat") : this._t("Sledovat nové díly")}">
             <ha-icon icon="${this._isWatched(st.item.id) ? "mdi:eye-check" : "mdi:eye-plus-outline"}"></ha-icon>
           </ha-icon-button>
         </div>
         <span class="picks">
-          ${this._pick("season", "Sezóna", st.seasons.map((n) => ({ value: String(n), label: n === 0 ? "Speciály" : "Sezóna " + n })), String(st.season))}
+          ${this._pick("season", this._t("Sezóna"), st.seasons.map((n) => ({ value: String(n), label: n === 0 ? this._t("Speciály") : this._t("Sezóna") + " " + n })), String(st.season))}
         </span>
       </div>
       <div>${list.map((e, i) => `
-        <div class="ep" data-ep="${i}" title="Zobrazit streamy epizody">
+        <div class="ep" data-ep="${i}" title="${this._t("Zobrazit streamy epizody")}">
           <span class="n">${e.season}x${String(e.episode).padStart(2, "0")}</span>
           <span>${this._esc(e.title)}</span>
         </div>`).join("")}</div>`;
@@ -1107,7 +1232,7 @@ class NokturnoCard extends HTMLElement {
     const w = this._state.warnings || [];
     if (!w.length) return "";
     return `<div class="warn"><ha-icon icon="mdi:alert-outline"></ha-icon><span>${
-      w.map((line) => this._esc(line)).join("<br>")}<br><span class="muted">Přeskočeno — streamy jsou z ostatních zdrojů.</span></span></div>`;
+      w.map((line) => this._esc(line)).join("<br>")}<br><span class="muted">${this._t("Přeskočeno — streamy jsou z ostatních zdrojů.")}</span></span></div>`;
   }
 
   _streams() {
@@ -1120,15 +1245,15 @@ class NokturnoCard extends HTMLElement {
     const head = this._hero() + `
       <div class="bar detail">
         <div class="titlerow">
-          <ha-icon-button data-back="back" title="Zpět"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
+          <ha-icon-button data-back="back" title="${this._t("Zpět")}"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
           <span class="name">${this._esc(st.title)}${st.item && st.item.year && !st.episode
             && !String(st.title).includes(String(st.item.year)) ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
           ${st.item ? (() => {
             const saved = this._isWanted((this._wantTarget() || {}).id);
-            return `<ha-icon-button data-want="1" title="${saved ? "Odebrat ze seznamu k zhlédnutí" : "Přidat do seznamu k zhlédnutí"}">
+            return `<ha-icon-button data-want="1" title="${saved ? this._t("Odebrat ze seznamu k zhlédnutí") : this._t("Přidat do seznamu k zhlédnutí")}">
             <ha-icon icon="${saved ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
           </ha-icon-button>`; })() : ""}
-          ${st.continueSource ? `<ha-icon-button data-removeprogress="1" title="Odebrat z Pokračovat ve sledování">
+          ${st.continueSource ? `<ha-icon-button data-removeprogress="1" title="${this._t("Odebrat z Pokračovat ve sledování")}">
             <ha-icon icon="mdi:close-circle-outline"></ha-icon>
           </ha-icon-button>` : ""}
         </div>
@@ -1136,8 +1261,8 @@ class NokturnoCard extends HTMLElement {
     // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání.
     // Hledání trvá pár sekund, takže se točí kolečko i v tlačítku, nejen přes fotku.
     const torrentBtn = st.torrents || !this._hasTorrents() ? "" : `<div class="chips" style="margin:8px 0 2px">
-      <button class="chip" data-findtorrents="1"${st.busy ? " disabled" : ""} title="Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání">
-        <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:magnify-scan"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? "Hledám torrenty…" : "Hledat torrenty"}
+      <button class="chip" data-findtorrents="1"${st.busy ? " disabled" : ""} title="${this._t("Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání")}">
+        <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:magnify-scan"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? this._t("Hledám torrenty…") : this._t("Hledat torrenty")}
       </button></div>`;
     // ruční, uvolněné hledání na WebShare/HellSpy — pro případ, že přísný filtr
     // skutečnou shodu zahodil (nebo naopak, i mezi nalezenými je dobré umět ověřit).
@@ -1146,27 +1271,27 @@ class NokturnoCard extends HTMLElement {
     const fNames = fsrc.map((k) => ({ ws: "WebShare", hs: "HellSpy", st: "Sledujteto" })[k]);
     const fLabel = fNames.length > 1 ? `${fNames.slice(0, -1).join(", ")} a ${fNames[fNames.length - 1]}` : (fNames[0] || "");
     const fulltextBtn = st.fulltext || !fsrc.length ? "" : `<div class="chips" style="margin:8px 0 2px">
-      <button class="chip" data-findfulltext="1"${st.busy ? " disabled" : ""} title="Uvolněné hledání podle slov v názvu souboru — najde i to, co přísný filtr zahodí jako podobný, ale jiný titul">
-        <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:text-search"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? "Hledám…" : `Zkusit fulltext na ${fLabel}`}
+      <button class="chip" data-findfulltext="1"${st.busy ? " disabled" : ""} title="${this._t("Uvolněné hledání podle slov v názvu souboru — najde i to, co přísný filtr zahodí jako podobný, ale jiný titul")}">
+        <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:text-search"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? this._t("Hledám…") : this._t("Zkusit fulltext na {0}", fLabel)}
       </button></div>`;
-    if (!st.streams.length) return head + torrentBtn + fulltextBtn + `<div class="muted empty">Pro tento titul se nenašel žádný stream.${
-      st.item && st.item.source === "katalog" ? " Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví." : ""}</div>`;
+    if (!st.streams.length) return head + torrentBtn + fulltextBtn + `<div class="muted empty">${this._t("Pro tento titul se nenašel žádný stream.")}${
+      st.item && st.item.source === "katalog" ? " " + this._t("Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví.") : ""}</div>`;
     const legend = st.streams.some((s) => s.direct)
-      ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = hraje i mimo domácí síť</div>` : "";
+      ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = ${this._t("hraje i mimo domácí síť")}</div>` : "";
     return head + torrentBtn + legend + `<div>${st.streams.map((s, i) => `
       <div class="stream" title="${this._esc(this._streamTitle(s))}">
         <span class="tag" style="background:${SOURCE_COLORS[s.source] || (String(s.url || "").startsWith("dav:") ? "#5f9e3a" : "#777")}">${s.source || "?"}${
-          s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="Hraje i mimo domácí síť"></ha-icon>` : ""}${
-          s._loose ? `<ha-icon class="ext" icon="mdi:help-circle-outline" title="Neověřeno — z ručního fulltextového hledání, může to být i jiný titul"></ha-icon>` : ""}</span>
+          s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="${this._t("Hraje i mimo domácí síť")}"></ha-icon>` : ""}${
+          s._loose ? `<ha-icon class="ext" icon="mdi:help-circle-outline" title="${this._t("Neověřeno — z ručního fulltextového hledání, může to být i jiný titul")}"></ha-icon>` : ""}</span>
         <span class="label">${this._esc(s.label.replace(s.source + "  ·  ", ""))}</span>
         <span class="icons wide">${s.kind === "torrent"
           // torrent není odkaz na video: nedá se přehrát ani poslat do mobilu,
           // nejdřív ho musí stáhnout torrentový klient
-          ? `<ha-control-button class="span4" data-torrent="${i}" title="Zařadit ke stažení do qBittorrentu — až se soubor stáhne, objeví se mezi staženými"><ha-icon icon="mdi:download-network-outline"></ha-icon> Stáhnout torrent</ha-control-button>`
-          : `<ha-control-button data-play="${i}" title="Přehrát"><ha-icon icon="mdi:play"></ha-icon></ha-control-button>
-          <ha-control-button data-phone="${i}" title="Poslat do mobilu"><ha-icon icon="mdi:cellphone-play"></ha-icon></ha-control-button>
-          <ha-control-button data-dl="${i}" title="Stáhnout"><ha-icon icon="mdi:download"></ha-icon></ha-control-button>
-          <ha-control-button data-link="${i}" title="Zkopírovat odkaz"><ha-icon icon="mdi:link-variant"></ha-icon></ha-control-button>`}
+          ? `<ha-control-button class="span4" data-torrent="${i}" title="${this._t("Zařadit ke stažení do qBittorrentu — až se soubor stáhne, objeví se mezi staženými")}"><ha-icon icon="mdi:download-network-outline"></ha-icon> ${this._t("Stáhnout torrent")}</ha-control-button>`
+          : `<ha-control-button data-play="${i}" title="${this._t("Přehrát")}"><ha-icon icon="mdi:play"></ha-icon></ha-control-button>
+          <ha-control-button data-phone="${i}" title="${this._t("Poslat do mobilu")}"><ha-icon icon="mdi:cellphone-play"></ha-icon></ha-control-button>
+          <ha-control-button data-dl="${i}" title="${this._t("Stáhnout")}"><ha-icon icon="mdi:download"></ha-icon></ha-control-button>
+          <ha-control-button data-link="${i}" title="${this._t("Zkopírovat odkaz")}"><ha-icon icon="mdi:link-variant"></ha-icon></ha-control-button>`}
         </span>
       </div>`).join("")}</div>${fulltextBtn}`;
   }
@@ -1197,7 +1322,7 @@ class NokturnoCard extends HTMLElement {
           <img src="${this._esc(art)}" referrerpolicy="no-referrer" />
           ${st.busy ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon><span class="pct"></span></span>` : ""}
         </span>` : ""}
-        ${text ? `<div class="desc${st.descOpen ? " open" : ""}" data-toggle="desc" title="Klepnutím rozbalíš">${this._esc(text)}</div>` : ""}
+        ${text ? `<div class="desc${st.descOpen ? " open" : ""}" data-toggle="desc" title="${this._t("Klepnutím rozbalíš")}">${this._esc(text)}</div>` : ""}
       </div>`;
   }
 
@@ -1231,34 +1356,34 @@ class NokturnoCard extends HTMLElement {
     this._active = active;
     if (!active.length && !shown.length) { box.hidden = true; box.innerHTML = ""; return; }
     box.hidden = false;
-    box.innerHTML = (active.length ? `<div class="section"><ha-icon icon="mdi:progress-download"></ha-icon> Stahování</div>` : "")
+    box.innerHTML = (active.length ? `<div class="section"><ha-icon icon="mdi:progress-download"></ha-icon> ${this._t("Stahování")}</div>` : "")
       + active.map((j, i) => `
       <div class="dljob">
         <div class="dlrow">
           <span class="muted">${this._esc(j.name)}</span>
-          <span class="muted">${j.status === "queued" ? "ve frontě" : j.percent + " %"}</span>
+          <span class="muted">${j.status === "queued" ? this._t("ve frontě") : j.percent + " %"}</span>
         </div>
         <div class="prog"><div style="width:${j.percent || 0}%"></div></div>
         <div class="dlrow dlinfo">
-          <span class="muted">${j.status === "queued" ? "čeká na svoje místo ve frontě"
+          <span class="muted">${j.status === "queued" ? this._t("čeká na svoje místo ve frontě")
             : [this._speed(j.speed), this._eta(j.eta),
                j.size ? `${this._size(j.done)} z ${this._size(j.size)}` : ""].filter(Boolean).join(" · ")}</span>
-          ${j.status === "queued" ? `<ha-icon-button data-dlstart="${i}" title="Spustit hned">
+          ${j.status === "queued" ? `<ha-icon-button data-dlstart="${i}" title="${this._t("Spustit hned")}">
             <ha-icon icon="mdi:play"></ha-icon></ha-icon-button>` : ""}
-          <ha-icon-button data-dlcancel="${i}" title="Zrušit stahování">
+          <ha-icon-button data-dlcancel="${i}" title="${this._t("Zrušit stahování")}">
             <ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
         </div>
       </div>`).join("") + (shown.length ? `
-      <div class="section"><ha-icon icon="mdi:folder-download-outline"></ha-icon> Stažené
-        ${sensor && sensor.attributes.free_gb != null ? `<span class="muted" style="font-weight:400">· volných ${sensor.attributes.free_gb} GB</span>` : ""}</div>
+      <div class="section"><ha-icon icon="mdi:folder-download-outline"></ha-icon> ${this._t("Stažené")}
+        ${sensor && sensor.attributes.free_gb != null ? `<span class="muted" style="font-weight:400">${this._t("· volných {0} GB", sensor.attributes.free_gb)}</span>` : ""}</div>
       ${shown.map((f, i) => `
         <div class="file" title="${this._esc(f.path)}">
           <span class="label">${this._esc(f.name)}${f.subtitles ? ` <span class="muted">· ${f.subtitles}× titulky</span>` : ""}</span>
           <span class="muted">${this._size(f.size)}</span>
           <span class="icons">
-            <ha-icon-button data-fileplay="${i}" title="Přehrát"><ha-icon icon="mdi:play"></ha-icon></ha-icon-button>
-            <ha-icon-button data-fileshare="${i}" title="Poslat odkaz do mobilu"><ha-icon icon="mdi:cellphone-play"></ha-icon></ha-icon-button>
-            <ha-icon-button data-filedel="${i}" title="Smazat i s titulky"><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
+            <ha-icon-button data-fileplay="${i}" title="${this._t("Přehrát")}"><ha-icon icon="mdi:play"></ha-icon></ha-icon-button>
+            <ha-icon-button data-fileshare="${i}" title="${this._t("Poslat odkaz do mobilu")}"><ha-icon icon="mdi:cellphone-play"></ha-icon></ha-icon-button>
+            <ha-icon-button data-filedel="${i}" title="${this._t("Smazat i s titulky")}"><ha-icon icon="mdi:delete-outline"></ha-icon></ha-icon-button>
           </span>
         </div>`).join("")}` : "");
     // ha-select vzniká i tady, takže se musí naplnit stejně jako v těle karty
@@ -1293,7 +1418,7 @@ class NokturnoCard extends HTMLElement {
     if (!job) return;
     await this._guard(async () => {
       await this._call("cancel_download", { download_id: job.id }, false);
-      this._toast(`Stahování „${job.name}" zrušeno`);
+      this._toast(this._t("Stahování „{0}\" zrušeno", job.name));
     });
   }
 
@@ -1301,13 +1426,13 @@ class NokturnoCard extends HTMLElement {
     if (!job) return;
     await this._guard(async () => {
       await this._call("start_download", { download_id: job.id }, false);
-      this._toast(`Stahování „${job.name}" spuštěno`);
+      this._toast(this._t("Stahování „{0}\" spuštěno", job.name));
     });
   }
 
   async _playFile(file) {
     const entityId = await this._choose("player");
-    if (!entityId) { if (!this._players().length) this._toast("Není nastavený žádný přehrávač."); return; }
+    if (!entityId) { if (!this._players().length) this._toast(this._t("Není nastavený žádný přehrávač.")); return; }
     this._state.player = entityId;
     await this._guard(async () => {
       await this._hass.callService("media_player", "play_media", {
@@ -1315,7 +1440,7 @@ class NokturnoCard extends HTMLElement {
         media_content_type: "video",
         media_content_id: `media-source://media_source/local/${this._folder()}${file.name}`,
       });
-      this._toast(`Spouštím na ${this._friendly(entityId)}`);
+      this._toast(this._t("Spouštím na {0}", this._friendly(entityId)));
     });
   }
 
@@ -1334,18 +1459,18 @@ class NokturnoCard extends HTMLElement {
     this._state.phone = target || this._state.phone;
     await this._guard(async () => {
       const res = await this._call("share_file", { path: file.path, notify_service: target || undefined });
-      this._toast(res.url ? `Odkaz odeslán: ${this._phoneName(target)}` : "Odkaz se nepodařilo vytvořit");
+      this._toast(res.url ? this._t("Odkaz odeslán: {0}", this._phoneName(target)) : this._t("Odkaz se nepodařilo vytvořit"));
     });
   }
 
   async _deleteFile(file) {
     if (!file) return;
-    const ok = await this._confirm("Smazat soubor?",
-      `${file.name}${file.subtitles ? " i s titulky" : ""}. Když film přišel z torrentu, odebere se i ten z qBittorrentu.`);
+    const ok = await this._confirm(this._t("Smazat soubor?"),
+      `${file.name}${file.subtitles ? " " + this._t("i s titulky") : ""}. ${this._t("Když film přišel z torrentu, odebere se i ten z qBittorrentu.")}`);
     if (!ok) return;
     await this._guard(async () => {
       await this._call("delete_file", { path: file.path }, false);
-      this._toast("Smazáno");
+      this._toast(this._t("Smazáno"));
     });
   }
 
@@ -1358,11 +1483,11 @@ class NokturnoCard extends HTMLElement {
   /** Zbývající čas — u dlouhých stahování stačí minuty, sekundy jen na konci. */
   _eta(seconds) {
     if (seconds == null || seconds < 0) return "";
-    if (seconds < 60) return `zbývá ${Math.round(seconds)} s`;
+    if (seconds < 60) return this._t("zbývá {0} s", Math.round(seconds));
     const min = Math.round(seconds / 60);
-    if (min < 60) return `zbývá ${min} min`;
+    if (min < 60) return this._t("zbývá {0} min", min);
     const h = Math.floor(min / 60);
-    return `zbývá ${h} h ${String(min % 60).padStart(2, "0")} min`;
+    return this._t("zbývá {0} h {1} min", h, String(min % 60).padStart(2, "0"));
   }
 
   _size(bytes) {
@@ -1422,7 +1547,7 @@ class NokturnoCard extends HTMLElement {
     if (data.trakt !== undefined) {
       const t = this._traktList()[+data.trakt];
       if (!t) return undefined;
-      if (t.pending) { this._toast("Titul zatím žádný zdroj nemá — hlídám ho."); return undefined; }
+      if (t.pending) { this._toast(this._t("Titul zatím žádný zdroj nemá — hlídám ho.")); return undefined; }
       const parts = String(t.id).split(":");
       if (parts.length === 3) {
         // uložený díl: seznam epizod by byl objížďka, otevřít rovnou jeho streamy
@@ -1487,13 +1612,16 @@ class NokturnoCard extends HTMLElement {
     if (s.subs && s.subs.length) rows.push("titulky: " + s.subs.join(", "));
     if (s.length_min) rows.push(`${s.length_est ? "~" : ""}${Math.floor(s.length_min / 60)}:${String(s.length_min % 60).padStart(2, "0")}`);
     if (s.bitrate) rows.push(`${s.bitrate_est ? "~" : ""}${s.bitrate} Mb/s`);
-    if (s.direct) rows.push("hraje i mimo domácí síť");
+    if (s.direct) rows.push(this._t("hraje i mimo domácí síť"));
     if (s.kind === "torrent") {
-      rows.push(`${s.tracker || "tracker"}: ${s.seeders} sdílí, ${s.leechers} stahuje`);
-      rows.push("stáhne se přes qBittorrent, přehrát půjde až potom");
+      rows.push(`${s.tracker || "tracker"}: ${this._t("{0} sdílí, {1} stahuje", s.seeders, s.leechers)}`);
+      rows.push(this._t("stáhne se přes qBittorrent, přehrát půjde až potom"));
     }
     return rows.filter(Boolean).join("\n");
   }
+
+  /** Text karty v jazyce UI — viz slovník SK nahoře. */
+  _t(text, ...args) { return nokturnoText(this._hass, text, ...args); }
 
   _esc(text) {
     return String(text == null ? "" : text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -1515,6 +1643,8 @@ class NokturnoCardEditor extends HTMLElement {
       this._form.schema = this._schema();
     }
   }
+
+  _t(text, ...args) { return nokturnoText(this._hass, text, ...args); }
 
   _phoneOptions() {
     const sensor = this._hass && this._hass.states[this._config.downloads || "sensor.nokturno_stahovani"];
@@ -1540,7 +1670,7 @@ class NokturnoCardEditor extends HTMLElement {
   }
 
   _label(schema) {
-    return {
+    const label = {
       title: "Nadpis karty",
       show_header: "Zobrazit nadpis a ikonu",
       player: "Výchozí přehrávač",
@@ -1548,6 +1678,7 @@ class NokturnoCardEditor extends HTMLElement {
       phone: "Výchozí mobil",
       downloads: "Senzor stahování",
     }[schema.name] || schema.name;
+    return this._t(label);
   }
 
   _render() {

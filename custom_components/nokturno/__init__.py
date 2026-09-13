@@ -240,6 +240,16 @@ def episode_target(engine: Engine, call_data: dict) -> tuple[str, str, str | Non
     return ctype, item_id, series, alt
 
 
+def _stats_title(engine: Engine, ctype: str, item_id: str, series_id: str | None) -> tuple[str, int | None, str]:
+    """Titul, rok a typ pro anonymní statistiku zhlédnutí — stejná logika jako
+    v Kodi doplňku (`default.py`, `list_streams`): do statistik jde titul bez roku,
+    ten se posílá zvlášť polem `year` (jinak by se v dashboardu zdvojil)."""
+    meta, video = engine.meta(ctype, item_id, series_id)
+    year = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
+    title = meta.get("_title") or meta.get("name") or ""
+    return title, int(year) if year.isdigit() else None, "series" if video is not None else ctype
+
+
 def android_play_intent(url: str, mime: str = "video/*") -> str:
     """Android Intent URI, co telefonu nabídne přehrávače (VLC, MX Player…),
     ne jen otevření v prohlížeči.
@@ -1203,9 +1213,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"count": len(results), "results": results}
 
     async def handle_streams(call: ServiceCall):
-        _ctype, _item_id, _series, _alt, streams = await _streams(call.data)
+        ctype, item_id, series, _alt, streams = await _streams(call.data)
         if options.get(CONF_STATS_ENABLED, True):
             await hass.async_add_executor_job(stats.note_use)
+            # u titulu se právě zobrazily streamy — nezávisle na tom, jestli si uživatel
+            # nějaký pustí (spousta streamů nejde přehrát vůbec, to nic neříká o tom,
+            # jak je titul žádaný). Selhání dohledání názvu nesmí spadnout celou odpověď.
+            try:
+                title, year, kind = await hass.async_add_executor_job(_stats_title, engine, ctype, item_id, series)
+                await hass.async_add_executor_job(stats.note_play, item_id, title, year, kind)
+            except Exception as err:  # noqa: BLE001 – statistika nesmí shodit funkční odpověď
+                _LOGGER.debug("statistika zhlédnutí %s: %s", item_id, err)
         return {"count": len(streams), "streams": streams}
 
     async def handle_torrents(call: ServiceCall):

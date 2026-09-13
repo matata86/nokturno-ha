@@ -263,11 +263,14 @@ class NokturnoCard extends HTMLElement {
         } catch (err) { /* seriál zatím žádný zdroj nemá */ }
       }
       let streams = [];
+      let warnings = [];
       try {
         const res = await this._call("streams", { id: item.id, type, title: item.title, year: item.year });
         streams = res.streams || [];
+        warnings = res.warnings || [];
       } catch (err) { /* stejně tak film */ }
       st.streams = streams;
+      st.warnings = warnings;
       st.streamTarget = { id: item.id, type };
       st.torrents = false;
       st.fulltext = false;
@@ -280,6 +283,7 @@ class NokturnoCard extends HTMLElement {
     await this._guard(async () => {
       const res = await this._call("streams", { ...data });
       this._state.streams = res.streams || [];
+      this._state.warnings = res.warnings || [];
       this._state.streamTarget = data;
       this._state.torrents = false;   // torrenty se u nového titulu hledají znovu
       this._state.fulltext = false;   // stejně tak ruční fulltext
@@ -565,6 +569,7 @@ class NokturnoCard extends HTMLElement {
       this._state.item = found;
       const streams = await this._call("streams", { id: found.id, type, alt: found.alt, title: found.title, year: found.year });
       this._state.streams = streams.streams || [];
+      this._state.warnings = streams.warnings || [];
       this._state.streamTarget = { id: found.id, type, alt: found.alt };
       this._state.view = "streams";
     });
@@ -740,6 +745,10 @@ class NokturnoCard extends HTMLElement {
         .muted { color: var(--secondary-text-color); font-size:.85rem; }
         .muted.empty { margin:12px 2px 4px; }
         .err { color: var(--error-color); font-size:.85rem; margin-top:8px; }
+        .warn { display:flex; gap:8px; align-items:flex-start; margin:8px 0 2px; padding:8px 10px; border-radius:10px;
+          font-size:.85rem; color:var(--primary-text-color); background:rgba(var(--rgb-warning-color, 255,152,0), .14);
+          border:1px solid rgba(var(--rgb-warning-color, 255,152,0), .45); }
+        .warn ha-icon { --mdc-icon-size:18px; color:var(--warning-color, #ff9800); flex:none; margin-top:1px; }
         .ep { display:flex; gap:8px; align-items:center; padding:9px 0; border-bottom:1px solid var(--divider-color); cursor:pointer; }
         .ep .n { color: var(--secondary-text-color); min-width:46px; font-variant-numeric: tabular-nums; }
         .dl { margin-top:4px; }
@@ -1092,6 +1101,14 @@ class NokturnoCard extends HTMLElement {
         </div>`).join("")}</div>`;
   }
 
+  /** Zdroje, které se při hledání přeskočily (vypnutý addon Luny…) — výsledky jsou z ostatních. */
+  _streamWarnings() {
+    const w = this._state.warnings || [];
+    if (!w.length) return "";
+    return `<div class="warn"><ha-icon icon="mdi:alert-outline"></ha-icon><span>${
+      w.map((line) => this._esc(line)).join("<br>")}<br><span class="muted">Přeskočeno — streamy jsou z ostatních zdrojů.</span></span></div>`;
+  }
+
   _streams() {
     const st = this._state;
     const players = this._players();
@@ -1114,7 +1131,7 @@ class NokturnoCard extends HTMLElement {
             <ha-icon icon="mdi:close-circle-outline"></ha-icon>
           </ha-icon-button>` : ""}
         </div>
-      </div>`;
+      </div>` + this._streamWarnings();
     // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání.
     // Hledání trvá pár sekund, takže se točí kolečko i v tlačítku, nejen přes fotku.
     const torrentBtn = st.torrents || !this._hasTorrents() ? "" : `<div class="chips" style="margin:8px 0 2px">

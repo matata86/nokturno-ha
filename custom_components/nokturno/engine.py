@@ -764,15 +764,19 @@ class Engine:
         return {**meta, "name": title, "_title": title,
                 "_orig": meta.get("_orig") or meta.get("name") or ""}
 
-    def _cross_streams(self, ctype, item_id, meta, alt=None):
-        """Streamy z druhého zdroje pro stejný titul (Luna ↔ Sosáč)."""
+    def _cross_streams(self, ctype, item_id, meta, alt=None, failures=None):
+        """Streamy z druhého zdroje pro stejný titul (Luna ↔ Sosáč).
+
+        `failures`, je-li dán, dostane `(zdroj, chyba)` při výpadku — hledá se dál."""
         base_id, season, episode = split_episode_id(item_id)
         if alt and self.sosac and not is_sosac_id(base_id):
             try:
                 target = alt if season is None else self.sosac.episode_id(alt, season, episode)
                 return self.sosac.streams(ctype, target) if target else []
             except Exception as err:  # noqa: BLE001 – nedostupný Sosáč nesmí shodit výpis
-                _LOGGER.debug("cross-search (alt): %s", err)
+                _LOGGER.warning("cross-search (alt): %s", err)
+                if failures is not None:
+                    failures.append(("Sosáč", err))
                 return []
         title = meta.get("_title") or meta.get("name") or ""
         year = self._year(meta)
@@ -800,8 +804,10 @@ class Engine:
             # find_match vrací celé meta, ne id — do streams/episode_id patří match["id"]
             target = match["id"] if season is None else self.sosac.episode_id(match["id"], season, episode)
             return self.sosac.streams(ctype, target) if target else []
-        except Exception as err:  # noqa: BLE001 – výpadek druhého zdroje jen zaloguj
-            _LOGGER.debug("cross-search: %s", err)
+        except Exception as err:  # noqa: BLE001 – výpadek druhého zdroje nesmí shodit výpis
+            _LOGGER.warning("cross-search: %s", err)
+            if failures is not None:
+                failures.append(("Luna" if is_sosac_id(base_id) else "Sosáč", err))
             return []
 
     def _describe(self, stream, index):
@@ -961,7 +967,7 @@ class Engine:
 
         return [q.strip() for q in dict.fromkeys(queries) if q.strip()], relevant
 
-    def _webshare_streams(self, meta, video=None, ctype="movie", alt=None, strict=True):
+    def _webshare_streams(self, meta, video=None, ctype="movie", alt=None, strict=True, failures=None):
         """Tytéž soubory přímo z WebShare — jejich odkazy fungují i mimo domácí síť.
 
         Streamy přes Lunu míří na její lokální adresu (`http://192.168.1.10:7126/…`),
@@ -977,7 +983,9 @@ class Engine:
             try:
                 files, _total = self.ws.search(query, limit=WS_LIMIT)
             except WebshareError as err:
-                _LOGGER.debug("WebShare hledání „%s“: %s", query, err)
+                _LOGGER.warning("WebShare hledání „%s“: %s", query, err)
+                if failures is not None:
+                    failures.append(("WebShare", err))
                 continue
             for f in files:
                 if f["ident"] in seen or not relevant(f.get("name") or ""):
@@ -1095,7 +1103,7 @@ class Engine:
                 stream["_bitrate_est"] = not duration
         return streams
 
-    def _hellspy_streams(self, meta, video=None, ctype="movie", alt=None, strict=True):
+    def _hellspy_streams(self, meta, video=None, ctype="movie", alt=None, strict=True, failures=None):
         """Tentýž titul na HellSpy. Nabízí se původní soubor, ne překódování, takže
         název i velikost popisují to, co se opravdu přehraje — viz `lib/hellspy_api`."""
         if not self.hs:
@@ -1106,7 +1114,9 @@ class Engine:
             try:
                 files, _next = self.hs.search(query, limit=HS_LIMIT)
             except HellspyError as err:
-                _LOGGER.debug("HellSpy hledání „%s“: %s", query, err)
+                _LOGGER.warning("HellSpy hledání „%s“: %s", query, err)
+                if failures is not None:
+                    failures.append(("HellSpy", err))
                 continue
             for f in files:
                 name = f.get("name") or ""
@@ -1475,7 +1485,7 @@ class Engine:
     # kroků v _fetch_streams(), než začne (obvykle nejdelší) čtení hlaviček
     STREAM_SOURCE_STEPS = 5
 
-    def streams(self, ctype, item_id, alt=None, series_id=None, on_progress=None):
+    def streams(self, ctype, item_id, alt=None, series_id=None, on_progress=None, failures=None):
         """Seřazené streamy titulu ze všech dostupných zdrojů.
 
         Síťové dohledání streamů se cachuje 72 h, ale JEN když něco našlo (`cached_if`) —
@@ -1486,7 +1496,13 @@ class Engine:
         `on_progress(done, total)`, je-li dán, se volá po každé fázi — synchronně,
         přímo z tohohle (executor) vlákna. Volající (`__init__.py`) si musí sám
         ošetřit bezpečný přechod zpátky na event loop, engine o hass/asyncio nic neví.
+
+        Výpadek jednoho zdroje nezastaví ostatní. `failures`, je-li dán (seznam), dostane
+        `(zdroj, chyba)` za každý přeskočený — volající z nich udělá upozornění přes
+        `lib/source_errors.summarize`. Výsledek s výpadkem se **necachuje**: jinak by
+        streamy vypnuté Luny chyběly 72 h i po jejím návratu.
         """
+        failures = [] if failures is None else failures
         total = self.STREAM_SOURCE_STEPS + AUDIO_PROBE_MAX
         done = [0]
 
@@ -1513,22 +1529,29 @@ class Engine:
                 api = self.api_for(base_id)
                 found = api.streams(ctype, item_id, include_search=True) if isinstance(api, LunaApi) \
                     else api.streams(ctype, item_id)
-            except Exception as err:  # noqa: BLE001 – výpadek zdroje (i chybějící Luna/Sosáč
-                                       # u titulu z Cinemety/TMDB) = prázdno, ne chyba služby;
+            except Exception as err:  # noqa: BLE001 – výpadek zdroje = prázdno, ne chyba služby;
                                        # cross/WebShare/HellSpy níž to samy doženou
                 _LOGGER.warning("streamy %s: %s", item_id, err)
+                # chybějící zdroj (titul z Cinemety, Luna nenastavená) není výpadek
+                if not (isinstance(err, NokturnoError) and "není nastaven" in str(err).lower()):
+                    failures.append(("Sosáč" if is_sosac_id(base_id) else "Luna", err))
                 found = []
             tick()
             # titul otevřený jen podle IMDb id (z databáze filmů) má v metadatech mezinárodní přepis
             # („Sunday League…“), pod kterým Sosáč nic nenajde — podstrčíme mu český název z TMDB
             if not found and not alt and not is_sosac_id(base_id) and str(base_id).startswith("tt"):
                 meta = self._with_local_title(ctype, base_id, meta)
-            found += self._cross_streams(ctype, item_id, meta, alt)
-            tick()
-            found += self._webshare_streams(meta, video, ctype, alt)
-            tick()
-            found += self._hellspy_streams(meta, video, ctype, alt)
-            tick()
+            for label, fetch in (
+                ("Sosáč/Luna", lambda: self._cross_streams(ctype, item_id, meta, alt, failures)),
+                ("WebShare", lambda: self._webshare_streams(meta, video, ctype, alt, failures=failures)),
+                ("HellSpy", lambda: self._hellspy_streams(meta, video, ctype, alt, failures=failures)),
+            ):
+                try:
+                    found += fetch()
+                except Exception as err:  # noqa: BLE001 – ani nečekaná chyba zdroje nesmí shodit ostatní
+                    _LOGGER.warning("streamy %s (%s): %s", item_id, label, err)
+                    failures.append((label, err))
+                tick()
             for stream in found:
                 parse_stream(stream)
                 # bez kvality v názvu („Matrix (1999).mkv") by soubor spadl na konec seznamu,
@@ -1556,7 +1579,8 @@ class Engine:
             return found
 
         cache_key = f"streams:{ctype}:{item_id}:{alt or ''}"
-        found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams)
+        found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams,
+                                     ok=lambda data: bool(data) and not failures)
         # z cache se vrátí rovnou, bez jediného tick() výše — doskočit na konec fáze zdrojů
         if on_progress and done[0] < self.STREAM_SOURCE_STEPS:
             done[0] = self.STREAM_SOURCE_STEPS

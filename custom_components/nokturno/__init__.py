@@ -87,6 +87,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .downloader import Downloader
+from .lib.source_errors import summarize as summarize_failures
 from .lib.stats import COLLECT_URL, Stats
 from .lib.sync import apply_changes, collect_changes
 from .engine import Engine, NokturnoError, _fold, split_episode_id
@@ -1163,10 +1164,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             engine.stream_progress = {"id": item_id, "done": done, "total": total}
             hass.loop.call_soon_threadsafe(async_dispatcher_send, hass, SIGNAL_DOWNLOADS)
 
-        streams = await _in_executor(engine.streams, ctype, item_id, alt, series, on_progress)
+        # zdroje, které selhaly (vypnutý addon Luny…) — hledá se dál, karta jen upozorní
+        failures = []
+        streams = await _in_executor(engine.streams, ctype, item_id, alt, series, on_progress, failures)
         engine.stream_progress = {}
         async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
-        return ctype, item_id, series, alt, streams
+        return ctype, item_id, series, alt, streams, summarize_failures(failures)
 
     async def _chosen_stream(call_data):
         """Vybraný stream (`stream` index) nebo přímé `url`, jinak nejlepší. `query` místo `id` se dohledá."""
@@ -1175,9 +1178,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise HomeAssistantError("Chybí `id` titulu, `query` nebo `url` streamu.")
         if call_data.get("url"):
             return None, None, None, None, {"url": call_data["url"], "label": "", "subtitles": []}
-        ctype, item_id, series, alt, streams = await _streams(call_data)
+        ctype, item_id, series, alt, streams, warnings = await _streams(call_data)
         if not streams:
-            raise HomeAssistantError("Pro tento titul se nenašel žádný stream.")
+            raise HomeAssistantError("Pro tento titul se nenašel žádný stream."
+                                     + (f" Přeskočeno: {'; '.join(warnings)}." if warnings else ""))
         index = call_data.get("stream")
         if index is not None and not 0 <= int(index) < len(streams):
             raise HomeAssistantError(f"Stream č. {index} neexistuje (nalezeno {len(streams)}).")
@@ -1213,7 +1217,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"count": len(results), "results": results}
 
     async def handle_streams(call: ServiceCall):
-        ctype, item_id, series, _alt, streams = await _streams(call.data)
+        ctype, item_id, series, _alt, streams, warnings = await _streams(call.data)
         if options.get(CONF_STATS_ENABLED, True):
             await hass.async_add_executor_job(stats.note_use)
             # u titulu se právě zobrazily streamy — nezávisle na tom, jestli si uživatel
@@ -1224,7 +1228,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 await hass.async_add_executor_job(stats.note_play, item_id, title, year, kind)
             except Exception as err:  # noqa: BLE001 – statistika nesmí shodit funkční odpověď
                 _LOGGER.debug("statistika zhlédnutí %s: %s", item_id, err)
-        return {"count": len(streams), "streams": streams}
+        return {"count": len(streams), "streams": streams, "warnings": warnings}
 
     async def handle_torrents(call: ServiceCall):
         """Torrenty titulu z trackerů. Zvlášť od streamů: trackery odpovídají

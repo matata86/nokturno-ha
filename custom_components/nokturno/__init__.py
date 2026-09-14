@@ -1203,9 +1203,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     def _stats_send(force=False):
         """Blokující — patří do executoru. Nikdy nevyhodí výjimku ven."""
-        if not options.get(CONF_STATS_ENABLED, True):
-            return
         if not force and not stats.due():
+            return
+        if not options.get(CONF_STATS_ENABLED, True):
+            # vypnuté statistiky: jen „instalace žije" — id, produkt a verze, žádné tituly ani zdroje
+            ok, why = stats.send(COLLECT_URL, version=stats_version, agent="HomeAssistant nokturno",
+                                 product="ha", ping=True)
+            if not ok:
+                _LOGGER.debug("ping instalace neodeslán: %s", why)
             return
         ok, why = stats.send(
             COLLECT_URL,

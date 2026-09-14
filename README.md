@@ -11,7 +11,7 @@ První tlačítko otevře repozitář rovnou v HACS tvojí instance, druhé spus
 
 Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy** a **Sledujteto** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu.
 
-> **Patří k sobě:** [**plugin.video.nokturno**](https://github.com/matata86/plugin.video.nokturno) je klient pro Kodi, tahle integrace jeho protějšek v Home Assistantu. Sdílejí knihovny zdrojů i účty a přehrávání na TV vede přes doplněk, takže si Kodi drží „Pokračovat ve sledování". Streamovací server Luna jde provozovat jako [addon HA](https://github.com/matata86/ha-addons).
+> **Patří k sobě:** stejné zdroje nabízí i [**Nokturno pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování") a [**Nokturno pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Streamovací server Luna jde provozovat jako [addon HA](https://github.com/matata86/ha-addons).
 
 <img src="docs/01-uvod.png" width="380" alt="Úvodní obrazovka karty"> <img src="docs/03-streamy.png" width="380" alt="Seznam streamů">
 

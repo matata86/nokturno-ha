@@ -587,9 +587,9 @@ class Engine:
             if not luna_metas and self.luna:
                 try:
                     cid = "search.movie" if ctype == "movie" else "search.series"
-                    cache_key = f"luna:search:{ctype}:{cid}:{query}"
-                    luna_metas = self.store.cached(cache_key, SEARCH_CACHE_TTL,
-                                                    lambda: self.luna.catalog(ctype, cid, search=query))
+                    # LunaApi s `cache=self.store` si hledání pamatuje sama (SEARCH_TTL) — druhá
+                    # vrstva tady dřív ukládala tentýž JSON pod druhým klíčem
+                    luna_metas = self.luna.catalog(ctype, cid, search=query)
                 except LunaError as err:
                     errors.append(f"Luna: {err}")
             if not luna_metas:

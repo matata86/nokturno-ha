@@ -179,7 +179,8 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
 
     def test_manifest(self):
         self.assertEqual(self.manifest["domain"], const.DOMAIN)
-        self.assertRegex(self.manifest["version"], r"^\d+\.\d+\.\d+$")
+        # beta jako PEP 440 („4.0.0b1“) — HACS i tag vX.Y.ZbN ji tak čtou
+        self.assertRegex(self.manifest["version"], r"^\d+\.\d+\.\d+(b\d+)?$")
         self.assertTrue(self.manifest["config_flow"])
         self.assertEqual(self.manifest["requirements"], [], "jádro je bez závislostí, integrace má zůstat taky")
         for key in ("documentation", "issue_tracker", "codeowners", "iot_class"):

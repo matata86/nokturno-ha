@@ -361,3 +361,12 @@ class TestKarta(unittest.TestCase):
         self.assertNotIn("this._esc(s.label.replace(", card)
         self.assertIn('this._esc(s.source || "?")', card)
         self.assertIn("(${this._esc(t.year)})", card)
+
+
+class TestUdrzbaHA(unittest.TestCase):
+    def test_cache_se_prorezava_a_readme_nelze(self):
+        src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+        self.assertIn("engine.store.prune_cache", src)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("kopie z Kodi doplňku", readme)
+        self.assertIn("nokturno-core", readme)

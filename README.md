@@ -354,7 +354,7 @@ actions:
 - **Rok jako filtr**: z dotazu se odřízne čtyřciferný rok a použije se na výsledky i na názvy souborů z fulltextu WebShare (tolerance ±1, soubor bez roku projde). Rok v budoucnosti se bere jako součást názvu.
 - **Detail z databáze filmů**: Cinemeta `meta` + TMDB přes Lunu, výsledek se drží den v cache. Karta si ho vyžádá u každého titulu s IMDb id, kterému chybí popis nebo plakát.
 - **Karta se registruje přes zdroje Lovelace**, ne přes `extra_module_url` — ten se vyhodnotí dřív, než si frontend nasadí vlastní registr prvků, a karta by pro HA „neexistovala". Pro jistotu si registraci po načtení stránky ještě několikrát zopakuje.
-- Knihovny v `custom_components/nokturno/lib/` jsou kopie z Kodi doplňku, aby se obě aplikace chovaly stejně.
+- Knihovny v `custom_components/nokturno/lib/` a `engine.py` jsou vysypaná kopie sdíleného jádra [nokturno-core](https://github.com/matata86/nokturno-core) (od 2026-09-12) — stejné jádro má i doplněk pro Kodi a Stremio.
 
 ## Řešení potíží
 

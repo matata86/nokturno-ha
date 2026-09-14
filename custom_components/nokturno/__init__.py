@@ -1255,6 +1255,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def stats_tick(_now=None):
         await hass.async_add_executor_job(_stats_send)
+        # cache API leží v .storage, tedy v každé záloze HA — prošlé záznamy dřív nikdo nemazal
+        smazano = await hass.async_add_executor_job(engine.store.prune_cache)
+        if smazano:
+            _LOGGER.debug("cache: smazáno %d prošlých souborů", smazano)
 
     entry.async_on_unload(async_track_time_interval(hass, stats_tick, timedelta(hours=STATS_INTERVAL_HOURS)))
     # Interval se poprvé ozve až za šest hodin, takže nová instalace se v přehledu

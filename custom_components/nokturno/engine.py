@@ -233,11 +233,18 @@ def split_episode_id(item_id):
 class Engine:
     """Přístup ke třem zdrojům obsahu pod jedním rozhraním."""
 
-    def __init__(self, options, storage_dir, opener=None):
+    def __init__(self, options, storage_dir, opener=None, store=None):
         """`opener`: volitelný `urllib.request.OpenerDirector` pro vlastní úložiště —
-        veřejná instance jím hlídá, kam se smí připojit (viz `StorageApi`)."""
+        veřejná instance jím hlídá, kam se smí připojit (viz `StorageApi`).
+        `store`: už otevřené úložiště hostitele (doplněk pro Kodi má jedno pro celý
+        plugin) — jinak se otevře nové v `storage_dir`.
+
+        Volby nad rámec účtů a předvoleb (všechny nepovinné): `audio_probe` (kolika
+        souborům číst hlavičku), `cross_search` a `search_streams` (dohledání v
+        druhém zdroji, Lunino vlastní hledání), `fresh` (cache streamů jen zapisovat,
+        ne číst — zahřívání na pozadí)."""
         self.options = dict(options)
-        self.store = Store(storage_dir)
+        self.store = store or Store(storage_dir)
         self.opener = opener
         self._luna = None
         self._sosac = None
@@ -1167,9 +1174,17 @@ class Engine:
         # ověří: uploader se může splést nebo zkopírovat popisek z jiného
         # souboru, takže název sám o sobě není důkaz — jen se čeká, až na ně
         # dojde řada v limitu.
+        try:
+            limit = int(self._opt("audio_probe", AUDIO_PROBE_MAX) or 0)
+        except (TypeError, ValueError):
+            limit = AUDIO_PROBE_MAX
+        if limit <= 0:
+            if on_count:
+                on_count(0)
+            return streams
         candidates = [s for s in streams if not s.get("_tracks")
                       and str(s.get("url") or "").startswith(("hs:", "ws:", "streamuj:", "dav:"))]
-        todo = sorted(candidates, key=lambda s: bool(s.get("channels")))[:AUDIO_PROBE_MAX]
+        todo = sorted(candidates, key=lambda s: bool(s.get("channels")))[:limit]
         # skutečný počet čtených hlaviček bývá výrazně nižší než limit —
         # ukazatel průběhu si podle něj dopočítá reálné 100 %, ne odhad
         if on_count:
@@ -1426,6 +1441,29 @@ class Engine:
                     stream["_ws_name"] = best.get("label") or ""
                     used.add(id(best))
             out.append(stream)
+        # Lunin řádek (`main`) a výsledek Lunina vlastního hledání (`search`) bývají
+        # tentýž soubor — Luna název neposílá, takže se poznají jen podle velikosti,
+        # stejně jako přímé nálezy výš; každý `main` sloučí nejvýš jednu kopii
+        mains = [s for s in out if s.get("source") == "main" and (s.get("size_gb") or 0) > 0]
+        searches = [s for s in out if s.get("source") == "search" and (s.get("size_gb") or 0) > 0]
+        drop = set()
+        for stream in mains:
+            best, closest = None, None
+            for cand in searches:
+                if id(cand) in drop:
+                    continue
+                rank_diff = abs((cand.get("quality_rank") or 0) - (stream.get("quality_rank") or 0))
+                if rank_diff > 1:
+                    continue
+                limit = SIZE_TOLERANCE if rank_diff == 0 else 0.05
+                delta = abs(cand["size_gb"] - stream["size_gb"])
+                if delta < limit and (closest is None or delta < closest):
+                    best, closest = cand, delta
+            if best is not None:
+                drop.add(id(best))
+                if not stream.get("_ws_url") and best.get("_ws_url"):
+                    stream["_ws_url"], stream["_ws_name"] = best["_ws_url"], best.get("_ws_name", "")
+        out = [s for s in out if id(s) not in drop]
         solo = [s for s in streams if s.get("_direct") and id(s) not in used]
         solo.sort(key=lambda s: -(s.get("size_gb") or 0))
         # Bez ořezu: dřív tu byl strop 8 osamocených souborů (WebShare i HellSpy
@@ -1565,10 +1603,11 @@ class Engine:
             found += self._hellspy_streams(meta, video, ctype, alt, strict=False)
         if "st" in sources:
             found += self._sledujteto_streams(meta, video, ctype, alt, strict=False)
+        for stream in found:
+            parse_stream(stream)
         found = self._merge_direct(found)
         for stream in found:
             stream["_loose"] = True
-            parse_stream(stream)
         return found
 
     # stavy qBittorrentu → co z toho má karta ukázat
@@ -1703,7 +1742,15 @@ class Engine:
     STREAM_SOURCE_STEPS = 6
 
     def streams(self, ctype, item_id, alt=None, series_id=None, on_progress=None, failures=None):
-        """Seřazené streamy titulu ze všech dostupných zdrojů.
+        """Seřazené streamy titulu ze všech dostupných zdrojů, popsané pro HA/Stremio
+        (`_describe`). Doplněk pro Kodi bere surové řádky z `raw_streams()` a popisek
+        si skládá sám (barvy, lokalizace)."""
+        ordered = self.raw_streams(ctype, item_id, alt, series_id, on_progress, failures)
+        return [self._describe(s, i) for i, s in enumerate(ordered)]
+
+    def raw_streams(self, ctype, item_id, alt=None, series_id=None, on_progress=None, failures=None,
+                    strict=True, meta_video=None):
+        """Seřazené streamy titulu ze všech dostupných zdrojů — surové slovníky.
 
         Síťové dohledání streamů se cachuje 72 h, ale JEN když něco našlo (`cached_if`) —
         prázdný výsledek by mohl být jen dočasný výpadek zdroje, takže se zkusí znovu
@@ -1718,6 +1765,10 @@ class Engine:
         `(zdroj, chyba)` za každý přeskočený — volající z nich udělá upozornění přes
         `lib/source_errors.summarize`. Výsledek s výpadkem se **necachuje**: jinak by
         streamy vypnuté Luny chyběly 72 h i po jejím návratu.
+
+        `strict=False` = ruční „zkusit uvolněný fulltext“: WebShare/HellSpy/Sledujteto
+        s volnějším filtrem názvu (viz `_title_queries`), výsledek značený `_loose`
+        a mimo cache. `meta_video`: (meta, video) už načtené volajícím, ať se nečtou dvakrát.
         """
         failures = [] if failures is None else failures
         total = self.STREAM_SOURCE_STEPS + AUDIO_PROBE_MAX
@@ -1737,14 +1788,15 @@ class Engine:
             if on_progress:
                 on_progress(min(done[0], total), total)
 
-        meta, video = self.meta(ctype, item_id, series_id)
+        meta, video = meta_video if meta_video else self.meta(ctype, item_id, series_id)
         base_id = split_episode_id(item_id)[0]
+        include_search = bool(self._opt("search_streams", True))
 
         def _fetch_streams():
             nonlocal meta
             try:
                 api = self.api_for(base_id)
-                found = api.streams(ctype, item_id, include_search=True) if isinstance(api, LunaApi) \
+                found = api.streams(ctype, item_id, include_search=include_search) if isinstance(api, LunaApi) \
                     else api.streams(ctype, item_id)
             except Exception as err:  # noqa: BLE001 – výpadek zdroje = prázdno, ne chyba služby;
                                        # cross/WebShare/HellSpy níž to samy doženou
@@ -1762,11 +1814,12 @@ class Engine:
             # výpis 8–15 sériových dotazů. Líné klienty (login WebShare) založit ještě tady,
             # v hlavním vlákně, ať se čtyři vlákna neperou o `_ws_ready`.
             self.ws, self.hs, self.st, self.sosac  # noqa: B018 – jen inicializace
+            cross = self._cross_streams if self._opt("cross_search", True) else (lambda *a, **k: [])
             zdroje = (
-                ("Sosáč/Luna", lambda: self._cross_streams(ctype, item_id, meta, alt, failures)),
-                ("WebShare", lambda: self._webshare_streams(meta, video, ctype, alt, failures=failures)),
-                ("HellSpy", lambda: self._hellspy_streams(meta, video, ctype, alt, failures=failures)),
-                ("Sledujteto", lambda: self._sledujteto_streams(meta, video, ctype, alt, failures=failures)),
+                ("Sosáč/Luna", lambda: cross(ctype, item_id, meta, alt, failures)),
+                ("WebShare", lambda: self._webshare_streams(meta, video, ctype, alt, strict, failures)),
+                ("HellSpy", lambda: self._hellspy_streams(meta, video, ctype, alt, strict, failures)),
+                ("Sledujteto", lambda: self._sledujteto_streams(meta, video, ctype, alt, strict, failures)),
             )
 
             def bezpecne(label, fetch):
@@ -1792,6 +1845,8 @@ class Engine:
                     if guess:
                         stream["quality_rank"] = guess
                         stream["_estimated"] = True
+                if not strict and stream.get("_direct"):
+                    stream["_loose"] = True   # uvolněný filtr — uživatel posoudí podle názvu sám
             found = self._merge_direct(found)
             # titulky z WebShare ke streamům, které žádné nemají (Sosáč si posílá svoje)
             subs = self._webshare_subtitles(meta, video, ctype, alt)
@@ -1812,8 +1867,12 @@ class Engine:
         # „streams2“: seznamy uložené před doplněním českých názvů z Wikidat byly u titulů
         # bez Luny/TMDB ořezané přísným filtrem — nový klíč je jednorázově obnoví
         cache_key = f"streams5:{ctype}:{item_id}:{alt or ''}"   # 5 = oprava filtru (krátké slovo na začátku názvu)
-        found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams,
-                                     ok=lambda data: bool(data) and not failures)
+        if strict:
+            found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams,
+                                         ok=lambda data: bool(data) and not failures,
+                                         fresh=bool(self._opt("fresh", False)))
+        else:
+            found = _fetch_streams()
         # vlastní úložiště mimo 72h cache streamů — nový soubor se má ukázat hned,
         # jak ho uvidí seznam úložiště (ten si drží vlastní hodinovou paměť)
         try:
@@ -1860,7 +1919,7 @@ class Engine:
         if on_progress and done[0] < total:
             done[0] = total
             on_progress(done[0], total)
-        return [self._describe(s, i) for i, s in enumerate(ordered)]
+        return ordered
 
     # co WebShare vrací u nedostupných souborů — hlášky jsou anglické a nic neříkající
     WS_ERRORS = {

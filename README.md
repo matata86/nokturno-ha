@@ -13,7 +13,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy
 
 > **Patří k sobě:** stejné zdroje nabízí i [**Nokturno pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování") a [**Nokturno pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Streamovací server Luna jde provozovat jako [addon HA](https://github.com/matata86/ha-addons).
 
-<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-uvod.png" width="380" alt="Úvodní obrazovka karty"> <img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-streamy.png" width="380" alt="Seznam streamů">
+![Úvodní obrazovka karty](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-uvod.png) ![Seznam streamů](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-streamy.png)
 
 ## Obsah
 
@@ -152,7 +152,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 
 ### Úvodní obrazovka
 
-<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-uvod.png" width="420" alt="Úvodní obrazovka">
+![Úvodní obrazovka](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-uvod.png)
 
 - **Pole pro hledání** a tlačítko **Hledat** (během dotazu se v něm točí kolečko). Přepínač **Filmy / Seriály** se ukáže až u výsledků, a jen když dotaz našel obojí. Rok napsaný do dotazu se použije jako filtr — „Duna 2021" vrátí jen film z roku 2021.
 - **Štítky** s posledními dotazy (nejvýš 10, sdíleno s doplňkem pro Kodi) — klepnutím se hledání zopakuje, křížek historii smaže.
@@ -163,7 +163,7 @@ Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` prv
 
 ### Výsledky hledání
 
-<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/02-vysledky.png" width="420" alt="Výsledky hledání">
+![Výsledky hledání](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/02-vysledky.png)
 
 Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí kolečko a druhé se točí v tlačítku *Hledat*, dokud se detail nenačte. Vedle tlačítka **Úvod** je vždy **Hledat v databázi filmů** (IMDb/TMDB) — hodí se, když zdroje vrátí něco jiného, než jsi hledal, nebo film teprve vyjde; z těch výsledků klepnutím titul rovnou uložíš do seznamu k zhlédnutí a **Zpět k výsledkům ze zdrojů** tě vrátí. Když hledáš s rokem a zdroje nic z toho roku nemají, výsledek je prázdný — právě proto, aby ti nepodstrčily jiný film. Titul, který má jen Sosáč, dostane plakát z TMDB. **Úvod** vlevo nahoře se vrátí zpět.
 
@@ -183,7 +183,7 @@ Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí ko
 
 ### Databáze filmů
 
-<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/05-databaze.png" width="420" alt="Detail titulu z databáze filmů">
+![Detail titulu z databáze filmů](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/05-databaze.png)
 
 Tlačítko **Hledat v databázi filmů** se ptá Cinemety (IMDb/TMDB), takže najde i tituly, které zdroje vůbec nemají — třeba film, který teprve vyjde. Klepnutí na výsledek otevře detail:
 
@@ -195,13 +195,13 @@ Názvy jsou v databázi vedené mezinárodním přepisem („Sunday League - Pep
 
 ### Seriál a epizody
 
-<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/04-epizody.png" width="420" alt="Epizody seriálu">
+![Epizody seriálu](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/04-epizody.png)
 
 Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, šipka zpět, **záložka** (přidá do seznamu k zhlédnutí) a u seriálu **oko** pro sledování nových dílů. Výběr sezóny je pod názvem, epizody se pak vypíšou jako seznam.
 
 ### Streamy
 
-<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-streamy.png" width="420" alt="Streamy">
+![Streamy](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-streamy.png)
 
 Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová, HellSpy červený, Sledujteto tyrkysový, FastShare zlatý) s 🌐 u odkazů, které hrají i mimo domácí síť, **nad** popisem `kvalita · název souboru · zvuk · titulky · velikost`, který jde přes celou šířku karty. Tlačítka jsou pod ním na vlastním řádku, takže nezkracují název. Po najetí myší se v bublině ukáže celý název souboru, titulky, bitrate a jestli hraje venku. Kvalita s vlnovkou (`~4K`) je odhad z velikosti souboru — zdroj ji v názvu neuvedl. Čtyři akce:
 

@@ -567,8 +567,11 @@ class Engine:
             if on_progress:
                 on_progress(min(done[0], total), total)
 
+        errors = []   # mimo _fetch: výsledek s výpadkem zdroje se nesmí pamatovat 12 h (viz cached_if níž)
+
         def _fetch():
-            luna_metas, sosac_metas, errors = [], [], []
+            luna_metas, sosac_metas = [], []
+            del errors[:]
             # Řetězec zdrojů metadat, v pořadí priority — každý se zkusí, jen když
             # předchozí nic nevrátil (chybí, nemá klíč, spadl, nebo prostě nic nenašel).
             # TMDB má přednost i před Lunou, jakmile má uživatel vlastní klíč — je to
@@ -623,7 +626,10 @@ class Engine:
             return [self._item(meta, ctype, alt) for meta, alt in merged]
 
         cache_key = f"search:{ctype}:{query}:{int(limit or 20)}:{want_year or ''}"
-        found = self.store.cached_if(cache_key, 0 if force else SEARCH_CACHE_TTL, _fetch)
+        # jako u streams(): když TMDB/Luna spadne a Sosáč něco najde, je to degradovaný seznam —
+        # ukázat ano, pamatovat 12 h ne
+        found = self.store.cached_if(cache_key, 0 if force else SEARCH_CACHE_TTL, _fetch,
+                                     ok=lambda data: bool(data) and not errors)
         if on_progress and done[0] < total:
             done[0] = total
             on_progress(done[0], total)

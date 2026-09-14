@@ -350,3 +350,14 @@ class TestBezpecnostNastaveni(unittest.TestCase):
         self.assertIn("async def check_trakt(_now=None, only=None):", src)
         self.assertIn('torrent_stav["aktivni_do"] = time.time() + 300', src)
         self.assertIn("now - torrent_stav[\"posledni\"] < 60", src)
+
+
+class TestKarta(unittest.TestCase):
+    def test_render_streamu_nespadne_na_polozce_bez_labelu_a_escapuje_zdroj(self):
+        """Položka z fulltextu má `label` undefined → `s.label.replace` shodil render streamů;
+        `s.source` (název vlastního úložiště z nastavení) a `t.year` šly do HTML bez `_esc`."""
+        card = (COMPONENT / "www" / "nokturno-card.js").read_text(encoding="utf-8")
+        self.assertIn('this._esc(String(s.label || "").replace(', card)
+        self.assertNotIn("this._esc(s.label.replace(", card)
+        self.assertIn('this._esc(s.source || "?")', card)
+        self.assertIn("(${this._esc(t.year)})", card)

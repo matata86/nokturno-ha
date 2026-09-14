@@ -1021,7 +1021,7 @@ class NokturnoCard extends HTMLElement {
             <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">
               <ha-icon icon="${t.streams ? "mdi:play-circle-outline" : (t.pending ? "mdi:radar" : "mdi:clock-outline")}" class="ext"></ha-icon>
               ${this._t(t.streams ? (t.torrent ? "jen torrent" : "lze pustit") : (t.pending ? "hlídám" : "zatím ne"))}</span>
-            <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${t.year})</span>` : ""}${
+            <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${this._esc(t.year)})</span>` : ""}${
               t.streams ? ` <span class="muted">${this._t("· {0} streamů", t.streams)}</span>` : ""}</span>
           </div>`).join("")}</div>`;
     }
@@ -1280,10 +1280,10 @@ class NokturnoCard extends HTMLElement {
       ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = ${this._t("hraje i mimo domácí síť")}</div>` : "";
     return head + torrentBtn + legend + `<div>${st.streams.map((s, i) => `
       <div class="stream" title="${this._esc(this._streamTitle(s))}">
-        <span class="tag" style="background:${SOURCE_COLORS[s.source] || (String(s.url || "").startsWith("dav:") ? "#5f9e3a" : "#777")}">${s.source || "?"}${
+        <span class="tag" style="background:${SOURCE_COLORS[s.source] || (String(s.url || "").startsWith("dav:") ? "#5f9e3a" : "#777")}">${this._esc(s.source || "?")}${
           s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="${this._t("Hraje i mimo domácí síť")}"></ha-icon>` : ""}${
           s._loose ? `<ha-icon class="ext" icon="mdi:help-circle-outline" title="${this._t("Neověřeno — z ručního fulltextového hledání, může to být i jiný titul")}"></ha-icon>` : ""}</span>
-        <span class="label">${this._esc(s.label.replace(s.source + "  ·  ", ""))}</span>
+        <span class="label">${this._esc(String(s.label || "").replace(s.source + "  ·  ", ""))}</span>
         <span class="icons wide">${s.kind === "torrent"
           // torrent není odkaz na video: nedá se přehrát ani poslat do mobilu,
           // nejdřív ho musí stáhnout torrentový klient

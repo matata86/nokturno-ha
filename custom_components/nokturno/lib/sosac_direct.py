@@ -22,6 +22,7 @@ BASE = "http://tv.sosac.to"
 EXPORT = BASE + "/vystupy5981/"
 STREAMUJ_API = "https://www.streamuj.tv/json_api_player.php?"
 LIST_TTL = 3 * 3600   # žebříčky (nejpopulárnější, nově přidané)
+CATALOG_TTL = 86400   # žánry a písmena: tisíce titulů, mění se pomalu (dřív výchozích 10 min)
 IMAGE_MOVIE = "https://movies.sosac.tv/images/75x109/movie-"
 IMAGE_MOVIE_BIG = "https://movies.sosac.tv/images/558x313/movie-"
 IMAGE_SERIES = "https://movies.sosac.tv/images/558x313/serial-"
@@ -34,7 +35,10 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Kodi plugin.video.nokturno"
 MOVIE_LISTS = [
     ("moviesmostpopular", "Nejpopulárnější filmy"),
     ("moviesrecentlyadded", "Nově přidané filmy"),
+    ("moviesrecentlyadded_dub", "Nově přidané s CZ dabingem"),
+    ("moviesrecentlyadded_subs", "Nově přidané s CZ titulky"),
 ]
+CZECH = ("cs", "sk")
 SERIES_LISTS = [
     ("tvshowsmostpopular", "Nejpopulárnější seriály"),
     ("tvshowsrecentlyadded", "Nově přidané epizody"),
@@ -61,6 +65,7 @@ class SosacDirect:
         self.cache = cache
         self.cache_ttl = cache_ttl
         self.index = index_store  # objekt s remember_item/item – snímky filmů pro meta()
+        self._pending = None      # během výpisu se snímky sbírají a zapíšou najednou
 
     # --- HTTP ---------------------------------------------------------------
     def _get(self, url, ttl=None):
@@ -88,8 +93,14 @@ class SosacDirect:
 
     def movie_meta(self, v):
         link = v.get("l") or ""
+        imdb = "tt" + str(v["m"]).zfill(7) if v.get("m") else ""
+        # čerstvě přidané filmy Sosáč ještě nemá nahrané („l": null) — bez odkazu by
+        # vzniklo prázdné id „sosacd_m_", které nejde otevřít; přes IMDb id se titul
+        # otevře z TMDB/Cinemety a streamy najdou ostatní zdroje
+        if not link and not imdb:
+            return None
         meta = {
-            "id": ID_PREFIX + "m_" + link,
+            "id": ID_PREFIX + "m_" + link if link else imdb,
             "type": "movie",
             "name": self._name(v.get("n")),
             "_title": self._name(v.get("n")),
@@ -104,15 +115,15 @@ class SosacDirect:
             "_quality": v.get("q") or "",
             "_link": link,
         }
-        if v.get("m"):
-            meta["imdb_id"] = "tt" + str(v["m"]).zfill(7)
+        if imdb:
+            meta["imdb_id"] = imdb
         try:
             if v.get("r"):
                 meta["imdbRating"] = float(v["r"]) * 2
         except (TypeError, ValueError):
             pass
-        if self.index is not None and link:
-            self.index.remember_item("idx:" + meta["id"], meta)
+        if link:
+            self._remember(meta)
         return meta
 
     def series_meta(self, v):
@@ -138,11 +149,33 @@ class SosacDirect:
                 meta["imdbRating"] = float(v["r"]) * 2
         except (TypeError, ValueError):
             pass
-        if self.index is not None:
-            self.index.remember_item("idx:" + meta["id"], meta)
+        self._remember(meta)
         return meta
 
-    # --- katalogy ----------------------------------------------------------
+    def _remember(self, meta):
+        if self.index is None:
+            return
+        if self._pending is not None:
+            self._pending["idx:" + meta["id"]] = meta
+        else:
+            self.index.remember_item("idx:" + meta["id"], meta)
+
+    def _batched(self, fn):
+        """Snímky z celého výpisu do rejstříku jedním zápisem, viz `Index.remember_items`."""
+        if self.index is None or self._pending is not None:
+            return fn()
+        self._pending = {}
+        try:
+            return fn()
+        finally:
+            pending, self._pending = self._pending, None
+            if hasattr(self.index, "remember_items"):
+                self.index.remember_items(pending)
+            else:
+                for key, meta in pending.items():
+                    self.index.remember_item(key, meta)
+
+        # --- katalogy ----------------------------------------------------------
     def catalogs(self, ctype):
         result = []
         if ctype == "movie":
@@ -161,6 +194,9 @@ class SosacDirect:
         return result
 
     def catalog(self, ctype, cid, genre=None, search=None, skip=0, page=100):
+        return self._batched(lambda: self._catalog(ctype, cid, genre, search, skip, page))
+
+    def _catalog(self, ctype, cid, genre=None, search=None, skip=0, page=100):
         if search:
             return self.search(ctype, search)
         if cid == "genre":
@@ -168,20 +204,40 @@ class SosacDirect:
             url = genres.get(genre) or ""
             if not url:
                 return []
-            items = [self.movie_meta(v) for v in self._get(url)]
+            raw, conv = self._get(url, ttl=CATALOG_TTL), self.movie_meta
         elif cid == "az":
-            items = [self.movie_meta(v) for v in self._get(EXPORT + f"souboryaz/{(genre or 'a').lower()}.json")]
+            raw, conv = self._get(EXPORT + f"pismena/{(genre or 'a').lower()}.json", ttl=CATALOG_TTL), self.movie_meta
         elif cid == "tvaz":
-            items = [self.series_meta(v) for v in self._get(EXPORT + f"tvpismena/{(genre or 'a').lower()}.json")]
+            raw, conv = self._get(EXPORT + f"tvpismena/{(genre or 'a').lower()}.json", ttl=CATALOG_TTL), self.series_meta
+        elif cid in ("moviesrecentlyadded_dub", "moviesrecentlyadded_subs"):
+            # export „nově přidané" míchá všechny jazyky (zhruba půlka s CZ dabingem,
+            # půlka jen s CZ titulky, pár cizojazyčných bez titulků) — rozdělí se
+            # na dva seznamy bez překryvu, cizojazyčné bez titulků vypadnou
+            want_dub = cid.endswith("_dub")
+
+            def conv(v):
+                dub = any(x in CZECH for x in v.get("d") or [])
+                subs = any(x in CZECH for x in v.get("s") or [])
+                return self.movie_meta(v) if (dub if want_dub else subs and not dub) else None
+            raw = self._get(EXPORT + "moviesrecentlyadded.json", ttl=LIST_TTL)
         # žebříčky se mění pomalu a služba je na pozadí zahřívá po třech hodinách —
         # kratší TTL by znamenalo, že uživatel stejně trefí studenou cache
         elif cid == "tvshowsrecentlyadded":
-            items = [self.episode_meta(v) for v in self._get(EXPORT + cid + ".json", ttl=LIST_TTL)]
+            raw, conv = self._get(EXPORT + cid + ".json", ttl=LIST_TTL), self.episode_meta
         elif ctype == "series":
-            items = [self.series_meta(v) for v in self._get(EXPORT + cid + ".json", ttl=LIST_TTL)]
+            raw, conv = self._get(EXPORT + cid + ".json", ttl=LIST_TTL), self.series_meta
         else:
-            items = [self.movie_meta(v) for v in self._get(EXPORT + cid + ".json", ttl=LIST_TTL)]
-        items = [m for m in items if m]
+            raw, conv = self._get(EXPORT + cid + ".json", ttl=LIST_TTL), self.movie_meta
+        # převádět jen zobrazenou stránku: každý převod plní rejstřík a písmeno
+        # či žánr mají tisíce titulů — na ARM boxu se seznam „D" (2224) načítal přes 10 minut
+        items = []
+        for v in raw:
+            m = conv(v)
+            if not m:
+                continue
+            items.append(m)
+            if len(items) >= skip + page:
+                break
         return items[skip:skip + page]
 
     def episode_meta(self, v):
@@ -202,12 +258,14 @@ class SosacDirect:
             "description": ep,
             "_link": link,
         }
-        if self.index is not None:
-            self.index.remember_item("idx:" + meta["id"], meta)
+        self._remember(meta)
         return meta
 
     # --- hledání -------------------------------------------------------------
     def search(self, ctype, query):
+        return self._batched(lambda: self._search(ctype, query))
+
+    def _search(self, ctype, query):
         if ctype == "movie":
             data = self._get(BASE + "/jsonsearchapi.php?q=" + urllib.parse.quote_plus(query), ttl=12 * 3600)
             return [self.movie_meta(v) for v in data if v.get("l")]

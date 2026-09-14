@@ -784,15 +784,15 @@ async def _proxy_file(hass: HomeAssistant, request, ref: str, label: str):
     async with upstream:
         if upstream.status in (401, 403):
             return web.Response(status=502, text=f"{label} odmítl přihlášení.")
-            response = web.StreamResponse(status=upstream.status)
-            for name in ("Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag"):
-                if upstream.headers.get(name):
-                    response.headers[name] = upstream.headers[name]
-            await response.prepare(request)
-            async for chunk in upstream.content.iter_chunked(256 * 1024):
-                await response.write(chunk)
-            await response.write_eof()
-            return response
+        response = web.StreamResponse(status=upstream.status)
+        for name in ("Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag"):
+            if upstream.headers.get(name):
+                response.headers[name] = upstream.headers[name]
+        await response.prepare(request)
+        async for chunk in upstream.content.iter_chunked(256 * 1024):
+            await response.write(chunk)
+        await response.write_eof()
+        return response
 
 
 # odkazy, které hrají jen s hlavičkou (heslo úložiště, cookie FastShare) — mimo Kodi jdou přes HA

@@ -221,7 +221,10 @@ def _entry_data(hass: HomeAssistant) -> dict:
 
 
 def episode_target(engine: Engine, call_data: dict) -> tuple[str, str, str | None, str | None]:
-    """Z parametrů služby udělá (typ, id k přehrání, id seriálu, alt id)."""
+    """Z parametrů služby udělá (typ, id k přehrání, id seriálu, alt id).
+
+    Volat přes `hass.async_add_executor_job` — `api.episode_id` u Sosáče při studené
+    cache stahuje export (síť), z event loopu by to HA na sekundy zastavilo."""
     ctype = call_data.get("type", "movie")
     item_id = call_data["id"]
     series = call_data.get("series")
@@ -1290,7 +1293,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         call_data = await _with_query(call_data)
         if not call_data.get("id"):
             raise HomeAssistantError("Chybí `id` titulu nebo `query`.")
-        ctype, item_id, series, alt = episode_target(engine, call_data)
+        ctype, item_id, series, alt = await hass.async_add_executor_job(episode_target, engine, call_data)
 
         def on_progress(done, total):
             # volá se z executor vlákna (uvnitř engine.streams) — na event loop
@@ -1370,7 +1373,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         call_data = await _with_query(dict(call.data))
         if not call_data.get("id"):
             raise HomeAssistantError("Chybí `id` titulu nebo `query`.")
-        ctype, item_id, series, _alt = episode_target(engine, call_data)
+        ctype, item_id, series, _alt = await hass.async_add_executor_job(episode_target, engine, call_data)
         rows = await _in_executor(engine.torrents, ctype, item_id, series,
                                   int(call.data.get("offset") or 0))
         return {"count": len(rows), "streams": rows}
@@ -1382,7 +1385,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         call_data = await _with_query(dict(call.data))
         if not call_data.get("id"):
             raise HomeAssistantError("Chybí `id` titulu nebo `query`.")
-        ctype, item_id, series, alt = episode_target(engine, call_data)
+        ctype, item_id, series, alt = await hass.async_add_executor_job(episode_target, engine, call_data)
         sources = tuple(call.data.get("source") or ("ws", "hs", "st"))
         rows = await _in_executor(engine.fulltext_streams, ctype, item_id, series, alt, sources)
         return {"count": len(rows), "streams": rows}
@@ -1510,7 +1513,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # torrent nedrží fronta integrace, ale qBittorrent — zrušit ho znamená
         # odebrat ho z klienta i s rozdělanými daty
         if str(job_id).startswith("qb:"):
-            await hass.async_add_executor_job(engine.cancel_torrent, str(job_id)[3:])
+            await _in_executor(engine.cancel_torrent, str(job_id)[3:])
             downloader.torrents = [t for t in downloader.torrents if t["id"] != job_id]
             async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
             return
@@ -1565,7 +1568,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Zařadí torrent do stahování v qBittorrentu. Video se pak objeví
         ve složce stahování jako každý jiný stažený soubor."""
         name = (call.data.get("name") or "").strip()
-        await hass.async_add_executor_job(engine.download_torrent, call.data["url"], name)
+        await _in_executor(engine.download_torrent, call.data["url"], name)
         return {"queued": True, "name": name}
 
     async def handle_delete_file(call: ServiceCall):
@@ -1611,6 +1614,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     for name, handler, schema, response in services:
         hass.services.async_register(DOMAIN, name, handler, schema=schema, supports_response=response)
+    # unload odregistruje přesně tenhle seznam — ručně opisovaný výčet tam dřív tři služby vynechal
+    hass.data[DOMAIN][entry.entry_id]["services"] = [name for name, *_ in services]
 
     # POZOR na pořadí: async_restore() musí běžet první. async_refresh_files()
     # volá _notify(), jehož první zavolání na čerstvém Downloaderu (self._saved == 0)
@@ -1643,13 +1648,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if data.get("stats_send"):
             await hass.async_add_executor_job(data["stats_send"], True)
         if not hass.data[DOMAIN]:
-            for name in (SERVICE_SEARCH, SERVICE_STREAMS, SERVICE_EPISODES, SERVICE_RESOLVE, SERVICE_PLAY,
-                         SERVICE_DOWNLOAD, SERVICE_SEND_LINK, SERVICE_CANCEL_DOWNLOAD, SERVICE_START_DOWNLOAD,
-                         SERVICE_DELETE_FILE,
-                         SERVICE_SHARE_FILE, SERVICE_CONTINUE, SERVICE_REMOVE_PROGRESS, SERVICE_WATCH,
-                         SERVICE_CHECK_SERIES, SERVICE_CLEAR_HISTORY,
-                         SERVICE_CLEAR_CACHE,
-                         SERVICE_SEEN, SERVICE_TRAKT_AUTH, SERVICE_TRAKT_LIST, SERVICE_TRAKT_WATCHED,
-                         SERVICE_WANT, SERVICE_FULLTEXT):
+            for name in data.get("services") or []:
                 hass.services.async_remove(DOMAIN, name)
     return unloaded

@@ -190,6 +190,44 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         self.assertEqual(hacs["name"], "Nokturno")
         self.assertFalse(hacs.get("content_in_root", False))
         self.assertRegex(hacs["homeassistant"], r"^\d{4}\.\d{1,2}\.\d+$")
+        # StaticPathConfig je od 2024.7, OptionsFlow.config_entry bez __init__ od 2024.11
+        self.assertGreaterEqual(tuple(int(x) for x in hacs["homeassistant"].split(".")), (2024, 11, 0))
+
+    def test_atributy_senzoru_nejdou_do_recorderu(self):
+        """Stav se během stahování přepisuje každé 2 s a nesl celý výpis složky."""
+        from custom_components.nokturno import sensor
+
+        class Downloader:
+            jobs, torrents, directory, files, free_gb = {}, [], "/media", ["a.mkv"] * 300, 12.0
+
+        class Engine:
+            sub_status = stream_progress = search_progress = {}
+
+            def history(self):
+                return ["x"]
+
+            def sources(self):
+                return {"webshare": True}
+        s = sensor.NokturnoDownloadsSensor(ha_stubs.ConfigEntry(), Downloader(), {}, Engine())
+        s.hass = type("H", (), {"config_entries": type("C", (), {"async_entries": staticmethod(lambda d: [])})()})()
+        velke = {k for k, v in s.extra_state_attributes.items() if isinstance(v, (list, dict))}
+        self.assertTrue(velke <= s._unrecorded_attributes, velke - s._unrecorded_attributes)
+        self.assertIn("items", sensor.NokturnoTraktSensor._unrecorded_attributes)
+        self.assertIn("series", sensor.NokturnoEpisodesSensor._unrecorded_attributes)
+
+    def test_unload_odregistruje_vsechny_sluzby(self):
+        """Ručně opisovaný výčet v unload tři služby vynechal — teď se bere z registrace."""
+        src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+        self.assertIn('hass.data[DOMAIN][entry.entry_id]["services"] = [name for name, *_ in services]', src)
+        self.assertIn('for name in data.get("services") or []:', src)
+        self.assertNotIn("SERVICE_CLEAR_CACHE,\n                         SERVICE_SEEN", src)
+
+    def test_episode_target_bezi_v_executoru(self):
+        src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+        import re
+        prime = [m.start() for m in re.finditer(r"= episode_target\(engine", src)]
+        self.assertEqual(prime, [], "episode_target sahá na síť (Sosáč) — jen přes async_add_executor_job")
+        self.assertEqual(src.count("hass.async_add_executor_job(episode_target, engine, call_data)"), 3)
 
     def test_kazda_sluzba_je_v_services_yaml_a_naopak(self):
         v_kodu = {getattr(const, name) for name in dir(const) if name.startswith("SERVICE_")}

@@ -29,6 +29,10 @@ class NokturnoDownloadsSensor(SensorEntity):
     _attr_icon = "mdi:download"
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "souborů"
+    # atributy čte jen karta; do recorderu nepatří — stav se přepisuje každé 2 s během
+    # stahování a nesl celý výpis složky (desítky MB/den v databázi HA)
+    _unrecorded_attributes = frozenset({"downloads", "files", "search_history", "sources", "notify_targets",
+                                        "subscription", "stream_progress", "search_progress", "directory"})
 
     def __init__(self, entry: ConfigEntry, downloader, owners, engine):
         self._downloader = downloader
@@ -132,6 +136,7 @@ class NokturnoEpisodesSensor(SensorEntity):
     _attr_icon = "mdi:television-play"
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "seriálů"
+    _unrecorded_attributes = frozenset({"series"})
 
     def __init__(self, entry: ConfigEntry, engine):
         self._engine = engine
@@ -174,6 +179,7 @@ class NokturnoTraktSensor(SensorEntity):
     _attr_icon = "mdi:bookmark-check-outline"
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "titulů"
+    _unrecorded_attributes = frozenset({"items"})
 
     def __init__(self, entry: ConfigEntry, engine):
         self._engine = engine

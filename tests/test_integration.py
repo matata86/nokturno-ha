@@ -1,0 +1,233 @@
+"""Kontrola integrace pro Home Assistant — bez Home Assistantu, bez sítě a bez účtů.
+
+    python3 -m unittest discover -s tests -v
+
+`homeassistant` a `voluptuous` nahrazuje `tests/ha_stubs.py` jen do té míry, aby
+se dal modul naimportovat. Jádro (`lib/`, `engine.py`) má testy ve svém repu;
+tady se ověřuje, co je vlastní integraci: odkazy pro Kodi a Android, klíče
+položek Pokračovat ve sledování, pomocníky pro služby, a soulad souborů, které
+Home Assistant a HACS čtou samy (manifest, services.yaml, překlady, karta).
+"""
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+COMPONENT = ROOT / "custom_components" / "nokturno"
+CORE = ROOT.parent.parent / "nokturno-core"
+sys.path.insert(0, str(ROOT / "tests"))
+sys.path.insert(0, str(ROOT))
+
+import ha_stubs                                          # noqa: E402
+ha_stubs.install()
+
+from custom_components.nokturno import (                 # noqa: E402
+    KODI_PLUGIN, _continue_key, _encode_signed, _removed_by_user, _stats_title, android_play_intent,
+    episode_target, kodi_image, kodi_url,
+)
+from custom_components.nokturno import config_flow, const  # noqa: E402
+
+
+class FakeStore:
+    def __init__(self, watched=None, hidden=None):
+        self._watched, self._hidden = watched or {}, hidden or {}
+
+    def load(self, key, default=None):
+        return self._watched if key == "watched" else default
+
+    def next_hidden(self, series):
+        return self._hidden.get(series)
+
+
+class FakeApi:
+    def __init__(self, episode=None, fail=False):
+        self.episode, self.fail = episode, fail
+        self.calls = []
+
+    def episode_id(self, base, season, episode):
+        self.calls.append((base, season, episode))
+        if self.fail:
+            raise RuntimeError("Luna: id je ve tvaru id:S:E")
+        return self.episode
+
+
+class FakeEngine:
+    def __init__(self, api=None, meta=None, video=None):
+        self._api, self._meta, self._video = api, meta or {}, video
+
+    def api_for(self, item_id):
+        return self._api
+
+    def meta(self, ctype, item_id, series_id=None):
+        return self._meta, self._video
+
+
+class TestKnihovnaJeKopieJadra(unittest.TestCase):
+    @unittest.skipUnless(CORE.is_dir(), "jádro není vedle integrace")
+    def test_lib_a_engine_odpovidaji_jadru(self):
+        out = subprocess.run([sys.executable, str(CORE / "tools" / "sync_core.py"), "--check", "ha"],
+                             capture_output=True, text=True)
+        self.assertIn("ke změně: 0 souborů", out.stdout, f"spusť `python3 tools/sync_core.py ha` v jádru\n{out.stdout}")
+
+
+class TestOdkazy(unittest.TestCase):
+    def test_kodi_url_nese_jen_potrebne(self):
+        url = kodi_url("movie", "tt1", None, None, {"url": "ws:abc"})
+        self.assertEqual(url, KODI_PLUGIN + "?action=play&type=movie&id=tt1&url=ws%3Aabc")
+
+    def test_kodi_url_serial_s_titulky(self):
+        url = kodi_url("series", "tt1:1:2", "tt1", "sosacd_5", {"url": "hs:1:h", "subtitles": ["ws:s1", "ws:s2"]})
+        self.assertIn("series=tt1", url)
+        self.assertIn("alt=sosacd_5", url)
+        self.assertIn("subs=ws%3As1%7Cws%3As2", url)
+
+    def test_android_intent_zakoduje_mezery_jen_jednou(self):
+        raw = "http://ha.lan:8123/api/nokturno/files/Pět švestek.mkv?authSig=abc"
+        intent = android_play_intent(raw)
+        self.assertTrue(intent.startswith("intent://ha.lan:8123/api/nokturno/files/P%C4%9Bt%20%C5%A1vestek.mkv?authSig=abc#Intent;"))
+        self.assertIn("scheme=http;", intent)
+        self.assertIn("type=video/*;", intent)
+        self.assertIn("S.browser_fallback_url=http%3A%2F%2Fha.lan%3A8123%2Fapi%2Fnokturno%2Ffiles%2FP%C4%9Bt%20%C5%A1vestek.mkv%3FauthSig%3Dabc;end", intent)
+        # už zakódovaný odkaz projde stejně — nesmí vzniknout %2520
+        self.assertEqual(android_play_intent(raw.replace(" ", "%20")), intent)
+
+    def test_encode_signed_necha_query(self):
+        self.assertEqual(_encode_signed("/api/nokturno/files/a b.mkv?authSig=x=y"),
+                         "/api/nokturno/files/a%20b.mkv?authSig=x=y")
+
+    def test_kodi_image(self):
+        self.assertEqual(kodi_image("image://https%3a%2f%2fimage.tmdb.org%2fa.jpg/"), "https://image.tmdb.org/a.jpg")
+        self.assertEqual(kodi_image("https://x/y.jpg"), "https://x/y.jpg")
+        self.assertEqual(kodi_image("image://https%3a%2f%2fmovies.sosac.tv%2fa.jpg/"), "")
+        self.assertEqual(kodi_image("special://home/x.png"), "")
+        self.assertEqual(kodi_image(""), "")
+
+
+class TestPokracovatVeSledovani(unittest.TestCase):
+    def test_klic_z_plugin_odkazu(self):
+        self.assertEqual(_continue_key(KODI_PLUGIN + "?action=play&type=series&id=tt1%3A1%3A2&series=tt1&url=x"),
+                         ("tt1:1:2", "tt1"))
+        self.assertEqual(_continue_key(KODI_PLUGIN + "?action=play_ws&ident=abc&name=x"), ("ws:abc", ""))
+        self.assertEqual(_continue_key(KODI_PLUGIN + "?action=play_hs&id=12&hash=ab&name=x"), ("hs:12:ab", ""))
+        self.assertEqual(_continue_key(""), ("", ""))
+
+    def test_odebrany_dalsi_dil(self):
+        store = FakeStore(hidden={"tt1": "tt1:1:3"})
+        self.assertTrue(_removed_by_user(store, {"file": KODI_PLUGIN + "?action=play&id=tt1:1:3&series=tt1"}))
+        self.assertFalse(_removed_by_user(store, {"file": KODI_PLUGIN + "?action=play&id=tt1:1:4&series=tt1"}))
+
+    def test_vynulovana_rozkoukanost_bez_zhlednuti(self):
+        store = FakeStore(watched={"tt9": {"playcount": 0, "resume": 0, "total": 0}})
+        self.assertTrue(_removed_by_user(store, {"file": KODI_PLUGIN + "?action=play&id=tt9"}))
+        store = FakeStore(watched={"tt9": {"playcount": 0, "resume": 120.5, "total": 5000}})
+        self.assertFalse(_removed_by_user(store, {"file": KODI_PLUGIN + "?action=play&id=tt9"}))
+        store = FakeStore(watched={"tt9": {"playcount": 1, "resume": 0, "total": 0}})
+        self.assertFalse(_removed_by_user(store, {"file": KODI_PLUGIN + "?action=play&id=tt9"}))
+        self.assertFalse(_removed_by_user(FakeStore(), {"file": KODI_PLUGIN + "?action=play&id=tt9"}))
+
+
+class TestSluzby(unittest.TestCase):
+    def test_episode_target_film(self):
+        self.assertEqual(episode_target(FakeEngine(), {"id": "tt1"}), ("movie", "tt1", None, None))
+
+    def test_episode_target_dil_podle_sezony_a_epizody(self):
+        api = FakeApi(episode="sosacd_5:2:3")
+        engine = FakeEngine(api)
+        self.assertEqual(episode_target(engine, {"id": "sosacd_5", "type": "series", "season": 2, "episode": "3"}),
+                         ("series", "sosacd_5:2:3", "sosacd_5", None))
+        self.assertEqual(api.calls, [("sosacd_5", 2, 3)])
+
+    def test_episode_target_bez_episode_id_sklada_tvar_luny(self):
+        engine = FakeEngine(FakeApi(fail=True))
+        self.assertEqual(episode_target(engine, {"id": "tt1", "series": "tt1", "season": 1, "episode": 2, "alt": "s9"}),
+                         ("series", "tt1:1:2", "tt1", "s9"))
+        engine = FakeEngine(object())   # api bez episode_id
+        self.assertEqual(episode_target(engine, {"id": "tt1", "season": 1, "episode": 2})[1], "tt1:1:2")
+
+    def test_stats_title_bez_roku_v_nazvu(self):
+        engine = FakeEngine(meta={"_title": "Matrix", "name": "Matrix (1999)", "year": "1999-03-31"})
+        self.assertEqual(_stats_title(engine, "movie", "tt1", None), ("Matrix", 1999, "movie"))
+        engine = FakeEngine(meta={"name": "Breaking Bad", "releaseInfo": "2008-"}, video={"season": 1})
+        self.assertEqual(_stats_title(engine, "movie", "tt2:1:1", "tt2"), ("Breaking Bad", 2008, "series"))
+        engine = FakeEngine(meta={"name": "Bez roku"})
+        self.assertEqual(_stats_title(engine, "movie", "tt3", None), ("Bez roku", None, "movie"))
+
+
+class TestNastaveni(unittest.TestCase):
+    def test_ucty_a_hesla_patri_do_data_ne_do_options(self):
+        tajne = {const.CONF_WS_PASS, const.CONF_STREAMUJ_PASS, const.CONF_ST_PASS, const.CONF_LUNA_TOKEN,
+                 const.CONF_TMDB_KEY, const.CONF_SYNC_KEY, "dav1_password", "dav2_password", "dav3_password"}
+        self.assertTrue(tajne <= set(config_flow.ACCOUNT_KEYS), tajne - set(config_flow.ACCOUNT_KEYS))
+        predvolby = {m.schema for m in config_flow.preferences_schema({}).schema}
+        self.assertEqual(predvolby & set(config_flow.ACCOUNT_KEYS), set())
+
+    def test_predvolby_maji_stejne_klice_jako_jadro(self):
+        predvolby = {m.schema for m in config_flow.preferences_schema({}).schema}
+        for key in (const.CONF_PREF_LANG, const.CONF_SORT, const.CONF_HIDE_SD, const.CONF_MAX_BITRATE,
+                    const.CONF_HS_ENABLED, const.CONF_STATS_ENABLED):
+            self.assertIn(key, predvolby)
+
+
+class TestSouboryProHomeAssistant(unittest.TestCase):
+    """Co HA a HACS čtou samy — chyba se neprojeví v Pythonu, ale až u uživatele."""
+
+    def setUp(self):
+        self.manifest = json.loads((COMPONENT / "manifest.json").read_text(encoding="utf-8"))
+
+    def test_manifest(self):
+        self.assertEqual(self.manifest["domain"], const.DOMAIN)
+        self.assertRegex(self.manifest["version"], r"^\d+\.\d+\.\d+$")
+        self.assertTrue(self.manifest["config_flow"])
+        self.assertEqual(self.manifest["requirements"], [], "jádro je bez závislostí, integrace má zůstat taky")
+        for key in ("documentation", "issue_tracker", "codeowners", "iot_class"):
+            self.assertIn(key, self.manifest)
+
+    def test_hacs_json(self):
+        hacs = json.loads((ROOT / "hacs.json").read_text(encoding="utf-8"))
+        self.assertEqual(hacs["name"], "Nokturno")
+        self.assertFalse(hacs.get("content_in_root", False))
+        self.assertRegex(hacs["homeassistant"], r"^\d{4}\.\d{1,2}\.\d+$")
+
+    def test_kazda_sluzba_je_v_services_yaml_a_naopak(self):
+        v_kodu = {getattr(const, name) for name in dir(const) if name.startswith("SERVICE_")}
+        v_yaml = set(re.findall(r"^([a-z_]+):", (COMPONENT / "services.yaml").read_text(encoding="utf-8"), re.M))
+        self.assertEqual(v_kodu - v_yaml, set(), "služba bez popisu pro UI Home Assistantu")
+        self.assertEqual(v_yaml - v_kodu, set(), "popis služby, kterou integrace neregistruje")
+
+    def test_preklady_maji_stejnou_strukturu(self):
+        def klice(d, prefix=""):
+            out = set()
+            for k, v in d.items():
+                out.add(prefix + k)
+                if isinstance(v, dict):
+                    out |= klice(v, prefix + k + ".")
+            return out
+
+        strings = klice(json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8")))
+        for lang in ("cs", "en", "sk"):
+            preklad = klice(json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8")))
+            self.assertEqual(strings ^ preklad, set(), f"{lang}.json se liší od strings.json")
+
+    def test_kazdy_klic_nastaveni_ma_popisek(self):
+        strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
+        popisky = set(strings["config"]["step"]["user"]["data"])
+        klice = set(config_flow.ACCOUNT_KEYS) | {m.schema for m in config_flow.preferences_schema({}).schema}
+        self.assertEqual(klice - popisky, set(), "klíč nastavení bez popisku ve formuláři")
+
+    def test_karta_existuje_a_hlasi_verzi(self):
+        card = (COMPONENT / "www" / "nokturno-card.js").read_text(encoding="utf-8")
+        self.assertRegex(card, r'const CARD_VERSION = "\d+\.\d+\.\d+"')
+        self.assertIn("customElements.define(", card)
+        self.assertIn("window.customCards", card)
+
+    def test_verze_karty_v_cache_bustu_je_z_manifestu(self):
+        # karta se servíruje s `?v=<verze integrace>`; kdyby se bral jiný zdroj, prohlížeč drží starou
+        src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+        self.assertRegex(src, r"CARD_URL\}\?v=\{[^}]*version")
+
+
+if __name__ == "__main__":
+    unittest.main()

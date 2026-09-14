@@ -232,9 +232,12 @@ def split_episode_id(item_id):
 class Engine:
     """Přístup ke třem zdrojům obsahu pod jedním rozhraním."""
 
-    def __init__(self, options, storage_dir):
+    def __init__(self, options, storage_dir, opener=None):
+        """`opener`: volitelný `urllib.request.OpenerDirector` pro vlastní úložiště —
+        veřejná instance jím hlídá, kam se smí připojit (viz `StorageApi`)."""
         self.options = dict(options)
         self.store = Store(storage_dir)
+        self.opener = opener
         self._luna = None
         self._sosac = None
         self._ws = None
@@ -341,7 +344,8 @@ class Engine:
                     continue
                 try:
                     self._storages.append(StorageApi(self._opt(url), self._opt(user), self._opt(password),
-                                                     self._opt(name), slot=slot, cache=self.store))
+                                                     self._opt(name), slot=slot, cache=self.store,
+                                                     opener=self.opener))
                 except StorageError as err:
                     _LOGGER.warning("úložiště %d: %s", slot, err)
         return self._storages

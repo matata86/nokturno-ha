@@ -47,6 +47,9 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy
 - **Databáze filmů po ruce vždycky** — tlačítko *Hledat v databázi filmů* je u každých výsledků, ne jen když zdroje nic nenajdou. Klepnutím na titul se otevře jeho detail s plakátem a popisem (u chystaných filmů, které popis nikde nemají, aspoň žánr, režie a obsazení) a záložkou v něm si ho uložíš do seznamu k zhlédnutí. Dokud jsi v databázi, hledá tam i tlačítko *Hledat*.
 - **Torrenty jako poslední možnost** — když na titul nikde stream není, tlačítko *Hledat torrenty* pod seznamem prohledá trackery přes [Prowlarr](https://prowlarr.com/) a nalezené torrenty předá qBittorrentu. Hledá se **až na vyžádání**, protože trackery odpovídají v řádu sekund a otevření detailu by to zdržovalo. Vypnuté, dokud Prowlarr nevyplníš.
 - **Hlasovka jedním krokem** — službám stačí `query` místo ID.
+- **Česky, slovensky i anglicky** — formulář nastavení, popisy všech služeb (*Vývojářské nástroje → Akce*) i názvy senzorů podle jazyka Home Assistantu. Instalace z doby před 4.0 si ponechají původní `entity_id` senzorů (`sensor.nokturno_stahovani`…); karta si senzor stahování najde i pod jiným jménem.
+- **Oprava přihlášení k WebShare** — když WebShare odmítne heslo, integrace se přepne do stavu *vyžaduje opravu* a nabídne zadání údajů znovu (heslo se před uložením ověří). Výpadek sítě tohle nespouští.
+- **Diagnostika bez tajemství** — *Stáhnout diagnostiku* u integrace vynechá hesla, účty i klíče; hesla se ve formuláři zadávají skrytě.
 
 ## Instalace
 
@@ -67,7 +70,7 @@ Zkopíruj složku `custom_components/nokturno` do své konfigurace a restartuj H
 
 ## Nastavení integrace
 
-Průvodce má dva kroky. **Účty** — vyplň jen zdroje, které chceš používat:
+Průvodce je jeden formulář: nahoře **účty** (vyplň jen zdroje, které chceš používat), pod nimi předvolby. Hesla se zadávají skrytě a ukládají se odděleně od předvoleb:
 
 | Pole | Bez čeho to nejde | Co tím získáš |
 |---|---|---|
@@ -78,7 +81,7 @@ Průvodce má dva kroky. **Účty** — vyplň jen zdroje, které chceš použí
 | Sledujteto — e-mail a heslo (od 3.0.0) | účet Sledujteto, k přehrání **Premium** | další soubory k titulu ze sledujteto.cz; rozlišení, kanály a kodek zvuku posílá přímo jejich API, soubor se nečte |
 | TMDB — API klíč | zdarma klíč z [themoviedb.org](https://www.themoviedb.org/signup) (ikona profilu → *Nastavení* → *API* → *Request an API Key* → *Developer* → zkopírovat **API Key (v3 auth)**) | vlastní databáze filmů a seriálů — jakmile je klíč vyplněný, katalog i hledání jedou přes TMDB **přednostně i před Lunou** (umí i český popis a obsazení, ne jen název); Luna zůstává zdrojem streamů. Bez klíče je primární Luna (je-li dostupná), jinak zdarma veřejný katalog Sosáče a nakonec Cinemeta (obojí bez popisu, nebo jen anglicky). |
 
-Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Katalog i hledání titulů fungují dokonce i úplně bez jediného vyplněného zdroje (viz [Vlastní databáze filmů a seriálů](#vlastní-databáze-filmů-a-seriálů) níž). HellSpy je vypnutý a zapíná se v předvolbách.
+Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Katalog i hledání titulů fungují dokonce i úplně bez jediného vyplněného zdroje (viz [Vlastní databáze filmů a seriálů](#vlastní-databáze-filmů-a-seriálů) níž). HellSpy je zapnutý a vypíná se v předvolbách.
 
 ### Vlastní databáze filmů a seriálů
 
@@ -100,7 +103,7 @@ Streamy samotné (WebShare/HellSpy/Sledujteto/Luna) se pak hledají stejně jako
 | Preferovat prostorový zvuk | ano / ne | ne | při shodné kvalitě jde nahoru 5.1 a víc. |
 | Skrýt SD streamy | ano / ne | ne | vyhodí ze seznamu všechno pod 720p. |
 | Max. datový tok (Mb/s) | číslo, 0 = bez omezení | 0 | přepočítá se na GB podle stopáže právě otevřeného titulu — pevné GB nedávaly smysl, devadesátiminutová pohádka a tříhodinový epos se stejnou rychlostí vyjdou na jinou velikost. |
-| Řazení streamů | `quality`, `size_desc`, `size_asc`, `source` | `quality` | `quality` řadí podle rozlišení (odhad z velikosti u souborů bez kvality v názvu se pozná podle vlnovky), `source` seskupí podle zdroje. |
+| Řazení streamů | `quality`, `size_desc`, `size_asc`, `source` | `size_desc` | `size_desc` dá nahoru největší soubory, `quality` řadí podle rozlišení (odhad z velikosti u souborů bez kvality v názvu se pozná podle vlnovky), `source` seskupí podle zdroje. |
 | Složka pro stahování | cesta | `/media/nokturno` | musí být uvnitř `media_dirs`, jinak stažené soubory neuvidíš v Médiích. Titulky se ukládají vedle videa se stejným názvem. |
 | Adresa mimo domácí síť | IP nebo doména | — | Tailscale/VPN adresa HA (např. `100.94.191.65`). Použije se při odesílání odkazu a při `resolve`, a jen tehdy, když addon Tailscale skutečně běží — integrace si to ověřuje přes Supervisor. |
 | Oznámení | notify služba | — | kam chodí hlášky o dokončeném stahování, novém dílu a nově dostupném titulu (`notify.mobile_app_…`). Prázdné = trvalé oznámení v HA. |
@@ -368,6 +371,9 @@ actions:
 | Stream nejde pustit venku | vyber řádek s 🌐, nebo vyplň adresu Tailscale a zkontroluj, že addon běží |
 | Trakt hlásí „nepřihlášeno" | spusť `nokturno.trakt_auth` a zadej kód na trakt.tv/activate |
 | Odebraný titul zůstal v seznamu k zhlédnutí | opraveno v 1.8.8 — karta čte poslední kontrolu, ta se teď maže spolu s položkou |
+| Integrace hlásí *vyžaduje opravu* | WebShare odmítl přihlášení — klikni na *Opravit* a zadej e-mail a heslo znovu; heslo se před uložením ověří |
+| Senzory se jmenují jinak než v návodu | od 4.0 se názvy senzorů překládají podle jazyka HA — nová instalace v angličtině má třeba `sensor.nokturno_downloads`. Karta si senzor stahování najde sama, v automatizacích použij skutečné `entity_id` |
+| Potřebuju poslat podklady k chybě | u integrace *Stáhnout diagnostiku* — hesla, účty a klíče se do souboru nedostanou |
 
 ## Související projekty
 

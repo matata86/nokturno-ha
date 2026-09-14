@@ -1,21 +1,21 @@
 {
   "domain": "nokturno",
   "name": "Nokturno",
-  "version": "3.1.12",
-  "documentation": "https://github.com/matata86/nokturno-ha",
-  "issue_tracker": "https://github.com/matata86/nokturno-ha/issues",
+  "after_dependencies": [
+    "media_player",
+    "hassio"
+  ],
   "codeowners": [
     "@matata86"
   ],
   "config_flow": true,
-  "iot_class": "cloud_polling",
-  "integration_type": "service",
-  "requirements": [],
   "dependencies": [
     "http"
   ],
-  "after_dependencies": [
-    "media_player",
-    "hassio"
-  ]
+  "documentation": "https://github.com/matata86/nokturno-ha",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/matata86/nokturno-ha/issues",
+  "requirements": [],
+  "version": "3.1.12"
 }

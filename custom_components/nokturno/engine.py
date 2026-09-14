@@ -126,7 +126,9 @@ def _title_pattern(text):
 def _prefix_ok(folded, spans, first):
     """Smí název titulu v souboru stát až za textem před ním? (viz `_title_leads`)"""
     before = [t for t, _e in spans[:first]]
-    if all(t in RELEASE_TAGS or t.isdigit() for t in before):
+    # krátká slova (≤ 2 znaky) patří k názvu — „S čerty nejsou žerty“ začíná krátkým „S“,
+    # které filtr slov neřeší; bez téhle výjimky zmizely všechny jeho soubory
+    if all(t in RELEASE_TAGS or t.isdigit() or len(t) <= 2 for t in before):
         return True
     start = spans[first][1] - len(spans[first][0])
     prefix = folded[:start].rstrip(" ._")
@@ -1769,7 +1771,7 @@ class Engine:
 
         # „streams2“: seznamy uložené před doplněním českých názvů z Wikidat byly u titulů
         # bez Luny/TMDB ořezané přísným filtrem — nový klíč je jednorázově obnoví
-        cache_key = f"streams4:{ctype}:{item_id}:{alt or ''}"   # 4 = přísnější filtr názvu (idiom, rok „r1983“)
+        cache_key = f"streams5:{ctype}:{item_id}:{alt or ''}"   # 5 = oprava filtru (krátké slovo na začátku názvu)
         found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams,
                                      ok=lambda data: bool(data) and not failures)
         # vlastní úložiště mimo 72h cache streamů — nový soubor se má ukázat hned,

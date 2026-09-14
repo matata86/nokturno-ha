@@ -11,10 +11,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .config_flow import SECRET_KEYS
-from .const import CONF_ST_EMAIL, CONF_STREAMUJ_USER, CONF_WS_USER, DOMAIN
+from .const import CONF_FS_USER, CONF_ST_EMAIL, CONF_STREAMUJ_USER, CONF_WS_USER, DOMAIN
 
 # hesla a klíče + účty (e-maily, jména) — nic z toho není k ladění potřeba
-TO_REDACT = set(SECRET_KEYS) | {CONF_WS_USER, CONF_STREAMUJ_USER, CONF_ST_EMAIL, "qbit_username",
+TO_REDACT = set(SECRET_KEYS) | {CONF_WS_USER, CONF_STREAMUJ_USER, CONF_ST_EMAIL, CONF_FS_USER, "qbit_username",
                                 "dav1_username", "dav2_username", "dav3_username"}
 
 

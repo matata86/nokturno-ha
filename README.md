@@ -9,7 +9,7 @@
 
 První tlačítko otevře repozitář rovnou v HACS tvojí instance, druhé spustí průvodce nastavením integrace.
 
-Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy** a **Sledujteto** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu.
+Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy**, **Sledujteto** a **FastShare** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu.
 
 > **Patří k sobě:** stejné zdroje nabízí i [**Nokturno pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování") a [**Nokturno pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Streamovací server Luna jde provozovat jako [addon HA](https://github.com/matata86/ha-addons).
 
@@ -79,6 +79,7 @@ Průvodce je jeden formulář: nahoře **účty** (vyplň jen zdroje, které chc
 | Luna — adresa, token | běžící addon [Luna](https://github.com/matata86/ha-addons) v síti | katalogy a metadata z TMDB (české názvy, popisy, plakáty) a streamy z WebShare přes Lunu. Token lze vložit i jako celou instalační URL, adresa se z ní vytáhne sama. |
 | HellSpy — jen přepínač | nic, rozhraní je veřejné | další soubory k titulu z hellspy.to. Nabízí se původní soubor, ne překódování, takže velikost i kvalita v seznamu odpovídají tomu, co se přehraje. Rychlost bez účtu kolísá, naměřeno 37 až 400 Mb/s. |
 | Sledujteto — e-mail a heslo (od 3.0.0) | účet Sledujteto, k přehrání **Premium** | další soubory k titulu ze sledujteto.cz; rozlišení, kanály a kodek zvuku posílá přímo jejich API, soubor se nečte |
+| FastShare — uživatel a heslo (od 4.0.2) | účet FastShare, přehrání z **kreditu** nebo neomezeného tarifu | další soubory k titulu z fastshare.cz; hledá se i bez účtu, zvuk se dočte z hlavičky souboru (pár set kB z kreditu, jednou za 30 dní). Mimo Kodi jde soubor přes HA — přehrávač cookie z přihlášení neumí poslat |
 | TMDB — API klíč | zdarma klíč z [themoviedb.org](https://www.themoviedb.org/signup) (ikona profilu → *Nastavení* → *API* → *Request an API Key* → *Developer* → zkopírovat **API Key (v3 auth)**) | vlastní databáze filmů a seriálů — jakmile je klíč vyplněný, katalog i hledání jedou přes TMDB **přednostně i před Lunou** (umí i český popis a obsazení, ne jen název); Luna zůstává zdrojem streamů. Bez klíče je primární Luna (je-li dostupná), jinak zdarma veřejný katalog Sosáče a nakonec Cinemeta (obojí bez popisu, nebo jen anglicky). |
 
 Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Katalog i hledání titulů fungují dokonce i úplně bez jediného vyplněného zdroje (viz [Vlastní databáze filmů a seriálů](#vlastní-databáze-filmů-a-seriálů) níž). HellSpy je zapnutý a vypíná se v předvolbách.
@@ -92,7 +93,7 @@ Katalog a hledání titulů běžely dřív jen přes Lunu (nebo Sosáč) — be
 3. **Veřejný katalog Sosáče** — bez TMDB i Luny, bez účtu, české tituly a žánry, ale bez popisu
 4. **Cinemeta** — poslední záchrana, funguje vždy, ale jen anglicky
 
-Streamy samotné (WebShare/HellSpy/Sledujteto/Luna) se pak hledají stejně jako dřív — vlastní databáze řeší jen „co je to za titul", ne odkud stream stáhnout. Tlačítko **Hledat v databázi filmů** (viz [Databáze filmů](#databáze-filmů) níž) běží nezávisle na tomhle pořadí — vždy přes Cinemetu, protože slouží k dohledání titulů, které žádný zdroj (ani vlastní databáze) ještě nezná.
+Streamy samotné (WebShare/HellSpy/Sledujteto/FastShare/Luna) se pak hledají stejně jako dřív — vlastní databáze řeší jen „co je to za titul", ne odkud stream stáhnout. Tlačítko **Hledat v databázi filmů** (viz [Databáze filmů](#databáze-filmů) níž) běží nezávisle na tomhle pořadí — vždy přes Cinemetu, protože slouží k dohledání titulů, které žádný zdroj (ani vlastní databáze) ještě nezná.
 
 **Předvolby přehrávání** (jdou kdykoli změnit v *Nastavení → Zařízení a služby → Nokturno → Konfigurovat*):
 
@@ -202,7 +203,7 @@ Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, 
 
 <img src="docs/03-streamy.png" width="420" alt="Streamy">
 
-Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová, HellSpy červený, Sledujteto tyrkysový) s 🌐 u odkazů, které hrají i mimo domácí síť, **nad** popisem `kvalita · název souboru · zvuk · titulky · velikost`, který jde přes celou šířku karty. Tlačítka jsou pod ním na vlastním řádku, takže nezkracují název. Po najetí myší se v bublině ukáže celý název souboru, titulky, bitrate a jestli hraje venku. Kvalita s vlnovkou (`~4K`) je odhad z velikosti souboru — zdroj ji v názvu neuvedl. Čtyři akce:
+Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová, HellSpy červený, Sledujteto tyrkysový, FastShare zlatý) s 🌐 u odkazů, které hrají i mimo domácí síť, **nad** popisem `kvalita · název souboru · zvuk · titulky · velikost`, který jde přes celou šířku karty. Tlačítka jsou pod ním na vlastním řádku, takže nezkracují název. Po najetí myší se v bublině ukáže celý název souboru, titulky, bitrate a jestli hraje venku. Kvalita s vlnovkou (`~4K`) je odhad z velikosti souboru — zdroj ji v názvu neuvedl. Čtyři akce:
 
 | Ikona | Co udělá |
 |---|---|

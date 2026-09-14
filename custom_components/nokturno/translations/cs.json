@@ -11,6 +11,8 @@
           "streamuj_password": "Streamuj.tv — heslo",
           "st_email": "Sledujteto — e-mail",
           "st_password": "Sledujteto — heslo (přehrávání jen s Premium)",
+          "fs_username": "FastShare — uživatel",
+          "fs_password": "FastShare — heslo (přehrání z kreditu nebo neomezeného tarifu)",
           "luna_url": "Luna — adresa serveru",
           "luna_token": "Luna — token (nebo celá instalační URL)",
           "tmdb_api_key": "TMDB — API klíč (nepovinné, ale má přednost i před Lunou — pro české tituly a popisy)",
@@ -77,6 +79,8 @@
           "streamuj_password": "Streamuj.tv — heslo",
           "st_email": "Sledujteto — e-mail",
           "st_password": "Sledujteto — heslo (přehrávání jen s Premium)",
+          "fs_username": "FastShare — uživatel",
+          "fs_password": "FastShare — heslo (přehrání z kreditu nebo neomezeného tarifu)",
           "luna_url": "Luna — adresa serveru",
           "luna_token": "Luna — token (nebo celá instalační URL)",
           "tmdb_api_key": "TMDB — API klíč (nepovinné, ale má přednost i před Lunou — pro české tituly a popisy)",
@@ -541,7 +545,7 @@
     },
     "fulltext_search": {
       "name": "Ruční fulltextové hledání",
-      "description": "Hledá na WebShare a HellSpy s uvolněným filtrem — najde i to, co běžné hledání zahodí jako podobný, ale jiný titul. Výsledek se bere jako neověřený, posouzení nechává na uživateli.",
+      "description": "Hledá na WebShare, HellSpy, Sledujteto a FastShare s uvolněným filtrem — najde i to, co běžné hledání zahodí jako podobný, ale jiný titul. Výsledek se bere jako neověřený, posouzení nechává na uživateli.",
       "fields": {
         "id": {
           "name": "ID titulu"

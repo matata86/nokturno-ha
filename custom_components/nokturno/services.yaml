@@ -464,3 +464,5 @@ fulltext_search:
           options:
           - ws
           - hs
+          - st
+          - fs

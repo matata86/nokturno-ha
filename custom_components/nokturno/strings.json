@@ -11,6 +11,8 @@
           "streamuj_password": "Streamuj.tv — password",
           "st_email": "Sledujteto — e-mail",
           "st_password": "Sledujteto — password (playback needs Premium)",
+          "fs_username": "FastShare — username",
+          "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
           "luna_url": "Luna — server address",
           "luna_token": "Luna — token (or the whole install URL)",
           "tmdb_api_key": "TMDB — API key (optional, but takes precedence even over Luna — Czech titles and descriptions)",
@@ -77,6 +79,8 @@
           "streamuj_password": "Streamuj.tv — password",
           "st_email": "Sledujteto — e-mail",
           "st_password": "Sledujteto — password (playback needs Premium)",
+          "fs_username": "FastShare — username",
+          "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
           "luna_url": "Luna — server address",
           "luna_token": "Luna — token (or the whole install URL)",
           "tmdb_api_key": "TMDB — API key (optional, but takes precedence even over Luna — Czech titles and descriptions)",
@@ -541,7 +545,7 @@
     },
     "fulltext_search": {
       "name": "Manual full-text search",
-      "description": "Searches WebShare and HellSpy with a relaxed filter — finds what regular search discards as a similar but different title. Results are unverified; judgement is left to the user.",
+      "description": "Searches WebShare, HellSpy, Sledujteto and FastShare with a relaxed filter — finds what regular search discards as a similar but different title. Results are unverified; judgement is left to the user.",
       "fields": {
         "id": {
           "name": "Title ID"

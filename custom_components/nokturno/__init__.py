@@ -743,25 +743,47 @@ class NokturnoStorageView(HomeAssistantView):
         self.hass = hass
 
     async def get(self, request, slot, path):
-        from aiohttp import web
+        return await _proxy_file(self.hass, request, f"dav:{slot}:{path}", "Úložiště")
 
-        try:
-            engine = _entry_data(self.hass)["engine"]
-            url, headers = await self.hass.async_add_executor_job(engine.storage_request, f"dav:{slot}:{path}")
-        except (HomeAssistantError, NokturnoError) as err:
-            return web.Response(status=404, text=str(err))
-        for name in ("Range", "If-Range"):
-            if request.headers.get(name):
-                headers[name] = request.headers[name]
-        session = async_get_clientsession(self.hass)
-        try:
-            upstream = await session.get(url, headers=headers, timeout=None)
-        except Exception as err:  # noqa: BLE001 – síť, DNS, TLS
-            _LOGGER.info("úložiště neodpovídá: %s", err)
-            return web.Response(status=502, text="Úložiště neodpovídá.")
-        async with upstream:
-            if upstream.status in (401, 403):
-                return web.Response(status=502, text="Úložiště odmítlo jméno nebo heslo.")
+
+class NokturnoFastshareView(HomeAssistantView):
+    """Soubor z FastShare přes HA — přehrávače mimo Kodi (a stahovač) cookie
+    z přihlášení neumí poslat. Jako `NokturnoStorageView`: podepsaný odkaz,
+    `Range` pro přetáčení; odkaz `fs:` hlídá jádro (jen datové servery FastShare)."""
+
+    url = "/api/nokturno/fastshare/{ref}"
+    name = "api:nokturno:fastshare"
+    requires_auth = True
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def get(self, request, ref):
+        return await _proxy_file(self.hass, request, ref, "FastShare")
+
+
+async def _proxy_file(hass: HomeAssistant, request, ref: str, label: str):
+    """Soubor, který bez hlaviček nehraje (`dav:` heslo, `fs:` cookie), stažený a poslaný dál HA."""
+    from aiohttp import web
+
+    try:
+        engine = _entry_data(hass)["engine"]
+        url, headers = await hass.async_add_executor_job(engine.file_request, ref)
+    except (HomeAssistantError, NokturnoError) as err:
+        return web.Response(status=404, text=str(err))
+    headers = dict(headers)
+    for name in ("Range", "If-Range"):
+        if request.headers.get(name):
+            headers[name] = request.headers[name]
+    session = async_get_clientsession(hass)
+    try:
+        upstream = await session.get(url, headers=headers, timeout=None)
+    except Exception as err:  # noqa: BLE001 – síť, DNS, TLS
+        _LOGGER.info("%s neodpovídá: %s", label, err)
+        return web.Response(status=502, text=f"{label} neodpovídá.")
+    async with upstream:
+        if upstream.status in (401, 403):
+            return web.Response(status=502, text=f"{label} odmítl přihlášení.")
             response = web.StreamResponse(status=upstream.status)
             for name in ("Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag"):
                 if upstream.headers.get(name):
@@ -773,12 +795,20 @@ class NokturnoStorageView(HomeAssistantView):
             return response
 
 
+# odkazy, které hrají jen s hlavičkou (heslo úložiště, cookie FastShare) — mimo Kodi jdou přes HA
+PROXY_SCHEMES = ("dav:", "fs:")
+
+
 def storage_link(hass: HomeAssistant, ref: str, external: bool = False, hours: int = 12) -> str:
-    """`dav:<slot>:<cesta>` → absolutní podepsaný odkaz na `NokturnoStorageView`."""
+    """`dav:<slot>:<cesta>` / `fs:…` → absolutní podepsaný odkaz na `NokturnoStorageView` / `NokturnoFastshareView`."""
     from datetime import timedelta as _timedelta
 
-    slot, _sep, path = ref[4:].partition(":")
-    signed = async_sign_path(hass, f"/api/nokturno/storage/{slot}/{path}", _timedelta(hours=hours))
+    if ref.startswith("fs:"):
+        view_path = f"/api/nokturno/fastshare/{ref}"
+    else:
+        slot, _sep, path = ref[4:].partition(":")
+        view_path = f"/api/nokturno/storage/{slot}/{path}"
+    signed = async_sign_path(hass, view_path, _timedelta(hours=hours))
     try:
         base = get_url(hass, prefer_external=external)
     except NoURLAvailableError as err:
@@ -795,6 +825,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.http.register_view(NokturnoSyncView(hass))
         hass.http.register_view(NokturnoFilesView(hass))
         hass.http.register_view(NokturnoStorageView(hass))
+        hass.http.register_view(NokturnoFastshareView(hass))
         hass.data[f"{DOMAIN}_sync_view"] = True
     options = {**entry.data, **entry.options}
     if options.get(CONF_EXTERNAL_HOST) and await async_tailscale_running(hass) is False:
@@ -1412,14 +1443,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"count": len(rows), "streams": rows}
 
     async def handle_fulltext(call: ServiceCall):
-        """Ruční, uvolněné hledání na WebShare/HellSpy — tlačítko „Zkusit fulltext"
+        """Ruční, uvolněné hledání na WebShare/HellSpy/Sledujteto/FastShare — tlačítko „Zkusit fulltext"
         na kartě, pro případ, že přísný automatický filtr skutečnou shodu zahodil
         (nebo naopak: i mezi nalezenými streamy se dá ověřit, jestli nejsou omylem)."""
         call_data = await _with_query(dict(call.data))
         if not call_data.get("id"):
             raise HomeAssistantError("Chybí `id` titulu nebo `query`.")
         ctype, item_id, series, alt = await hass.async_add_executor_job(episode_target, engine, call_data)
-        sources = tuple(call.data.get("source") or ("ws", "hs", "st"))
+        sources = tuple(call.data.get("source") or ("ws", "hs", "st", "fs"))
         rows = await _in_executor(engine.fulltext_streams, ctype, item_id, series, alt, sources)
         return {"count": len(rows), "streams": rows}
 
@@ -1435,7 +1466,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_resolve(call: ServiceCall):
         _c, _i, _s, _a, stream = await _chosen_stream(call.data)
         # odkaz je určený pro cizí přehrávač → rovnou v podobě funkční i mimo domácí síť
-        if str(stream.get("url", "")).startswith("dav:"):
+        if str(stream.get("url", "")).startswith(PROXY_SCHEMES):
             url = storage_link(hass, stream["url"], external=True)
         else:
             url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)
@@ -1456,7 +1487,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry_reg = registry.async_get(entity_id)
             is_kodi = bool(entry_reg and entry_reg.platform == "kodi")
             plugin_ok = is_kodi and not call_data.get("direct")
-            if str(stream.get("url", "")).startswith("dav:"):
+            if str(stream.get("url", "")).startswith(PROXY_SCHEMES):
                 # vlastní úložiště: Kodi umí heslo v hlavičce za svislítkem a nepotřebuje
                 # mít úložiště nastavené v doplňku; ostatní přehrávače jdou přes HA
                 media_id = (await _in_executor(engine.resolve, stream["url"]) if is_kodi
@@ -1485,7 +1516,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def handle_download(call: ServiceCall):
         ctype, item_id, series, alt, stream = await _chosen_stream(call.data)
-        is_storage = str(stream.get("url", "")).startswith("dav:")
+        is_storage = str(stream.get("url", "")).startswith(PROXY_SCHEMES)
         # stahovač jede přes aiohttp, hlavičky za svislítkem nezná → soubor z úložiště přes vlastní proxy
         url = storage_link(hass, stream["url"], hours=48) if is_storage else await _in_executor(engine.resolve, stream["url"])
         name = call.data.get("name")
@@ -1505,7 +1536,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def handle_send_link(call: ServiceCall):
         _c, _i, _s, _a, stream = await _chosen_stream(call.data)
-        if str(stream.get("url", "")).startswith("dav:"):
+        if str(stream.get("url", "")).startswith(PROXY_SCHEMES):
             url = storage_link(hass, stream["url"], external=True, hours=24)
         else:
             url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)

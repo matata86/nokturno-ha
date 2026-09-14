@@ -244,6 +244,7 @@ class Engine:
         self._ws = None
         self._ws_ready = False
         self._ws_retry_after = 0.0   # po selhání loginu zkusit znovu až za chvíli, ne nikdy
+        self.ws_error = None         # poslední chyba loginu WebShare (HA podle ní spouští reauth)
         self._orig_memo = {}         # original_titles() za jeden výpis: (klíč) → (čas, názvy)
         self._hs = None
         self._st = None
@@ -263,6 +264,7 @@ class Engine:
         self._luna = self._sosac = self._ws = None
         self._ws_ready = False
         self._ws_retry_after = 0.0
+        self.ws_error = None
         self._orig_memo = {}
         self._hs = None
         self._st = None
@@ -306,7 +308,9 @@ class Engine:
                     api.login()
                     self._ws = api
                     self._ws_ready = True
+                    self.ws_error = None
                 except WebshareError as err:
+                    self.ws_error = err
                     _LOGGER.warning("WebShare login selhal, další pokus za %d s: %s", WS_RETRY_S, err)
                     self._ws_retry_after = time.time() + WS_RETRY_S
         return self._ws

@@ -47,10 +47,23 @@
           "dav3_password": "Úložisko 3 — heslo",
           "dav3_name": "Úložisko 3 — názov pri streamoch"
         }
+      },
+      "reauth_confirm": {
+        "title": "Prihlásenie k WebShare",
+        "description": "WebShare odmietol prihlásenie — skontroluj e-mail a heslo.",
+        "data": {
+          "ws_username": "WebShare — e-mail",
+          "ws_password": "WebShare — heslo (alebo uložený hash)"
+        }
       }
     },
+    "error": {
+      "ws_auth": "Nesprávny e-mail alebo heslo.",
+      "ws_network": "WebShare neodpovedal, skús to o chvíľu."
+    },
     "abort": {
-      "already_configured": "Nokturno je už nastavené."
+      "already_configured": "Nokturno už je nastavené.",
+      "reauth_successful": "Prihlasovacie údaje aktualizované."
     }
   },
   "options": {
@@ -65,7 +78,8 @@
           "st_email": "Sledujteto — e-mail",
           "st_password": "Sledujteto — heslo (prehrávanie len s Premium)",
           "luna_url": "Luna — adresa servera",
-          "luna_token": "Luna — token",
+          "luna_token": "Luna — token (alebo celá inštalačná URL)",
+          "tmdb_api_key": "TMDB — API kľúč (nepovinné, ale má prednosť aj pred Lunou — pre české názvy a popisy)",
           "kodi_entity": "Predvolený prehrávač (Kodi)",
           "pref_lang": "Preferovaný jazyk zvuku",
           "pref_surround": "Preferovať priestorový zvuk (5.1 a viac)",
@@ -86,7 +100,6 @@
           "sub_warn_days": "Upozorniť N dní pred koncom predplatného WebShare (0 = vypnuté)",
           "sync_key": "Kľúč na synchronizáciu s Kodi (opíš do doplnku Nokturno)",
           "stats_enabled": "Posielať anonymné štatistiky (aj vypnuté pošlú len náhodné id a verziu)",
-          "tmdb_api_key": "TMDB — API kľúč (nepovinné, ale má prednosť aj pred Lunou — pre české názvy a popisy)",
           "dav1_url": "Úložisko 1 — adresa priečinka (WebDAV)",
           "dav1_username": "Úložisko 1 — používateľ",
           "dav1_password": "Úložisko 1 — heslo",
@@ -100,6 +113,471 @@
           "dav3_password": "Úložisko 3 — heslo",
           "dav3_name": "Úložisko 3 — názov pri streamoch"
         }
+      }
+    }
+  },
+  "services": {
+    "search": {
+      "name": "Hľadať",
+      "description": "Vyhľadá film alebo seriál v zdrojoch (Luna, Sosáč), priamo na WebShare, alebo v databáze filmov (`catalog` / `catalog_series` — nájde aj tituly, ktoré zatiaľ nikde nie sú). Výsledky vracia ako odpoveď.",
+      "fields": {
+        "query": {
+          "name": "Dotaz"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "limit": {
+          "name": "Počet výsledkov"
+        }
+      }
+    },
+    "streams": {
+      "name": "Streamy titulu",
+      "description": "Vráti zoradené streamy pre titul z hľadania (id z výsledku služby Hľadať).",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "alt": {
+          "name": "Alternatívne ID (druhý zdroj)"
+        },
+        "series": {
+          "name": "ID seriálu"
+        },
+        "season": {
+          "name": "Séria"
+        },
+        "episode": {
+          "name": "Diel"
+        }
+      }
+    },
+    "play": {
+      "name": "Prehrať",
+      "description": "Pustí titul v Kodi (cez doplnok Nokturno) alebo v inom prehrávači (priamy odkaz). Namiesto ID ide zadať dotaz — pustí sa prvý nájdený titul.",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "query": {
+          "name": "Dotaz",
+          "description": "Názov filmu/seriálu; použije sa, keď chýba ID (hlasovka, skripty)."
+        },
+        "entity_id": {
+          "name": "Prehrávač"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "stream": {
+          "name": "Poradie streamu",
+          "description": "Index zo služby Streamy titulu; prázdne = najlepší podľa nastavenia."
+        },
+        "url": {
+          "name": "Priamy odkaz",
+          "description": "Namiesto hľadania streamu pustí tento odkaz."
+        },
+        "alt": {
+          "name": "Alternatívne ID"
+        },
+        "series": {
+          "name": "ID seriálu"
+        },
+        "season": {
+          "name": "Séria"
+        },
+        "episode": {
+          "name": "Diel"
+        },
+        "direct": {
+          "name": "Vždy priamy odkaz",
+          "description": "Aj pre Kodi použije priamu URL namiesto doplnku (bez evidencie pozretého)."
+        }
+      }
+    },
+    "resolve": {
+      "name": "Získať odkaz",
+      "description": "Vráti priamu HTTP URL streamu — pre externý prehrávač (VLC, mobil) alebo Cast.",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "stream": {
+          "name": "Poradie streamu"
+        },
+        "url": {
+          "name": "Odkaz streamu"
+        },
+        "alt": {
+          "name": "Alternatívne ID"
+        },
+        "series": {
+          "name": "ID seriálu"
+        },
+        "season": {
+          "name": "Séria"
+        },
+        "episode": {
+          "name": "Diel"
+        }
+      }
+    },
+    "download": {
+      "name": "Stiahnuť",
+      "description": "Stiahne stream do priečinka HA (predvolene /media/nokturno) — potom je dostupný aj v Media Browseri.",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "name": {
+          "name": "Názov súboru"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "stream": {
+          "name": "Poradie streamu"
+        },
+        "url": {
+          "name": "Odkaz streamu"
+        },
+        "alt": {
+          "name": "Alternatívne ID"
+        },
+        "series": {
+          "name": "ID seriálu"
+        },
+        "season": {
+          "name": "Séria"
+        },
+        "episode": {
+          "name": "Diel"
+        }
+      }
+    },
+    "send_link": {
+      "name": "Poslať odkaz do mobilu",
+      "description": "Pošle notifikáciu s odkazom na stream; klepnutím sa otvorí v prehrávači na telefóne.",
+      "fields": {
+        "notify_service": {
+          "name": "Notifikačná služba"
+        },
+        "id": {
+          "name": "ID titulu"
+        },
+        "name": {
+          "name": "Popis"
+        },
+        "title": {
+          "name": "Titulok notifikácie"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "stream": {
+          "name": "Poradie streamu"
+        },
+        "url": {
+          "name": "Odkaz streamu"
+        },
+        "alt": {
+          "name": "Alternatívne ID"
+        },
+        "series": {
+          "name": "ID seriálu"
+        },
+        "season": {
+          "name": "Séria"
+        },
+        "episode": {
+          "name": "Diel"
+        }
+      }
+    },
+    "cancel_download": {
+      "name": "Zrušiť sťahovanie",
+      "description": "Zruší a odstráni položku z fronty sťahovania.",
+      "fields": {
+        "download_id": {
+          "name": "ID sťahovania"
+        }
+      }
+    },
+    "start_download": {
+      "name": "Spustiť sťahovanie z fronty",
+      "description": "Pustí čakajúcu položku hneď, súbežne s tým, čo už sťahuje.",
+      "fields": {
+        "download_id": {
+          "name": "ID sťahovania"
+        }
+      }
+    },
+    "detail": {
+      "name": "Detail titulu z databázy filmov",
+      "description": "Popis, plagát, hodnotenie a žánre titulu podľa IMDb id (Cinemeta). Slúži titulom, ktoré zatiaľ žiadny zdroj nemá.",
+      "fields": {
+        "id": {
+          "name": "IMDb id",
+          "description": "Napríklad tt41126967 (z hľadania s typom „catalog“)."
+        },
+        "type": {
+          "name": "Typ"
+        }
+      }
+    },
+    "episodes": {
+      "name": "Diely seriálu",
+      "description": "Vráti zoznam dielov (a sérií) seriálu z hľadania.",
+      "fields": {
+        "id": {
+          "name": "ID seriálu"
+        },
+        "season": {
+          "name": "Séria",
+          "description": "Prázdne = všetky série."
+        }
+      }
+    },
+    "delete_file": {
+      "name": "Zmazať stiahnutý súbor",
+      "description": "Zmaže súbor z priečinka na sťahovanie.",
+      "fields": {
+        "path": {
+          "name": "Cesta k súboru"
+        }
+      }
+    },
+    "continue_watching": {
+      "name": "Pokračovať v sledovaní",
+      "description": "Rozpozerané tituly a ďalšie diely z doplnku Nokturno v Kodi.",
+      "fields": {
+        "entity_id": {
+          "name": "Kodi"
+        }
+      }
+    },
+    "remove_progress": {
+      "name": "Odobrať z Pokračovať v sledovaní",
+      "description": "Vynuluje rozpozeranosť titulu na danom Kodi — bez pýtania zmizne zo zoznamu Pokračovať v sledovaní, pozretie to neovplyvní.",
+      "fields": {
+        "entity_id": {
+          "name": "Kodi",
+          "description": "Kodi, na ktorom je titul rozpozeraný (rovnaké ako pri položke z Pokračovať v sledovaní)."
+        },
+        "file": {
+          "name": "Súbor",
+          "description": "Pole `file` položky z odpovede `continue_watching` — nesie id titulu, ktoré sa má odobrať."
+        }
+      }
+    },
+    "watch_series": {
+      "name": "Sledovať seriál",
+      "description": "Pridá seriál medzi sledované (nové diely sa hlásia), s `remove` ho odoberie.",
+      "fields": {
+        "id": {
+          "name": "ID seriálu"
+        },
+        "title": {
+          "name": "Názov"
+        },
+        "alt": {
+          "name": "Alternatívne ID"
+        },
+        "poster": {
+          "name": "Plagát (URL)"
+        },
+        "remove": {
+          "name": "Odobrať"
+        }
+      }
+    },
+    "check_series": {
+      "name": "Skontrolovať nové diely",
+      "description": "Hneď prejde sledované seriály (inak sa kontrolujú každých 6 hodín)."
+    },
+    "clear_history": {
+      "name": "Zmazať históriu hľadania",
+      "description": "Vymaže posledné dotazy zobrazené v karte."
+    },
+    "clear_cache": {
+      "name": "Vymazať cache API",
+      "description": "Vymaže cache hľadania, streamov a katalógov (nie históriu ani Môj zoznam) — vynúti čerstvé dáta."
+    },
+    "mark_seen": {
+      "name": "Nový diel videný",
+      "description": "Zhasne označenie nového dielu pri sledovanom seriáli (bez ID pri všetkých).",
+      "fields": {
+        "id": {
+          "name": "ID seriálu"
+        }
+      }
+    },
+    "trakt_auth": {
+      "name": "Prepojiť Trakt.tv",
+      "description": "Pošle prihlasovací kód do oznámení; po zadaní na trakt.tv/activate sa účet prepojí."
+    },
+    "trakt_watched": {
+      "name": "Trakt — označiť ako pozreté",
+      "description": "Zapíše film alebo diel do histórie Trakt.tv (s `remove` ho odoberie).",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "season": {
+          "name": "Séria"
+        },
+        "episode": {
+          "name": "Diel"
+        },
+        "remove": {
+          "name": "Odobrať z histórie"
+        }
+      }
+    },
+    "trakt_watchlist": {
+      "name": "Trakt — zoznam na pozretie",
+      "description": "Načíta zoznam na pozretie z Trakt.tv a zistí, ktoré tituly už majú stream (inak beží raz denne)."
+    },
+    "share_file": {
+      "name": "Poslať stiahnutý súbor",
+      "description": "Vytvorí dočasný odkaz na stiahnutý súbor cez verejnú adresu HA (Nabu Casa) a pošle ho do mobilu.",
+      "fields": {
+        "path": {
+          "name": "Cesta k súboru"
+        },
+        "notify_service": {
+          "name": "Notifikačná služba",
+          "description": "Prázdne = cieľ z nastavenia integrácie."
+        },
+        "hours": {
+          "name": "Platnosť odkazu (hodín)"
+        }
+      }
+    },
+    "want_to_watch": {
+      "name": "Chcem vidieť",
+      "description": "Pridá titul do zoznamu na pozretie (denne sa kontroluje, či už má stream). Bez ID stačí názov — stráži sa, kým sa titul niekde neobjaví. S `remove` položku odoberie.",
+      "fields": {
+        "id": {
+          "name": "ID titulu",
+          "description": "Z výsledkov hľadania; bez neho použi Názov na stráženie."
+        },
+        "query": {
+          "name": "Názov na stráženie",
+          "description": "Pre tituly, ktoré zatiaľ žiadny zdroj nemá."
+        },
+        "series": {
+          "name": "ID seriálu",
+          "description": "Pri uloženom diele (ID v tvare `tt123:1:3`) — metadáta sa berú z neho."
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "title": {
+          "name": "Názov"
+        },
+        "year": {
+          "name": "Rok"
+        },
+        "alt": {
+          "name": "Alternatívne ID"
+        },
+        "poster": {
+          "name": "Plagát (URL)"
+        },
+        "remove": {
+          "name": "Odobrať"
+        }
+      }
+    },
+    "download_torrent": {
+      "name": "Stiahnuť torrent",
+      "description": "Odovzdá torrent qBittorrentu. Stiahnutý súbor skončí v priečinku na sťahovanie, odkiaľ ho Nokturno ponúkne ako každé iné stiahnuté video.",
+      "fields": {
+        "url": {
+          "name": "Odkaz",
+          "description": "Magnet alebo adresa .torrent súboru z výsledkov hľadania."
+        },
+        "name": {
+          "name": "Názov",
+          "description": "Pod akým názvom sa súbor uloží."
+        }
+      }
+    },
+    "torrents": {
+      "name": "Torrenty titulu",
+      "description": "Vyhľadá titul na torrentových trackeroch cez Prowlarr. Oddelené od streamov zámerne — trackery odpovedajú v sekundách, hľadá sa až na vyžiadanie.",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "query": {
+          "name": "Názov"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "series": {
+          "name": "ID seriálu"
+        },
+        "season": {
+          "name": "Séria"
+        },
+        "episode": {
+          "name": "Diel"
+        },
+        "offset": {
+          "name": "Posun číslovania",
+          "description": "Koľko streamov už je v zozname — torrenty na ne nadviažu."
+        }
+      }
+    },
+    "fulltext_search": {
+      "name": "Ručné fulltextové hľadanie",
+      "description": "Hľadá na WebShare a HellSpy s uvoľneným filtrom — nájde aj to, čo bežné hľadanie zahodí ako podobný, ale iný titul. Výsledok sa berie ako neoverený, posúdenie necháva na používateľovi.",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "query": {
+          "name": "Názov"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "series": {
+          "name": "ID seriálu"
+        },
+        "season": {
+          "name": "Séria"
+        },
+        "episode": {
+          "name": "Diel"
+        },
+        "source": {
+          "name": "Zdroj",
+          "description": "Kde hľadať — bez vyplnenia sa skúsi oboje."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "downloads": {
+        "name": "Sťahovanie"
+      },
+      "new_episodes": {
+        "name": "Nové diely"
+      },
+      "trakt": {
+        "name": "Na pozretie"
       }
     }
   }

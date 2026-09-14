@@ -249,6 +249,46 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
             preklad = klice(json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8")))
             self.assertEqual(strings ^ preklad, set(), f"{lang}.json se liší od strings.json")
 
+    def test_strings_json_je_anglicky_a_uplny(self):
+        """Zdroj překladů je anglický (HA z něj generuje ostatní) — a nese i služby a senzory."""
+        strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
+        en = json.loads((COMPONENT / "translations" / "en.json").read_text(encoding="utf-8"))
+        self.assertEqual(strings, en, "en.json musí být kopie strings.json")
+        texty = json.dumps(strings, ensure_ascii=False).replace("Sosáč", "")   # vlastní jméno zdroje
+        self.assertNotRegex(texty, r"[ěščřžýáíéůúďťň]", "strings.json obsahuje češtinu")
+        yaml = (COMPONENT / "services.yaml").read_text(encoding="utf-8")
+        sluzby = set(re.findall(r"^([a-z_]+):", yaml, re.M))
+        self.assertEqual(set(strings["services"]), sluzby, "služba bez překladu nebo překlad bez služby")
+        self.assertNotRegex(yaml, r"^\s+(name|description):", "texty služeb patří do strings.json, ne do YAML")
+        bloky = dict(re.findall(r"^([a-z_]+):.*\n((?:[ \t].*\n|\n)*)", yaml, re.M))
+        for name, body in strings["services"].items():
+            self.assertTrue(body.get("name") and body.get("description"), name)
+            pole = set(re.findall(r"^    ([a-z_]+):", bloky[name], re.M))
+            self.assertEqual(set(body.get("fields", {})), pole, f"pole služby {name} vs. YAML")
+        for lang in ("cs", "sk"):
+            preklad = json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8"))
+            self.assertEqual(set(preklad["entity"]["sensor"]), {"downloads", "new_episodes", "trakt"})
+
+    def test_senzory_maji_prekladove_klice(self):
+        sensor = (COMPONENT / "sensor.py").read_text(encoding="utf-8")
+        strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
+        klice = set(re.findall(r'_attr_translation_key = "([a-z_]+)"', sensor))
+        self.assertEqual(klice, set(strings["entity"]["sensor"]))
+        self.assertNotIn("_attr_name", sensor, "název senzoru natvrdo místo překladu")
+        card = (COMPONENT / "www" / "nokturno-card.js").read_text(encoding="utf-8")
+        self.assertIn("downloadsSensorId(hass, this._config.downloads)", card, "karta bez fallbacku na přejmenovaný senzor")
+
+    def test_reauth_flow(self):
+        strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
+        self.assertIn("reauth_confirm", strings["config"]["step"])
+        self.assertIn("reauth_successful", strings["config"]["abort"])
+        self.assertEqual(set(strings["config"]["error"]), {"ws_auth", "ws_network"})
+        self.assertTrue(hasattr(config_flow.NokturnoConfigFlow, "async_step_reauth"))
+        self.assertTrue(hasattr(config_flow.NokturnoConfigFlow, "async_step_reauth_confirm"))
+        init = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+        self.assertIn("async_start_reauth", init)
+        self.assertIn("WebshareApiError", init.split("async_start_reauth")[0][-600:], "reauth jen na chybu API, ne výpadek sítě")
+
     def test_kazdy_klic_nastaveni_ma_popisek(self):
         strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
         popisky = set(strings["config"]["step"]["user"]["data"])

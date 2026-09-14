@@ -1,657 +1,466 @@
+# Texty (name/description) jsou v strings.json a translations/*.json — tady jen selektory.
 search:
-  name: Hledat
-  description: Vyhledá film nebo seriál ve zdrojích (Luna, Sosáč), přímo ve WebShare, nebo v databázi filmů (`catalog` / `catalog_series` — najde i tituly, které zatím nikde nejsou). Vrací výsledky jako odpověď.
   fields:
     query:
-      name: Dotaz
       required: true
       example: Matrix
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
           options:
-            - movie
-            - series
-            - webshare
-            - catalog
-            - catalog_series
+          - movie
+          - series
+          - webshare
+          - catalog
+          - catalog_series
     limit:
-      name: Počet výsledků
       default: 20
       selector:
         number:
           min: 1
           max: 60
-
 streams:
-  name: Streamy titulu
-  description: Vrátí seřazené streamy pro titul z hledání (id z výsledku služby Hledat).
   fields:
     id:
-      name: ID titulu
       required: true
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
           options:
-            - movie
-            - series
+          - movie
+          - series
     alt:
-      name: Alternativní ID (druhý zdroj)
       selector:
-        text:
+        text: null
     series:
-      name: ID seriálu
       selector:
-        text:
+        text: null
     season:
-      name: Sezóna
       selector:
         number:
           min: 0
           max: 100
     episode:
-      name: Epizoda
       selector:
         number:
           min: 0
           max: 500
-
 play:
-  name: Přehrát
-  description: Pustí titul v Kodi (přes doplněk Nokturno) nebo v jiném přehrávači (přímý odkaz). Místo ID jde zadat dotaz — pustí se první nalezený titul.
   fields:
     id:
-      name: ID titulu
       selector:
-        text:
+        text: null
     query:
-      name: Dotaz
-      description: Název filmu/seriálu; použije se, když chybí ID (hlasovka, skripty).
       example: Matrix
       selector:
-        text:
+        text: null
     entity_id:
-      name: Přehrávač
       selector:
         entity:
           domain: media_player
     type:
-      name: Typ
       default: movie
       selector:
         select:
           options:
-            - movie
-            - series
+          - movie
+          - series
     stream:
-      name: Pořadí streamu
-      description: Index ze služby Streamy titulu; prázdné = nejlepší podle nastavení.
       selector:
         number:
           min: 0
           max: 100
     url:
-      name: Přímý odkaz
-      description: Místo hledání streamu pustí tento odkaz.
       selector:
-        text:
+        text: null
     alt:
-      name: Alternativní ID
       selector:
-        text:
+        text: null
     series:
-      name: ID seriálu
       selector:
-        text:
+        text: null
     season:
-      name: Sezóna
       selector:
         number:
           min: 0
           max: 100
     episode:
-      name: Epizoda
       selector:
         number:
           min: 0
           max: 500
     direct:
-      name: Vždy přímý odkaz
-      description: I pro Kodi použije přímé URL místo doplňku (bez evidence zhlédnuto).
       default: false
       selector:
-        boolean:
-
+        boolean: null
 resolve:
-  name: Získat odkaz
-  description: Vrátí přímé HTTP URL streamu — pro externí přehrávač (VLC, mobil) nebo Cast.
   fields:
     id:
-      name: ID titulu
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
           options:
-            - movie
-            - series
+          - movie
+          - series
     stream:
-      name: Pořadí streamu
       selector:
         number:
           min: 0
           max: 100
     url:
-      name: Odkaz streamu
       selector:
-        text:
+        text: null
     alt:
-      name: Alternativní ID
       selector:
-        text:
+        text: null
     series:
-      name: ID seriálu
       selector:
-        text:
+        text: null
     season:
-      name: Sezóna
       selector:
         number:
           min: 0
           max: 100
     episode:
-      name: Epizoda
       selector:
         number:
           min: 0
           max: 500
-
 download:
-  name: Stáhnout
-  description: Stáhne stream do složky HA (výchozí /media/nokturno) — pak je dostupný i v Media Browseru.
   fields:
     id:
-      name: ID titulu
       selector:
-        text:
+        text: null
     name:
-      name: Název souboru
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
           options:
-            - movie
-            - series
+          - movie
+          - series
     stream:
-      name: Pořadí streamu
       selector:
         number:
           min: 0
           max: 100
     url:
-      name: Odkaz streamu
       selector:
-        text:
+        text: null
     alt:
-      name: Alternativní ID
       selector:
-        text:
+        text: null
     series:
-      name: ID seriálu
       selector:
-        text:
+        text: null
     season:
-      name: Sezóna
       selector:
         number:
           min: 0
           max: 100
     episode:
-      name: Epizoda
       selector:
         number:
           min: 0
           max: 500
-
 send_link:
-  name: Poslat odkaz do mobilu
-  description: Pošle notifikaci s odkazem na stream; klepnutím se otevře v přehrávači na telefonu.
   fields:
     notify_service:
-      name: Notifikační služba
       required: true
       example: notify.sm_s921b
       selector:
-        text:
+        text: null
     id:
-      name: ID titulu
       selector:
-        text:
+        text: null
     name:
-      name: Popis
       selector:
-        text:
+        text: null
     title:
-      name: Titulek notifikace
       default: Nokturno
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
           options:
-            - movie
-            - series
+          - movie
+          - series
     stream:
-      name: Pořadí streamu
       selector:
         number:
           min: 0
           max: 100
     url:
-      name: Odkaz streamu
       selector:
-        text:
+        text: null
     alt:
-      name: Alternativní ID
       selector:
-        text:
+        text: null
     series:
-      name: ID seriálu
       selector:
-        text:
+        text: null
     season:
-      name: Sezóna
       selector:
         number:
           min: 0
           max: 100
     episode:
-      name: Epizoda
       selector:
         number:
           min: 0
           max: 500
-
 cancel_download:
-  name: Zrušit stahování
-  description: Zruší a odstraní položku z fronty stahování.
   fields:
     download_id:
-      name: ID stahování
       required: true
       selector:
-        text:
-
+        text: null
 start_download:
-  name: Spustit stahování z fronty
-  description: Pustí čekající položku hned, souběžně s tím, co už stahuje.
   fields:
     download_id:
-      name: ID stahování
       required: true
       selector:
-        text:
-
+        text: null
 detail:
-  name: Detail titulu z databáze filmů
-  description: >-
-    Popis, plakát, hodnocení a žánry titulu podle IMDb id (Cinemeta). Slouží
-    titulům, které zatím žádný zdroj nemá.
   fields:
     id:
-      name: IMDb id
-      description: Například tt41126967 (z hledání s typem „catalog").
       required: true
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
           options:
-            - movie
-            - series
-
+          - movie
+          - series
 episodes:
-  name: Epizody seriálu
-  description: Vrátí seznam epizod (a sezón) seriálu z hledání.
   fields:
     id:
-      name: ID seriálu
       required: true
       selector:
-        text:
+        text: null
     season:
-      name: Sezóna
-      description: Prázdné = všechny sezóny.
       selector:
         number:
           min: 0
           max: 100
-
 delete_file:
-  name: Smazat stažený soubor
-  description: Smaže soubor ze složky pro stahování.
   fields:
     path:
-      name: Cesta k souboru
       required: true
       example: /media/nokturno/Matrix.mp4
       selector:
-        text:
-
+        text: null
 continue_watching:
-  name: Pokračovat ve sledování
-  description: Rozkoukané tituly a další díly z doplňku Nokturno v Kodi.
   fields:
     entity_id:
-      name: Kodi
       selector:
         entity:
           domain: media_player
-
 remove_progress:
-  name: Odebrat z Pokračovat ve sledování
-  description: Vynuluje rozkoukanost titulu na daném Kodi — bez ptaní zmizí ze seznamu Pokračovat ve sledování, zhlédnutí to neovlivní.
   fields:
     entity_id:
-      name: Kodi
-      description: Kodi, na kterém titul je rozkoukaný (stejné jako u položky z Pokračovat ve sledování).
       required: true
       selector:
         entity:
           domain: media_player
     file:
-      name: Soubor
-      description: Pole `file` položky z odpovědi `continue_watching` — nese id titulu, které se má odebrat.
       required: true
       selector:
-        text:
-
+        text: null
 watch_series:
-  name: Sledovat seriál
-  description: Přidá seriál mezi sledované (nové díly se hlásí), s `remove` ho odebere.
   fields:
     id:
-      name: ID seriálu
       required: true
       selector:
-        text:
+        text: null
     title:
-      name: Název
       selector:
-        text:
+        text: null
     alt:
-      name: Alternativní ID
       selector:
-        text:
+        text: null
     poster:
-      name: Plakát (URL)
       selector:
-        text:
+        text: null
     remove:
-      name: Odebrat
       default: false
       selector:
-        boolean:
-
-check_series:
-  name: Zkontrolovat nové díly
-  description: Hned projde sledované seriály (jinak se kontrolují každých 6 hodin).
-
-clear_history:
-  name: Smazat historii hledání
-  description: Vymaže poslední dotazy zobrazené v kartě.
-
-clear_cache:
-  name: Vymazat cache API
-  description: Vymaže cache hledání, streamů a katalogů (ne historii ani Můj seznam) — vynutí čerstvá data.
-
+        boolean: null
+check_series: {}
+clear_history: {}
+clear_cache: {}
 mark_seen:
-  name: Nový díl viděn
-  description: Zhasne označení nového dílu u sledovaného seriálu (bez ID u všech).
   fields:
     id:
-      name: ID seriálu
       selector:
-        text:
-
-trakt_auth:
-  name: Propojit Trakt.tv
-  description: Pošle přihlašovací kód do oznámení; po zadání na trakt.tv/activate se účet propojí.
-
+        text: null
+trakt_auth: {}
 trakt_watched:
-  name: Trakt — označit jako zhlédnuté
-  description: Zapíše film nebo epizodu do historie Trakt.tv (s `remove` ji odebere).
   fields:
     id:
-      name: ID titulu
       required: true
       example: tt0133093
       selector:
-        text:
+        text: null
     season:
-      name: Sezóna
       selector:
         number:
           min: 0
           max: 100
     episode:
-      name: Epizoda
       selector:
         number:
           min: 0
           max: 500
     remove:
-      name: Odebrat z historie
       default: false
       selector:
-        boolean:
-
-trakt_watchlist:
-  name: Trakt — seznam k zhlédnutí
-  description: Načte seznam k zhlédnutí z Trakt.tv a zjistí, které tituly už mají stream (jinak běží jednou denně).
-
+        boolean: null
+trakt_watchlist: {}
 share_file:
-  name: Poslat stažený soubor
-  description: Vytvoří dočasný odkaz na stažený soubor přes veřejnou adresu HA (Nabu Casa) a pošle ho do mobilu.
   fields:
     path:
-      name: Cesta k souboru
       required: true
       example: /media/nokturno/Matrix.mp4
       selector:
-        text:
+        text: null
     notify_service:
-      name: Notifikační služba
-      description: Prázdné = cíl z nastavení integrace.
       example: notify.mobile_app_telefon
       selector:
-        text:
+        text: null
     hours:
-      name: Platnost odkazu (hodin)
       default: 24
       selector:
         number:
           min: 1
           max: 720
-
 want_to_watch:
-  name: Chci vidět
-  description: Přidá titul do seznamu k zhlédnutí (kontroluje se denně, jestli už má stream). Bez ID stačí název — hlídá se, dokud se titul někde neobjeví. S `remove` položku odebere.
   fields:
     id:
-      name: ID titulu
-      description: Z výsledků hledání; bez něj použij Název k hlídání.
       selector:
-        text:
+        text: null
     query:
-      name: Název k hlídání
-      description: Pro tituly, které zatím žádný zdroj nemá.
       example: Duna 3
       selector:
-        text:
+        text: null
     series:
-      name: ID seriálu
-      description: U uloženého dílu (ID ve tvaru `tt123:1:3`) — metadata se berou z něj.
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
           options:
-            - movie
-            - series
+          - movie
+          - series
     title:
-      name: Název
       selector:
-        text:
+        text: null
     year:
-      name: Rok
       selector:
         number:
           min: 1900
           max: 2100
     alt:
-      name: Alternativní ID
       selector:
-        text:
+        text: null
     poster:
-      name: Plakát (URL)
       selector:
-        text:
+        text: null
     remove:
-      name: Odebrat
       default: false
       selector:
-        boolean:
-
+        boolean: null
 download_torrent:
-  name: Stáhnout torrent
-  description: >-
-    Předá torrent qBittorrentu. Stažený soubor skončí ve složce stahování,
-    odkud ho Nokturno nabídne k přehrání jako každé jiné stažené video.
   fields:
     url:
-      name: Odkaz
-      description: Magnet nebo adresa .torrent souboru z výsledků hledání.
       required: true
       selector:
-        text:
+        text: null
     name:
-      name: Název
-      description: Pod jakým názvem se soubor uloží.
       selector:
-        text:
-
+        text: null
 torrents:
-  name: Torrenty titulu
-  description: >-
-    Vyhledá titul na torrentových trackerech přes Prowlarr. Odděleno od streamů
-    schválně — trackery odpovídají v řádu sekund, takže se hledá až na vyžádání.
   fields:
     id:
-      name: ID titulu
       selector:
-        text:
+        text: null
     query:
-      name: Název
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
-          options: [movie, series]
+          options:
+          - movie
+          - series
     series:
-      name: ID seriálu
       selector:
-        text:
+        text: null
     season:
-      name: Série
       selector:
         number:
           min: 0
           max: 100
     episode:
-      name: Díl
       selector:
         number:
           min: 0
           max: 1000
     offset:
-      name: Posun číslování
-      description: Kolik streamů je už v seznamu — torrenty na ně navážou.
       default: 0
       selector:
         number:
           min: 0
           max: 500
-
 fulltext_search:
-  name: Ruční fulltextové hledání
-  description: >-
-    Hledá na WebShare a HellSpy s uvolněným filtrem — najde i to, co běžné
-    hledání zahodí jako podobný, ale jiný titul. Výsledek se bere jako
-    neověřený, posouzení nechává na uživateli.
   fields:
     id:
-      name: ID titulu
       selector:
-        text:
+        text: null
     query:
-      name: Název
       selector:
-        text:
+        text: null
     type:
-      name: Typ
       default: movie
       selector:
         select:
-          options: [movie, series]
+          options:
+          - movie
+          - series
     series:
-      name: ID seriálu
       selector:
-        text:
+        text: null
     season:
-      name: Série
       selector:
         number:
           min: 0
           max: 100
     episode:
-      name: Díl
       selector:
         number:
           min: 0
           max: 1000
     source:
-      name: Zdroj
-      description: Kde hledat — bez vyplnění se zkusí oboje.
       selector:
         select:
           multiple: true
-          options: [ws, hs]
+          options:
+          - ws
+          - hs

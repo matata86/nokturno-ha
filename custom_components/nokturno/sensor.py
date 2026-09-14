@@ -25,7 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entitie
 
 class NokturnoDownloadsSensor(SensorEntity):
     _attr_has_entity_name = True
-    _attr_name = "Stahování"
+    _attr_translation_key = "downloads"
     _attr_icon = "mdi:download"
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "souborů"
@@ -132,7 +132,7 @@ class NokturnoEpisodesSensor(SensorEntity):
     """Sledované seriály — kolik jich má nový díl, v atributech seznam."""
 
     _attr_has_entity_name = True
-    _attr_name = "Nové díly"
+    _attr_translation_key = "new_episodes"
     _attr_icon = "mdi:television-play"
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "seriálů"
@@ -175,7 +175,7 @@ class NokturnoTraktSensor(SensorEntity):
     """Seznam „k zhlédnutí" z Traktu — kolik titulů už má stream."""
 
     _attr_has_entity_name = True
-    _attr_name = "K zhlédnutí"
+    _attr_translation_key = "trakt"
     _attr_icon = "mdi:bookmark-check-outline"
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "titulů"

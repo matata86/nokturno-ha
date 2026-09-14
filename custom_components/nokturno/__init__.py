@@ -92,6 +92,7 @@ from homeassistant.util import slugify
 from .downloader import Downloader
 from .lib.source_errors import summarize as summarize_failures
 from .lib.stats import COLLECT_URL, Stats
+from .lib.webshare_api import WebshareApiError
 from .lib.sync import apply_changes, collect_changes
 from .engine import Engine, NokturnoError, _fold, split_episode_id
 
@@ -1279,6 +1280,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         doplňku, jen dedup přes engine.store místo souboru `substate.json`."""
         status = await hass.async_add_executor_job(engine.check_subscription)
         if not status:
+            # WebShare odmítl přihlášení (špatné heslo, ne výpadek sítě) → HA nabídne opravu údajů
+            if (options.get(CONF_WS_USER) or "").strip() and isinstance(engine.ws_error, WebshareApiError):
+                entry.async_start_reauth(hass)
             return
         warn_days = int(options.get(CONF_SUB_WARN_DAYS, 5) or 0)
         days_left = status.get("days", 0) if status.get("vip") else -1

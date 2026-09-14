@@ -152,6 +152,16 @@ function nokturnoText(hass, text, ...args) {
   return args.length ? out.replace(/\{(\d+)\}/g, (m, i) => (args[+i] == null ? "" : String(args[+i]))) : out;
 }
 
+/** Id senzoru stahování. Výchozí `sensor.nokturno_stahovani` vzniklo z českého názvu;
+ *  od 4.0 se název senzoru překládá, takže instalace v jiném jazyce má jiné entity_id —
+ *  když nastavené id v HA není, najde se senzor podle jeho atributů. */
+function downloadsSensorId(hass, wanted) {
+  const st = (hass && hass.states) || {};
+  if (st[wanted]) return wanted;
+  return Object.keys(st).find((id) =>
+    id.startsWith("sensor.nokturno_") && st[id].attributes && st[id].attributes.downloads !== undefined) || wanted;
+}
+
 class NokturnoCard extends HTMLElement {
   setConfig(config) {
     this._config = {
@@ -174,6 +184,7 @@ class NokturnoCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    if (!this._started) this._config.downloads = downloadsSensorId(hass, this._config.downloads);
     // nativní rozbalovací seznam se řídí color-scheme, ne proměnnými motivu
     const dark = !!(hass.themes && hass.themes.darkMode);
     if (this._dark !== dark) {
@@ -1647,7 +1658,7 @@ class NokturnoCardEditor extends HTMLElement {
   _t(text, ...args) { return nokturnoText(this._hass, text, ...args); }
 
   _phoneOptions() {
-    const sensor = this._hass && this._hass.states[this._config.downloads || "sensor.nokturno_stahovani"];
+    const sensor = this._hass && this._hass.states[downloadsSensorId(this._hass, this._config.downloads || "sensor.nokturno_stahovani")];
     const targets = (sensor && sensor.attributes.notify_targets) || [];
     return targets.map((t) => ({
       value: t.service,

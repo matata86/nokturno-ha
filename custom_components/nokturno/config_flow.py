@@ -128,6 +128,30 @@ class NokturnoConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(accounts_schema({CONF_SYNC_KEY: secrets.token_hex(16)})).extend(preferences_schema({}).schema)
         return self.async_show_form(step_id="user", data_schema=schema)
 
+    async def async_step_reauth(self, entry_data):
+        """WebShare odmítl přihlášení — HA ukáže „vyžaduje opravu" a tenhle krok."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input=None):
+        entry = self._get_reauth_entry()
+        errors = {}
+        if user_input is not None:
+            from .lib.webshare_api import WebshareApi, WebshareApiError, WebshareError
+            api = WebshareApi(user_input[CONF_WS_USER], user_input[CONF_WS_PASS])
+            try:
+                await self.hass.async_add_executor_job(api.login)
+            except WebshareApiError:
+                errors["base"] = "ws_auth"
+            except WebshareError:
+                errors["base"] = "ws_network"
+            if not errors:
+                return self.async_update_reload_and_abort(entry, data={**entry.data, **user_input})
+        schema = vol.Schema({
+            vol.Required(CONF_WS_USER, default=entry.data.get(CONF_WS_USER, "")): str,
+            vol.Required(CONF_WS_PASS): _heslo(),
+        })
+        return self.async_show_form(step_id="reauth_confirm", data_schema=schema, errors=errors)
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:

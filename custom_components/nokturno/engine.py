@@ -28,7 +28,7 @@ from .lib.sosac_api import SosacError, names_match
 from .lib.sosac_api import is_sosac_id as _is_legacy_sosac_id
 from .lib.sosac_direct import SosacDirect, is_direct_id
 from .lib.store import Store
-from .lib.streams import arrange, estimate_rank, langs_from_name, parse_stream
+from .lib.streams import arrange, estimate_rank, fold, langs_from_name, parse_stream
 from .lib.hellspy_api import HellspyApi, HellspyError
 from .lib.sledujteto_api import SledujtetoApi, SledujtetoError
 from .lib.storage_api import StorageApi, StorageError, match_texts, parse_ref
@@ -48,7 +48,6 @@ WS_RETRY_S = 60               # po selhání loginu WebShare zkusit znovu až za
 ORIG_MEMO_S = 300             # original_titles() se za jeden výpis počítá jednou, ne pětkrát
 ORIG_MEMO_FAIL_S = 30         # po výpadku Wikidat jen tak dlouho, aby to pokrylo jeden výpis
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
-HISTORY_MAX = 12
 SUBS_MAX = 3
 SEARCH_CACHE_TTL = 43200      # 12 h – seznam nalezených titulů podle dotazu (Luna, WebShare fulltext)
 STREAMS_CACHE_TTL = 259200    # 72 h – seznam streamů k titulu, ale JEN když nějaké našel (viz `cached_if`)
@@ -86,9 +85,7 @@ def runtime_minutes(text):
     return int(digits) if digits else 0
 
 
-def _fold(text):
-    """Bez diakritiky, malá písmena — pro porovnávání názvů souborů."""
-    return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode().lower()
+_fold = fold   # HA a Kodi ho importují odsud
 
 
 YEAR_RE = re.compile(r"\b(19\d{2}|20\d{2})\b")
@@ -654,19 +651,12 @@ class Engine:
         query, want_year = self.split_year(query)
         if not query:
             raise NokturnoError("Prázdný dotaz.")
-        url = (f"https://v3-cinemeta.strem.io/catalog/{'series' if ctype == 'series' else 'movie'}"
-               f"/top/search={urllib.parse.quote(query)}.json")
-
-        def load():
-            req = urllib.request.Request(url, headers={"User-Agent": "Home Assistant Nokturno"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return json.loads(resp.read().decode("utf-8"))
-
+        # přes CinemetaApi (cache, UA, timeout jako všude) — dřív třetí vlastní klient Cinemety
+        kind = "series" if ctype == "series" else "movie"
         try:
-            data = self.store.cached(url, 3600, load)
+            metas = self.cinemeta.catalog(kind, "top", search=query) or []
         except Exception as err:  # noqa: BLE001
             raise NokturnoError(f"Databáze filmů neodpověděla: {err}") from err
-        metas = data.get("metas") or []
         if want_year:
             metas = [m for m in metas
                      if str(m.get("releaseInfo") or m.get("year") or "")[:4] in (str(want_year), "")]
@@ -1295,9 +1285,9 @@ class Engine:
                 # diagnostika: kolik výsledků přišlo a kolik prošlo přísným filtrem názvu
                 # (názvy jsou veřejné tituly videí, nic z účtu)
                 odmitnute = [f.get("name") for f in files if not relevant(f.get("name") or "")]
-                _LOGGER.info("Sledujteto „%s“: %d výsledků, relevantních %d%s", query, len(files),
-                             len(files) - len(odmitnute),
-                             f", zahozeno např. {odmitnute[:3]}" if odmitnute else "")
+                _LOGGER.debug("Sledujteto „%s“: %d výsledků, relevantních %d%s", query, len(files),
+                              len(files) - len(odmitnute),
+                              f", zahozeno např. {odmitnute[:3]}" if odmitnute else "")
             except SledujtetoError as err:
                 _LOGGER.warning("Sledujteto hledání „%s“: %s", query, err)
                 if failures is not None:
@@ -1305,11 +1295,6 @@ class Engine:
                 if err.status in (401, 403):
                     break   # špatný účet — další dotazy by dopadly stejně
                 continue
-            if self.st.last_keys and not getattr(self, "_st_keys_logged", False):
-                # velikost souboru jejich doplněk nepoužívá, klíč neznáme jistě — jednou do logu
-                self._st_keys_logged = True
-                _LOGGER.info("Sledujteto: klíče výsledku hledání %s, ukázka %s", self.st.last_keys,
-                             getattr(self.st, "last_sample", {}))
             for f in files:
                 name = f.get("name") or ""
                 if f["id"] in seen or not relevant(name):

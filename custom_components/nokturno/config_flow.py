@@ -53,8 +53,29 @@ from .const import (
 
 # vlastní úložiště (WebDAV), až tři — adresa, jméno, heslo, název; klíče drží jádro
 STORAGE_KEYS = [key for slot in STORAGE_OPTIONS for key in slot]
+# účty a klíče patří do `entry.data`, ne do options — od 2026-09-14 i Trakt, Prowlarr a qBittorrent
 ACCOUNT_KEYS = [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS, CONF_ST_EMAIL, CONF_ST_PASS,
-                CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_TMDB_KEY, *STORAGE_KEYS]
+                CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_TMDB_KEY,
+                CONF_TRAKT_ID, CONF_TRAKT_SECRET, CONF_PROWLARR_URL, CONF_PROWLARR_KEY,
+                CONF_QBIT_URL, CONF_QBIT_USER, CONF_QBIT_PASS, *STORAGE_KEYS]
+# ve formuláři skrytě — každé otevření Nastavení dřív ukázalo všech dvanáct hesel čitelně
+SECRET_KEYS = frozenset({CONF_WS_PASS, CONF_STREAMUJ_PASS, CONF_ST_PASS, CONF_LUNA_TOKEN, CONF_TMDB_KEY, CONF_SYNC_KEY,
+                         CONF_TRAKT_SECRET, CONF_PROWLARR_KEY, CONF_QBIT_PASS,
+                         *(key for slot in STORAGE_OPTIONS for key in slot if key.endswith("_password"))})
+ACCOUNT_DEFAULTS = {CONF_LUNA_URL: DEFAULT_LUNA_URL, CONF_PROWLARR_URL: DEFAULT_PROWLARR_URL,
+                    CONF_QBIT_URL: DEFAULT_QBIT_URL}
+
+
+def _heslo():
+    return selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD))
+
+
+def accounts_schema(current: dict) -> dict:
+    """Pole účtů pro oba formuláře — hesla a klíče jako skryté vstupy."""
+    return {
+        vol.Optional(key, default=current.get(key, ACCOUNT_DEFAULTS.get(key, ""))): _heslo() if key in SECRET_KEYS else str
+        for key in ACCOUNT_KEYS
+    }
 
 
 def preferences_schema(data: dict) -> vol.Schema:
@@ -73,15 +94,7 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_DOWNLOAD_DIR, default=data.get(CONF_DOWNLOAD_DIR, DEFAULT_DOWNLOAD_DIR)): str,
         vol.Optional(CONF_EXTERNAL_HOST, default=data.get(CONF_EXTERNAL_HOST, "")): str,
         vol.Optional(CONF_NOTIFY_TARGET, default=data.get(CONF_NOTIFY_TARGET, "")): str,
-        vol.Optional(CONF_TRAKT_ID, default=data.get(CONF_TRAKT_ID, "")): str,
-        vol.Optional(CONF_TRAKT_SECRET, default=data.get(CONF_TRAKT_SECRET, "")): str,
-        # Torrenty jako poslední možnost: hledá Prowlarr, stahuje qBittorrent.
-        # Prázdná adresa nebo klíč = torrenty se v detailu titulu vůbec neobjeví.
-        vol.Optional(CONF_PROWLARR_URL, default=data.get(CONF_PROWLARR_URL, DEFAULT_PROWLARR_URL)): str,
-        vol.Optional(CONF_PROWLARR_KEY, default=data.get(CONF_PROWLARR_KEY, "")): str,
-        vol.Optional(CONF_QBIT_URL, default=data.get(CONF_QBIT_URL, DEFAULT_QBIT_URL)): str,
-        vol.Optional(CONF_QBIT_USER, default=data.get(CONF_QBIT_USER, "")): str,
-        vol.Optional(CONF_QBIT_PASS, default=data.get(CONF_QBIT_PASS, "")): str,
+        # Trakt, Prowlarr a qBittorrent jsou účty → ACCOUNT_KEYS (entry.data), ne tady
         # HellSpy je veřejný, účet nepotřebuje — proto jen přepínač mezi předvolbami
         vol.Optional(CONF_HS_ENABLED, default=data.get(CONF_HS_ENABLED, True)): bool,
         # 0 = upozornění na konec předplatného WebShare vypnuté
@@ -107,14 +120,12 @@ class NokturnoConfigFlow(ConfigFlow, domain=DOMAIN):
             accounts = {key: user_input.pop(key) for key in ACCOUNT_KEYS if key in user_input}
             # klíč pro synchronizaci s Kodi doplňkem — vzniká jednou, uživatel si ho opíše do Kodi
             if not accounts.get(CONF_SYNC_KEY):
-                accounts[CONF_SYNC_KEY] = secrets.token_hex(6)
+                accounts[CONF_SYNC_KEY] = secrets.token_hex(16)
             return self.async_create_entry(title="Nokturno", data=accounts, options=user_input)
         # sync_key ukázat rovnou vyplněný — ať ho jde zkopírovat do Kodi hned napoprvé,
-        # ne až po dodatečném otevření Nastavení integrace
-        defaults = {CONF_SYNC_KEY: secrets.token_hex(6), CONF_LUNA_URL: DEFAULT_LUNA_URL}
-        schema = vol.Schema({
-            vol.Optional(key, default=defaults.get(key, "")): str for key in ACCOUNT_KEYS
-        }).extend(preferences_schema({}).schema)
+        # ne až po dodatečném otevření Nastavení integrace. 128 bitů: klíč chrání
+        # neautentizované endpointy /sync a /files (dřív 48 bitů).
+        schema = vol.Schema(accounts_schema({CONF_SYNC_KEY: secrets.token_hex(16)})).extend(preferences_schema({}).schema)
         return self.async_show_form(step_id="user", data_schema=schema)
 
     @staticmethod
@@ -136,8 +147,5 @@ class NokturnoOptionsFlow(OptionsFlow):
             )
             return self.async_create_entry(title="", data=user_input)
         current = {**self.config_entry.data, **self.config_entry.options}
-        schema = vol.Schema({
-            vol.Optional(key, default=current.get(key, DEFAULT_LUNA_URL if key == CONF_LUNA_URL else "")): str
-            for key in ACCOUNT_KEYS
-        }).extend(preferences_schema(current).schema)
+        schema = vol.Schema(accounts_schema(current)).extend(preferences_schema(current).schema)
         return self.async_show_form(step_id="init", data_schema=schema)

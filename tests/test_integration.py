@@ -269,3 +269,84 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBezpecnostNastaveni(unittest.TestCase):
+    """Audit 2026-09-14: hesla skrytě, tajemství v entry.data, diagnostika bez hesel,
+    klíč endpointů konstantně a s HA ban mechanismem."""
+
+    def test_hesla_jsou_skryte_vstupy_a_ucty_v_data(self):
+        self.assertTrue(config_flow.SECRET_KEYS <= set(config_flow.ACCOUNT_KEYS))
+        for key in (const.CONF_TRAKT_SECRET, const.CONF_PROWLARR_KEY, const.CONF_QBIT_PASS, const.CONF_QBIT_USER,
+                    const.CONF_TRAKT_ID, "dav1_password"):
+            self.assertIn(key, config_flow.ACCOUNT_KEYS, key)
+        schema = config_flow.accounts_schema({})
+        for marker, typ in schema.items():
+            if marker.schema in config_flow.SECRET_KEYS:
+                self.assertIsInstance(typ, ha_stubs.TextSelector, marker.schema)
+                self.assertEqual(typ.args[0].kwargs.get("type"), ha_stubs.TextSelectorType.PASSWORD, marker.schema)
+            else:
+                self.assertIs(typ, str, marker.schema)
+        vychozi = {m.schema: m.default for m in schema}
+        self.assertEqual(vychozi[const.CONF_PROWLARR_URL], const.DEFAULT_PROWLARR_URL)
+        self.assertEqual(vychozi[const.CONF_LUNA_URL], const.DEFAULT_LUNA_URL)
+        self.assertEqual(vychozi[const.CONF_WS_PASS], "")
+        # předvyplnění z existujícího nastavení
+        self.assertEqual({m.schema: m.default for m in config_flow.accounts_schema({"ws_username": "ja"})}["ws_username"], "ja")
+
+    def test_sync_key_ma_128_bitu(self):
+        src = (COMPONENT / "config_flow.py").read_text(encoding="utf-8")
+        self.assertNotIn("token_hex(6)", src)
+        self.assertEqual(src.count("token_hex(16)"), 2)
+
+    def test_diagnostika_bez_hesel_a_uctu(self):
+        import asyncio
+        from custom_components.nokturno import diagnostics
+
+        class Engine:
+            sub_status = {"vip": True, "days": 12}
+
+            def sources(self):
+                return {"webshare": True, "hellspy": True}
+
+        class Downloader:
+            jobs, torrents, files = {"a": 1}, [], ["x"] * 3
+        entry = ha_stubs.ConfigEntry(data={"ws_username": "ja@x.cz", "ws_password": "tajne", "sync_key": "abcd",
+                                           "dav1_url": "http://nas/", "dav1_password": "p", "luna_token": "e1.t"},
+                                     options={"pref_lang": "CZ", "qbit_password": "q"})
+        hass = type("H", (), {"data": {const.DOMAIN: {"test": {"engine": Engine(), "downloader": Downloader(),
+                                                              "services": ["search"]}}}})()
+        out = asyncio.run(diagnostics.async_get_config_entry_diagnostics(hass, entry))
+        text = json.dumps(out, ensure_ascii=False)
+        for tajne in ("tajne", "abcd", "ja@x.cz", "e1.t", '"p"', '"q"'):
+            self.assertNotIn(tajne, text, tajne)
+        self.assertEqual(out["entry"]["dav1_url"], "http://nas/", "adresa úložiště k ladění zůstává")
+        self.assertEqual(out["entry"]["pref_lang"], "CZ")
+        self.assertEqual((out["sources"], out["downloads"], out["files"], out["sub_status"]["days"]),
+                         ({"webshare": True, "hellspy": True}, 1, 3, 12))
+
+    def test_klic_endpointu_konstantne_a_spatny_pokus_se_pocita(self):
+        import asyncio
+        from unittest import mock
+        import custom_components.nokturno as modul
+
+        class Request:
+            def __init__(self, key):
+                self.headers = {"X-Nokturno-Key": key} if key is not None else {}
+        with mock.patch.object(modul, "process_wrong_login", side_effect=ha_stubs._async_noop) as spatne:
+            self.assertTrue(asyncio.run(modul._klic_sedi(Request("k1"), "k1")))
+            self.assertEqual(spatne.call_count, 0)
+            self.assertFalse(asyncio.run(modul._klic_sedi(Request("k2"), "k1")))
+            self.assertFalse(asyncio.run(modul._klic_sedi(Request(None), "k1")))
+            self.assertFalse(asyncio.run(modul._klic_sedi(Request("k1"), "")), "bez klíče v nastavení nikdy")
+            self.assertEqual(spatne.call_count, 3)
+        src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+        self.assertNotIn('request.headers.get("X-Nokturno-Key") != key', src)
+        self.assertEqual(src.count("await _klic_sedi(request"), 2, "/sync i /files")
+
+    def test_polling_a_want_bez_plne_kontroly(self):
+        src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+        self.assertIn("check_trakt(only=wid)", src)
+        self.assertIn("async def check_trakt(_now=None, only=None):", src)
+        self.assertIn('torrent_stav["aktivni_do"] = time.time() + 300', src)
+        self.assertIn("now - torrent_stav[\"posledni\"] < 60", src)

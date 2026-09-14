@@ -7,6 +7,7 @@ aby si Kodi vedl evidenci zhlédnuto/rozkoukáno; ostatní přehrávače dostano
 
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import os
@@ -21,6 +22,7 @@ import voluptuous as vol
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.components.http.auth import async_sign_path
+from homeassistant.components.http.ban import process_wrong_login
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
@@ -615,6 +617,15 @@ async def async_register_resource(hass: HomeAssistant, url: str) -> bool:
     return True
 
 
+async def _klic_sedi(request, key: str) -> bool:
+    """Ověření klíče pro `/sync` a `/files`: konstantní porovnání a chybný pokus se počítá
+    do HA ban mechanismu (`ip_ban_enabled`) — dřív `!=` a špatné klíče se nikde nepočítaly."""
+    if key and hmac.compare_digest(request.headers.get("X-Nokturno-Key", ""), key):
+        return True
+    await process_wrong_login(request)
+    return False
+
+
 class NokturnoSyncView(HomeAssistantView):
     """Střed synchronizace pro Kodi doplňky (viz lib/sync.py).
 
@@ -635,8 +646,7 @@ class NokturnoSyncView(HomeAssistantView):
             data = _entry_data(self.hass)
         except HomeAssistantError:
             return self.json({"error": "integrace není nastavená"}, status_code=503)
-        key = data["entry"].data.get(CONF_SYNC_KEY) or ""
-        if not key or request.headers.get("X-Nokturno-Key") != key:
+        if not await _klic_sedi(request, data["entry"].data.get(CONF_SYNC_KEY) or ""):
             return self.json({"error": "špatný klíč"}, status_code=403)
         try:
             body = await request.json()
@@ -688,8 +698,7 @@ class NokturnoFilesView(HomeAssistantView):
             data = _entry_data(self.hass)
         except HomeAssistantError:
             return self.json({"error": "integrace není nastavená"}, status_code=503)
-        key = data["entry"].data.get(CONF_SYNC_KEY) or ""
-        if not key or request.headers.get("X-Nokturno-Key") != key:
+        if not await _klic_sedi(request, data["entry"].data.get(CONF_SYNC_KEY) or ""):
             return self.json({"error": "špatný klíč"}, status_code=403)
         downloader = data["downloader"]
         await downloader.async_refresh_files()
@@ -904,16 +913,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.async_add_executor_job(engine.store.save, "wantlist", data)
         async_dispatcher_send(hass, SIGNAL_TRAKT)
         if not call.data.get("remove"):
-            hass.async_create_task(check_trakt())
+            # jen nová položka — plná kontrola všech 40 titulů ve všech zdrojích je na jednou denně
+            hass.async_create_task(check_trakt(only=wid))
         return {"count": len(data), "watching": wid in data}
 
-    async def check_trakt(_now=None):
+    async def check_trakt(_now=None, only=None):
         """Seznam „k zhlédnutí" z Traktu + kontrola, co už jde pustit.
 
         Jednou denně; když titul, který stream neměl, ho nově má, přijde oznámení.
+        `only=<id>`: jen ta jedna položka vlastního seznamu, výsledek se sloučí do
+        uložené kontroly (po `want_to_watch`, ať přidání neznamená 40 hledání).
         """
         items = list(wantlist().values())
-        api = trakt()
+        known = trakt_cache()
+        if only is not None:
+            items = [i for i in items if i.get("id") == only]
+            if not items:
+                return known
+        api = trakt() if only is None else None
         if api is not None and api.logged_in():
             for kind in ("movies", "shows"):
                 try:
@@ -922,11 +939,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     _LOGGER.debug("trakt watchlist %s: %s", kind, err)
         if not items:
             # i prázdný seznam se musí propsat — jinak by v kartě zůstala odebraná položka
-            if trakt_cache():
+            if known:
                 await hass.async_add_executor_job(engine.store.save, "trakt_list", {})
                 async_dispatcher_send(hass, SIGNAL_TRAKT)
             return {}
-        known = trakt_cache()
         fresh, newly = {}, []
         seen_ids = set()
         for item in items[:TRAKT_MAX]:
@@ -972,6 +988,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if streams and before and len(streams) > before_streams:
                 newly.append({**record, "_prev": before_streams})
             fresh[item["id"]] = record
+        if only is not None:
+            fresh = {**known, **fresh}
         await hass.async_add_executor_job(engine.store.save, "trakt_list", fresh)
         async_dispatcher_send(hass, SIGNAL_TRAKT)
         for record in newly:
@@ -1191,11 +1209,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Vymaže cache API (hledání, streamy, katalogy) — ne historii ani Můj seznam."""
         await hass.async_add_executor_job(engine.store.clear_cache)
 
+    torrent_stav = {"aktivni_do": 0.0, "posledni": 0.0}
+
     async def poll_torrents(_now=None):
         """Průběh torrentů z qBittorrentu do fronty stahování.
 
-        Klient o sobě sám nedá vědět, takže se na něj ptáme — ale jen když je
-        co sledovat, jinak by to zbytečně tikalo každých pár sekund navěky."""
+        Klient o sobě sám nedá vědět, takže se na něj ptáme — každých 5 s jen když
+        běží torrent nebo byl právě zadaný, jinak jednou za minutu. Dřív interval
+        tikal 5 s bezpodmínečně (17 280 dotazů denně i bez qBittorrentu)."""
+        now = time.time()
+        if not downloader.torrents and now > torrent_stav["aktivni_do"] and now - torrent_stav["posledni"] < 60:
+            return
+        torrent_stav["posledni"] = now
         rows = await hass.async_add_executor_job(engine.torrent_jobs)
         if rows == downloader.torrents:
             return
@@ -1569,6 +1594,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ve složce stahování jako každý jiný stažený soubor."""
         name = (call.data.get("name") or "").strip()
         await _in_executor(engine.download_torrent, call.data["url"], name)
+        torrent_stav["aktivni_do"] = time.time() + 300   # čerstvý torrent sledovat hustě, než se rozjede
         return {"queued": True, "name": name}
 
     async def handle_delete_file(call: ServiceCall):

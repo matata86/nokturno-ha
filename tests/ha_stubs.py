@@ -140,6 +140,30 @@ def DeviceInfo(**kwargs):
 class _Selector:
     def __init__(self, *args, **kwargs):
         self.args = args
+        self.kwargs = kwargs
+
+
+class TextSelector(_Selector):
+    pass
+
+
+class TextSelectorType(enum.Enum):
+    TEXT = "text"
+    PASSWORD = "password"
+
+
+async def _async_noop(*_args, **_kwargs):
+    return None
+
+
+def async_redact_data(data, to_redact):
+    """Jako v HA: hodnoty pod uvedenými klíči nahradí `**REDACTED**`, rekurzivně."""
+    if isinstance(data, dict):
+        return {k: ("**REDACTED**" if k in to_redact and v not in ("", None) else async_redact_data(v, to_redact))
+                for k, v in data.items()}
+    if isinstance(data, list):
+        return [async_redact_data(v, to_redact) for v in data]
+    return data
 
 
 def install_homeassistant():
@@ -155,6 +179,8 @@ def install_homeassistant():
     _module("homeassistant.components.frontend", add_extra_js_url=_noop)
     _module("homeassistant.components.http", HomeAssistantView=HomeAssistantView, StaticPathConfig=StaticPathConfig)
     _module("homeassistant.components.http.auth", async_sign_path=_noop)
+    _module("homeassistant.components.http.ban", process_wrong_login=_async_noop)
+    _module("homeassistant.components.diagnostics", async_redact_data=async_redact_data)
     _module("homeassistant.components.sensor", SensorEntity=SensorEntity)
     _module("homeassistant.config_entries", ConfigEntry=ConfigEntry, ConfigFlow=ConfigFlow, OptionsFlow=OptionsFlow)
     _module("homeassistant.const", ATTR_ENTITY_ID="entity_id", Platform=Platform,
@@ -167,7 +193,8 @@ def install_homeassistant():
             comp_entity_ids=str)
     _module("homeassistant.helpers.entity_registry", async_get=_noop)
     _module("homeassistant.helpers.selector", EntitySelector=_Selector, EntitySelectorConfig=_Selector,
-            SelectSelector=_Selector, SelectSelectorConfig=_Selector)
+            SelectSelector=_Selector, SelectSelectorConfig=_Selector,
+            TextSelector=TextSelector, TextSelectorConfig=_Selector, TextSelectorType=TextSelectorType)
     _module("homeassistant.helpers.aiohttp_client", async_get_clientsession=_noop)
     _module("homeassistant.helpers.dispatcher", async_dispatcher_connect=_noop, async_dispatcher_send=_noop)
     _module("homeassistant.helpers.entity", DeviceInfo=DeviceInfo)

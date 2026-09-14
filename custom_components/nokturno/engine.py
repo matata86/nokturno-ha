@@ -1114,12 +1114,14 @@ class Engine:
         """Co se o souboru dá přečíst z jeho hlavičky. Prázdné, když to nejde."""
         def load():
             try:
-                link = self.resolve(url)
-            except NokturnoError as err:
+                return probe_media(self.resolve(url))
+            except Exception as err:  # noqa: BLE001 – čtení hlavičky je bonus, nikdy nesmí shodit výpis
                 _LOGGER.debug("hlavička %s: %s", url[:28], err)
                 return {}
-            return probe_media(link)
-        return self.store.cached(f"media:{url}", AUDIO_TTL, load) or {}
+        # `probe()` při selhání vrací slovník s nulami — ten se nesmí pamatovat 30 dní,
+        # jinak stream po jednom timeoutu měsíc nemá zvuk ani rozlišení
+        return self.store.cached_if(f"media:{url}", AUDIO_TTL, load,
+                                    ok=lambda d: bool(d.get("audio") or d.get("height") or d.get("size"))) or {}
 
     def _fill_audio(self, streams, on_tick=None, on_count=None):
         """Doplní zvuk, titulky a rozlišení tam, kde je zdroj neřekl, a ověří je
@@ -1895,7 +1897,12 @@ class Engine:
             sosac = self.sosac
             if sosac is None:
                 raise NokturnoError("Účet Streamuj není nastavený.")
-            return sosac.resolve(url)
+            try:
+                return sosac.resolve(url)
+            except SosacError as err:
+                # jako u ostatních zdrojů — volající chytají NokturnoError; syrová SosacError
+                # z vypršelého odkazu dřív prošla `_fill_audio` a shodila celý výpis streamů
+                raise NokturnoError(f"Sosáč: {err}") from err
         return self.external_url(url) if prefer_external else url
 
     def find_first(self, ctype, query):

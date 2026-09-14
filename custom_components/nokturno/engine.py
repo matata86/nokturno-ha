@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import time
 import unicodedata
 import urllib.parse
 import urllib.request
@@ -43,6 +44,9 @@ EPISODE_ANY_RE = re.compile(r"(?<![a-z0-9])s\d{1,2}\s?e\d{1,2}(?!\d)|(?<!\d)\d{1
 AUDIO_PROBE_MAX = 24          # u kolika streamů se ještě vyplatí číst hlavičku souboru
 ENRICH_PROGRESS_ESTIMATE = 10  # počáteční odhad délky enrichu, než search() zjistí skutečný počet
 AUDIO_TTL = 30 * 24 * 3600    # obsah souboru se nemění, stačí zjistit jednou
+WS_RETRY_S = 60               # po selhání loginu WebShare zkusit znovu až za minutu
+ORIG_MEMO_S = 300             # original_titles() se za jeden výpis počítá jednou, ne pětkrát
+ORIG_MEMO_FAIL_S = 30         # po výpadku Wikidat jen tak dlouho, aby to pokrylo jeden výpis
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
 HISTORY_MAX = 12
 SUBS_MAX = 3
@@ -242,6 +246,8 @@ class Engine:
         self._sosac = None
         self._ws = None
         self._ws_ready = False
+        self._ws_retry_after = 0.0   # po selhání loginu zkusit znovu až za chvíli, ne nikdy
+        self._orig_memo = {}         # original_titles() za jeden výpis: (klíč) → (čas, názvy)
         self._hs = None
         self._st = None
         self._storages = None
@@ -259,6 +265,8 @@ class Engine:
         self.options = dict(options)
         self._luna = self._sosac = self._ws = None
         self._ws_ready = False
+        self._ws_retry_after = 0.0
+        self._orig_memo = {}
         self._hs = None
         self._st = None
         self._storages = None
@@ -289,16 +297,21 @@ class Engine:
 
     @property
     def ws(self):
-        if not self._ws_ready:
-            self._ws_ready = True
+        """Přihlášený WebShare, nebo None. Selhání loginu (výpadek sítě při startu HA)
+        dřív zamklo zdroj do restartu — teď se zkusí znovu po `WS_RETRY_S`."""
+        if not self._ws_ready and time.time() >= self._ws_retry_after:
             user = self._opt("ws_username").strip()
-            if user:
+            if not user:
+                self._ws_ready = True
+            else:
                 api = WebshareApi(user, self._opt("ws_password"))
                 try:
                     api.login()
                     self._ws = api
+                    self._ws_ready = True
                 except WebshareError as err:
-                    _LOGGER.warning("WebShare login selhal: %s", err)
+                    _LOGGER.warning("WebShare login selhal, další pokus za %d s: %s", WS_RETRY_S, err)
+                    self._ws_retry_after = time.time() + WS_RETRY_S
         return self._ws
 
     def check_subscription(self):
@@ -981,6 +994,13 @@ class Engine:
         of Fire“ × „Harry Potter a Ohnivý pohár 2005 CZ dabing HD“).
         """
         title = meta.get("_title") or meta.get("name") or ""
+        # volá se z každého fulltextového zdroje a z titulků — pětkrát za jeden výpis, a při
+        # výpadku Wikidat (selhání se necachuje) pětkrát dva dotazy s 10s timeoutem
+        memo_key = (ctype, meta.get("id"), alt, title)
+        memo = self._orig_memo.get(memo_key)
+        if memo and time.time() - memo[0] < memo[2]:
+            return list(memo[1])
+        wd_ok = True
         names = [meta.get("_orig") or ""]
         if alt and self.sosac:
             try:
@@ -1005,6 +1025,7 @@ class Engine:
                     return {"ok": False, "names": []}
             # výpadek Wikidat se necachuje, jinak by titul měsíc zůstal bez českého názvu
             local = self.store.cached_if(f"wdname:{imdb}", 30 * 86400, load_local, ok=lambda d: d.get("ok"))
+            wd_ok = bool((local or {}).get("ok"))
             names += (local or {}).get("names") or []
         out, seen = [], {_fold(title)}
         for name in names:
@@ -1012,6 +1033,11 @@ class Engine:
             if name and key and key not in seen and not key.isdigit():
                 seen.add(key)
                 out.append(name)
+        if len(self._orig_memo) > 200:
+            self._orig_memo.clear()
+        # výpadek Wikidat se pamatuje jen krátce — příští výpis to zkusí znovu, ale ten
+        # právě běžící už nečeká pětkrát na timeout
+        self._orig_memo[memo_key] = (time.time(), list(out), ORIG_MEMO_S if wd_ok else ORIG_MEMO_FAIL_S)
         return out
 
     def _title_queries(self, meta, video=None, ctype="movie", alt=None, strict=True):
@@ -1737,18 +1763,31 @@ class Engine:
             # („Sunday League…“), pod kterým Sosáč nic nenajde — podstrčíme mu český název z TMDB
             if not found and not alt and not is_sosac_id(base_id) and str(base_id).startswith("tt"):
                 meta = self._with_local_title(ctype, base_id, meta)
-            for label, fetch in (
+            # zdroje jsou nezávislé a každý má vlastní timeouty (15–40 s) — za sebou byl studený
+            # výpis 8–15 sériových dotazů. Líné klienty (login WebShare) založit ještě tady,
+            # v hlavním vlákně, ať se čtyři vlákna neperou o `_ws_ready`.
+            self.ws, self.hs, self.st, self.sosac  # noqa: B018 – jen inicializace
+            zdroje = (
                 ("Sosáč/Luna", lambda: self._cross_streams(ctype, item_id, meta, alt, failures)),
                 ("WebShare", lambda: self._webshare_streams(meta, video, ctype, alt, failures=failures)),
                 ("HellSpy", lambda: self._hellspy_streams(meta, video, ctype, alt, failures=failures)),
                 ("Sledujteto", lambda: self._sledujteto_streams(meta, video, ctype, alt, failures=failures)),
-            ):
+            )
+
+            def bezpecne(label, fetch):
                 try:
-                    found += fetch()
+                    return fetch()
                 except Exception as err:  # noqa: BLE001 – ani nečekaná chyba zdroje nesmí shodit ostatní
                     _LOGGER.warning("streamy %s (%s): %s", item_id, label, err)
                     failures.append((label, err))
-                tick()
+                    return []
+            with ThreadPoolExecutor(max_workers=len(zdroje)) as pool:
+                futures = [pool.submit(bezpecne, label, fetch) for label, fetch in zdroje]
+                for future in as_completed(futures):
+                    tick()
+                # pořadí zdrojů drží (Luna/Sosáč napřed) — na něm stojí párování v _merge_direct
+                for future in futures:
+                    found += future.result()
             for stream in found:
                 parse_stream(stream)
                 # bez kvality v názvu („Matrix (1999).mkv") by soubor spadl na konec seznamu,

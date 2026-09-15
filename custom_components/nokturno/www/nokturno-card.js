@@ -209,13 +209,14 @@ class NokturnoCard extends HTMLElement {
     if (!this._root || !this._sensorsChanged()) return;
     this._renderDownloads();
     this._renderProgress();
-    // změna sledovaných seriálů nebo historie → překreslit úvod / detail (a zahodit dočasné stavy)
-    const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history")]);
+    // změna sledovaných seriálů, historie nebo seznamu „K zhlédnutí" (vlaječka
+    // „kontrolovat dál") → překreslit úvod / detail (a zahodit dočasné stavy)
+    const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history"), this._sensorAttr("items")]);
     if (key !== this._sensorKey) {
       this._sensorKey = key;
       this._watchOverride = {};
       this._wantOverride = {};
-      if (this._state.view === "search" || this._state.view === "episodes") this._paint();
+      if (this._state.view === "search" || this._state.view === "episodes" || this._state.view === "streams") this._paint();
     }
   }
 

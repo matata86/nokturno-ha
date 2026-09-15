@@ -1870,8 +1870,16 @@ class Engine:
         return [self._describe(s, i) for i, s in enumerate(ordered)]
 
     def raw_streams(self, ctype, item_id, alt=None, series_id=None, on_progress=None, failures=None,
-                    strict=True, meta_video=None):
+                    strict=True, meta_video=None, probe_audio=True):
         """Seřazené streamy titulu ze všech dostupných zdrojů — surové slovníky.
+
+        `probe_audio=False`: vynechá `_fill_audio()` (čtení hlaviček souborů) — pro
+        případy, kdy stačí odhad jazyka z popisku/názvu (Sosáč, Luna a `langs_from_name`/
+        `subs_from_name` u ostatních zdrojů), ne ověřená zvuková stopa. Používá se pro
+        hromadnou klasifikaci (desítky titulů), kde by čtení hlaviček u každého bylo
+        neúnosně pomalé. Nejde přes 72h cache (`cache_key` výš) — jinak by takhle
+        odlehčený výsledek na 72 h zablokoval opravdové ověření hlaviček v dialogu
+        streamů pro tentýž titul.
 
         Síťové dohledání streamů se cachuje 72 h, ale JEN když něco našlo (`cached_if`) —
         prázdný výsledek by mohl být jen dočasný výpadek zdroje, takže se zkusí znovu
@@ -1989,20 +1997,25 @@ class Engine:
         # „streams2“: seznamy uložené před doplněním českých názvů z Wikidat byly u titulů
         # bez Luny/TMDB ořezané přísným filtrem — nový klíč je jednorázově obnoví
         cache_key = f"streams5:{ctype}:{item_id}:{alt or ''}"   # 5 = oprava filtru (krátké slovo na začátku názvu)
-        if strict:
+        if strict and probe_audio:
             found = self.store.cached_if(cache_key, STREAMS_CACHE_TTL, _fetch_streams,
                                          ok=lambda data: bool(data) and not failures,
                                          fresh=bool(self._opt("fresh", False)))
         else:
             found = _fetch_streams()
         # vlastní úložiště mimo 72h cache streamů — nový soubor se má ukázat hned,
-        # jak ho uvidí seznam úložiště (ten si drží vlastní hodinovou paměť)
-        try:
-            local = self._storage_streams(meta, video, ctype, alt, failures=failures)
-        except Exception as err:  # noqa: BLE001 – úložiště nesmí shodit ostatní zdroje
-            _LOGGER.warning("streamy %s (úložiště): %s", item_id, err)
-            failures.append(("Úložiště", err))
-            local = []
+        # jak ho uvidí seznam úložiště (ten si drží vlastní hodinovou paměť). S
+        # `probe_audio=False` (hromadná klasifikace) se přeskakuje úplně — cizí
+        # úložiště titul ze Sosáčova katalogu stejně nerozhodne a při nedostupném
+        # NAS/DAV to bez vlastní cache dusí každého jednoho kandidáta zvlášť.
+        local = []
+        if probe_audio:
+            try:
+                local = self._storage_streams(meta, video, ctype, alt, failures=failures)
+            except Exception as err:  # noqa: BLE001 – úložiště nesmí shodit ostatní zdroje
+                _LOGGER.warning("streamy %s (úložiště): %s", item_id, err)
+                failures.append(("Úložiště", err))
+                local = []
         for stream in local:
             parse_stream(stream)
             if not stream.get("quality_rank"):
@@ -2035,7 +2048,8 @@ class Engine:
         # a před seřazením se rozpočet utratil za řádky, které skončí dole; teď padne
         # na začátek seznamu, tedy na to, co má uživatel před očima. Po doplnění
         # kanálů se řadí znovu, protože 5.1 může pořadím pohnout.
-        ordered = sort(self._ensure_bitrate(self._fill_audio(sort(found), tick, on_count), video or meta))
+        with_audio = self._fill_audio(sort(found), tick, on_count) if probe_audio else sort(found)
+        ordered = sort(self._ensure_bitrate(with_audio, video or meta))
         # vlastní úložiště vždy nahoru — mezi desítkami streamů zdrojů se jinak ztrácí
         ordered = [s for s in ordered if s.get("source") == "dav"] + [s for s in ordered if s.get("source") != "dav"]
         if on_progress and done[0] < total:

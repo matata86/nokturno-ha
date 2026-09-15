@@ -65,6 +65,9 @@ const SK = {
   "lze pustit": "dá sa pustiť",
   "hlídám": "strážim",
   "zatím ne": "zatiaľ nie",
+  "kontrolovat dál": "kontrolovať ďalej",
+  "Streamy jsou, ale ne v požadované kvalitě/zvuku — kliknutím přestaneš kontrolovat dál": "Streamy sú, ale nie v požadovanej kvalite/zvuku — kliknutím prestaneš kontrolovať ďalej",
+  "Streamy jsou, ale ne v požadované kvalitě/zvuku (např. 5.1) — označit, ať se to dál sleduje": "Streamy sú, ale nie v požadovanej kvalite/zvuku (napr. 5.1) — označiť, nech sa to ďalej sleduje",
   "· {0} streamů": "· {0} streamov",
   "nový díl": "nový diel",
   "sleduji": "sledujem",
@@ -1023,23 +1026,39 @@ class NokturnoCard extends HTMLElement {
           return `
           <div class="stream stacked" data-cont="${i}" style="cursor:pointer" title="${this._esc(c.plot)}">
             <span class="tag" style="background:#2e8b57">
-              <ha-icon icon="${loading ? "mdi:loading" : "mdi:play-circle-outline"}" class="${loading ? "spin" : "ext"}"></ha-icon>
+              <ha-icon icon="${loading ? "mdi:loading" : "mdi:play-circle-outline"}" class="ext${loading ? " spin" : ""}"></ha-icon>
               ${this._t("pokračovat")}</span>
             <span class="label">${this._esc(c.label)}${manyKodi ? ` <span class="muted">· ${this._esc(c.player)}</span>` : ""}</span>
+            <span class="icons">
+              <ha-icon-button data-contremove="${i}" title="${this._t("Odebrat z Pokračovat ve sledování")}">
+                <ha-icon icon="mdi:close-circle-outline"></ha-icon>
+              </ha-icon-button>
+            </span>
           </div>`;
         }).join("")}</div>`;
     }
     const trakt = this._traktList();
     if (trakt.length) {
       html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> ${this._t("K zhlédnutí")}</div>
-        <div>${trakt.slice(0, 12).map((t, i) => `
+        <div>${trakt.slice(0, 12).map((t, i) => {
+          const opening = st.busy && st.loading === `trakt:${i}`;
+          const flagging = st.busy && st.loading === `traktflag:${i}`;
+          return `
           <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? this._t("Otevřít streamy — {0} k dispozici", t.streams) : this._t("Zatím žádný stream; hlídám a dám vědět")}">
-            <span class="tag" style="background:${t.streams ? "#2e8b57" : "#777"}">
-              <ha-icon icon="${t.streams ? "mdi:play-circle-outline" : (t.pending ? "mdi:radar" : "mdi:clock-outline")}" class="ext"></ha-icon>
-              ${this._t(t.streams ? (t.torrent ? "jen torrent" : "lze pustit") : (t.pending ? "hlídám" : "zatím ne"))}</span>
+            <span class="tag" style="background:${t.streams ? (t.flagged ? "#b8860b" : "#2e8b57") : "#777"}">
+              <ha-icon icon="${opening ? "mdi:loading" : (t.streams ? (t.flagged ? "mdi:flag-outline" : "mdi:play-circle-outline") : (t.pending ? "mdi:radar" : "mdi:clock-outline"))}" class="ext${opening ? " spin" : ""}"></ha-icon>
+              ${this._t(t.streams ? (t.flagged ? "kontrolovat dál" : (t.torrent ? "jen torrent" : "lze pustit")) : (t.pending ? "hlídám" : "zatím ne"))}</span>
             <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${this._esc(t.year)})</span>` : ""}${
               t.streams ? ` <span class="muted">${this._t("· {0} streamů", t.streams)}</span>` : ""}</span>
-          </div>`).join("")}</div>`;
+            ${t.streams ? `<span class="icons">
+              <ha-icon-button data-traktflag="${i}" title="${t.flagged
+                ? this._t("Streamy jsou, ale ne v požadované kvalitě/zvuku — kliknutím přestaneš kontrolovat dál")
+                : this._t("Streamy jsou, ale ne v požadované kvalitě/zvuku (např. 5.1) — označit, ať se to dál sleduje")}">
+                <ha-icon icon="${flagging ? "mdi:loading" : (t.flagged ? "mdi:flag" : "mdi:flag-outline")}" class="${flagging ? "spin" : ""}"></ha-icon>
+              </ha-icon-button>
+            </span>` : ""}
+          </div>`;
+        }).join("")}</div>`;
     }
     const series = this._watchlist();
     if (series.length) {
@@ -1084,6 +1103,15 @@ class NokturnoCard extends HTMLElement {
     return (this._sensorAttr("items") || []).filter((i) => i && i.id);
   }
 
+  /** Položka seznamu „K zhlédnutí" odpovídající právě otevřenému titulu/dílu — pro
+      vlaječku „kontrolovat dál" v hlavičce detailu streamů. */
+  _currentTraktEntry() {
+    const st = this._state;
+    const id = (st.episode && st.episode.id) || (st.item && st.item.id);
+    if (!id) return null;
+    return this._traktList().find((t) => t.id === id) || null;
+  }
+
   _isWanted(id) {
     const over = this._wantOverride || {};
     if (id in over) return over[id] !== false;
@@ -1124,13 +1152,19 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
-  /** Odebrání z Pokračovat ve sledování — jen u titulu otevřeného odtamtud (`continueSource`,
-      nastaví ho `_openContinue`). Ikonka pak zmizí, ať nejde poslat dvakrát a na cizí Kodi. */
-  async _removeProgress() {
-    const source = this._state.continueSource;
+  /** Odebrání z Pokračovat ve sledování — buď u titulu otevřeného odtamtud (`continueSource`,
+      nastaví ho `_openContinue`), nebo rovnou ikonou u řádku na úvodní obrazovce (`explicit`).
+      `continueSource` se čistí jen v prvním případě, ať nejde poslat dvakrát a na cizí Kodi. */
+  async _removeProgress(explicit) {
+    const source = explicit || this._state.continueSource;
     if (!source) return;
-    this._state.continueSource = null;
-    this._state.continueItems = null;   // vynutí čerstvý seznam, až se příště otevře
+    if (!explicit) this._state.continueSource = null;
+    // odebrat jen tu jednu položku lokálně — nulování celého seznamu vynutí nové
+    // načtení (`continueItems === null` v `_home()`) a mezitím sekce zabliká prázdná
+    if (this._state.continueItems) {
+      this._state.continueItems = this._state.continueItems.filter(
+        (c) => !(c.entity_id === source.entity_id && c.file === source.file));
+    }
     this._paint();
     await this._guard(async () => {
       await this._call("remove_progress", source, false);
@@ -1184,12 +1218,14 @@ class NokturnoCard extends HTMLElement {
   }
 
   async _loadContinue() {
-    this._state.continueItems = [];
+    // poslední známý stav ze senzoru — ukáže se hned, živý dotaz na Kodi ho pak
+    // na pozadí potichu doplní/opraví (viz `continue_cache` v sensor.py)
+    this._state.continueItems = this._sensorAttr("continue_cache") || [];
     try {
       const res = await this._call("continue_watching", {});
       this._state.continueItems = res.items || [];
       if (this._state.view === "search") this._paint();
-    } catch (err) { /* Kodi vypnuté — sekce se prostě neukáže */ }
+    } catch (err) { /* Kodi vypnuté — cache zůstává, ať sekce nezmizí */ }
   }
 
   _results() {
@@ -1272,6 +1308,16 @@ class NokturnoCard extends HTMLElement {
           ${st.continueSource ? `<ha-icon-button data-removeprogress="1" title="${this._t("Odebrat z Pokračovat ve sledování")}">
             <ha-icon icon="mdi:close-circle-outline"></ha-icon>
           </ha-icon-button>` : ""}
+          ${(() => {
+            const t = this._currentTraktEntry();
+            if (!t || !t.streams) return "";
+            const flagging = st.busy && st.loading === "traktflagdetail";
+            return `<ha-icon-button data-traktflagdetail="1" title="${t.flagged
+              ? this._t("Streamy jsou, ale ne v požadované kvalitě/zvuku — kliknutím přestaneš kontrolovat dál")
+              : this._t("Streamy jsou, ale ne v požadované kvalitě/zvuku (např. 5.1) — označit, ať se to dál sleduje")}">
+              <ha-icon icon="${flagging ? "mdi:loading" : (t.flagged ? "mdi:flag" : "mdi:flag-outline")}" class="${flagging ? "spin" : ""}"></ha-icon>
+            </ha-icon-button>`;
+          })()}
         </div>
       </div>` + this._streamWarnings();
     // torrenty jsou poslední možnost, ale tlačítko patří nahoru k ostatnímu ovládání.
@@ -1533,8 +1579,8 @@ class NokturnoCard extends HTMLElement {
   _onClick(event) {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
-                  "watch", "wopen", "wremove", "wseen", "trakt", "want", "catalog", "research",
-                  "torrent", "findtorrents", "findfulltext", "removeprogress"];
+                  "contremove", "watch", "wopen", "wremove", "wseen", "trakt", "traktflag", "traktflagdetail",
+                  "want", "catalog", "research", "torrent", "findtorrents", "findfulltext", "removeprogress"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -1550,6 +1596,11 @@ class NokturnoCard extends HTMLElement {
       st.loading = `cont:${+data.cont}`;
       return this._openContinue(st.continueItems[+data.cont]);
     }
+    if (data.contremove !== undefined) {
+      const item = st.continueItems[+data.contremove];
+      if (!item || !item.entity_id) return undefined;
+      return this._removeProgress({ entity_id: item.entity_id, file: item.file });
+    }
     if (data.watch !== undefined) return this._toggleWatch();
     if (data.wopen !== undefined) {
       const w = this._watchlist()[+data.wopen];
@@ -1560,10 +1611,23 @@ class NokturnoCard extends HTMLElement {
     if (data.wantquery !== undefined) return this._wantQuery();
     if (data.catalog !== undefined) return this._searchCatalog();
     if (data.research !== undefined) { st.catalog = false; return this._search(); }
+    if (data.traktflag !== undefined) {
+      const t = this._traktList()[+data.traktflag];
+      if (!t) return undefined;
+      st.loading = `traktflag:${data.traktflag}`;
+      return this._guard(async () => { await this._call("trakt_flag", { id: t.id }, false); });
+    }
+    if (data.traktflagdetail !== undefined) {
+      const t = this._currentTraktEntry();
+      if (!t) return undefined;
+      st.loading = "traktflagdetail";
+      return this._guard(async () => { await this._call("trakt_flag", { id: t.id }, false); });
+    }
     if (data.trakt !== undefined) {
       const t = this._traktList()[+data.trakt];
       if (!t) return undefined;
       if (t.pending) { this._toast(this._t("Titul zatím žádný zdroj nemá — hlídám ho.")); return undefined; }
+      st.loading = `trakt:${data.trakt}`;
       const parts = String(t.id).split(":");
       if (parts.length === 3) {
         // uložený díl: seznam epizod by byl objížďka, otevřít rovnou jeho streamy

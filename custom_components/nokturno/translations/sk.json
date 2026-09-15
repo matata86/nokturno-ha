@@ -449,6 +449,16 @@
       "name": "Trakt — zoznam na pozretie",
       "description": "Načíta zoznam na pozretie z Trakt.tv a zistí, ktoré tituly už majú stream (inak beží raz denne)."
     },
+    "trakt_flag": {
+      "name": "Trakt — označiť na kontrolu",
+      "description": "Prepne ručný príznak pri položke zoznamu, ktorá už má streamy, ale nie v požadovanej kvalite/zvuku (napr. 5.1) — v karte sa potom odlišuje od titulov, ktoré sa dajú rovno pustiť.",
+      "fields": {
+        "id": {
+          "name": "ID titulu",
+          "description": "ID tak, ako je uvedené pri položke zoznamu."
+        }
+      }
+    },
     "share_file": {
       "name": "Poslať stiahnutý súbor",
       "description": "Vytvorí dočasný odkaz na stiahnutý súbor cez verejnú adresu HA (Nabu Casa) a pošle ho do mobilu.",

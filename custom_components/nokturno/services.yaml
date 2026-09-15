@@ -332,6 +332,12 @@ trakt_watched:
       selector:
         boolean: null
 trakt_watchlist: {}
+trakt_flag:
+  fields:
+    id:
+      required: true
+      selector:
+        text: null
 share_file:
   fields:
     path:

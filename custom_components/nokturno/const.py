@@ -46,10 +46,15 @@ SERVICE_SEEN = "mark_seen"
 SERVICE_TRAKT_AUTH = "trakt_auth"
 SERVICE_TRAKT_WATCHED = "trakt_watched"
 SERVICE_TRAKT_LIST = "trakt_watchlist"
+SERVICE_TRAKT_FLAG = "trakt_flag"
 SERVICE_WANT = "want_to_watch"
 SERVICE_TORRENTS = "torrents"
 SERVICE_TORRENT = "download_torrent"
 SERVICE_FULLTEXT = "fulltext_search"
+
+# poslední živý stav „Pokračovat ve sledování" — karta ho ukáže hned po načtení,
+# než dorazí čerstvá odpověď z živého dotazu na Kodi (viz kodi_continue v __init__.py)
+CONTINUE_CACHE_KEY = "continue_cache"
 
 SIGNAL_DOWNLOADS = f"{DOMAIN}_downloads_updated"
 SIGNAL_WATCHLIST = f"{DOMAIN}_watchlist_updated"

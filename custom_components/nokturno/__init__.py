@@ -39,6 +39,7 @@ from homeassistant.loader import async_get_integration
 from .const import (
     CONF_DOWNLOAD_DIR,
     CONF_EXTERNAL_HOST,
+    CONTINUE_CACHE_KEY,
     CONF_STATS_ENABLED,
     CONF_SUB_WARN_DAYS,
     CONF_SYNC_KEY,
@@ -70,6 +71,7 @@ from .const import (
     SERVICE_SHARE_FILE,
     SERVICE_SEEN,
     SERVICE_TRAKT_AUTH,
+    SERVICE_TRAKT_FLAG,
     SERVICE_TRAKT_LIST,
     SERVICE_TRAKT_WATCHED,
     SERVICE_WANT,
@@ -207,6 +209,8 @@ CONTINUE_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTITY_ID): cv.string})
 REMOVE_PROGRESS_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.string, vol.Required("file"): cv.string})
 
 SEEN_SCHEMA = vol.Schema({vol.Optional("id"): vol.Any(cv.string, None)})
+
+TRAKT_FLAG_SCHEMA = vol.Schema({vol.Required("id"): cv.string})
 
 TRAKT_WATCHED_SCHEMA = vol.Schema({
     vol.Required("id"): cv.string,
@@ -496,9 +500,6 @@ def _art_by_title(engine: Engine, items: list[dict]) -> None:
         enrich_one(meta, engine.luna, engine.store, "series" if is_episode else "movie")
         item["fanart"] = meta.get("background") or ""
         item["thumbnail"] = meta.get("poster") or ""
-
-
-CONTINUE_CACHE_KEY = "continue_cache"
 
 
 async def kodi_continue(hass: HomeAssistant, entity_id: str | None, engine: Engine | None = None) -> list[dict]:
@@ -918,6 +919,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     def trakt_cache():
         return engine.store.load("trakt_list", {})
 
+    async def handle_trakt_flag(call: ServiceCall):
+        """Ruční příznak „kontrolovat dál" — titul má streamy, ale ne v požadované
+        kvalitě/zvuku. Uložený zvlášť od `trakt_list`, který se denní kontrolou
+        celý přestavuje a příznak by tak přežil jen do dalšího `check_trakt`."""
+        flags = engine.store.load("trakt_flags", {})
+        wid = call.data["id"]
+        if flags.pop(wid, None) is None:
+            flags[wid] = True
+        await hass.async_add_executor_job(engine.store.save, "trakt_flags", flags)
+        async_dispatcher_send(hass, SIGNAL_TRAKT)
+        return {"id": wid, "flagged": wid in flags}
+
     def wantlist():
         """Vlastní seznam „chci vidět" — funguje i bez Traktu (ten od 7/2026 chce VIP)."""
         return engine.store.load("wantlist", {})
@@ -936,6 +949,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             cache = trakt_cache()
             if cache.pop(wid, None) is not None:
                 await hass.async_add_executor_job(engine.store.save, "trakt_list", cache)
+            flags = engine.store.load("trakt_flags", {})
+            if flags.pop(wid, None) is not None:
+                await hass.async_add_executor_job(engine.store.save, "trakt_flags", flags)
         else:
             item = data.get(wid) or {"id": wid, "added": dt_util.now().isoformat()}
             item.update({k: call.data[k] for k in ("type", "title", "year", "alt", "poster", "series")
@@ -1674,6 +1690,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_SEEN, handle_seen, SEEN_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_AUTH, handle_trakt_auth, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_LIST, handle_trakt_list, vol.Schema({}), SupportsResponse.OPTIONAL),
+        (SERVICE_TRAKT_FLAG, handle_trakt_flag, TRAKT_FLAG_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_WANT, handle_want, WANT_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TORRENTS, handle_torrents, TORRENTS_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_FULLTEXT, handle_fulltext, FULLTEXT_SCHEMA, SupportsResponse.ONLY),
@@ -1697,6 +1714,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.async_add_executor_job(engine.store.load, "watchlist", {})
     await hass.async_add_executor_job(engine.store.load, "history", [])
     await hass.async_add_executor_job(engine.store.load, "trakt_list", {})
+    await hass.async_add_executor_job(engine.store.load, "trakt_flags", {})
     await hass.async_add_executor_job(engine.store.load, "wantlist", {})
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))

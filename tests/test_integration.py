@@ -201,8 +201,13 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         class Downloader:
             jobs, torrents, directory, files, free_gb = {}, [], "/media", ["a.mkv"] * 300, 12.0
 
+        class Store:
+            def load(self, name, default):
+                return default
+
         class Engine:
             sub_status = stream_progress = search_progress = {}
+            store = Store()
 
             def history(self):
                 return ["x"]

@@ -11,7 +11,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
-from .const import DOMAIN, SIGNAL_DOWNLOADS, SIGNAL_TRAKT, SIGNAL_WATCHLIST
+from .const import CONTINUE_CACHE_KEY, DOMAIN, SIGNAL_DOWNLOADS, SIGNAL_TRAKT, SIGNAL_WATCHLIST
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
@@ -32,7 +32,8 @@ class NokturnoDownloadsSensor(SensorEntity):
     # atributy čte jen karta; do recorderu nepatří — stav se přepisuje každé 2 s během
     # stahování a nesl celý výpis složky (desítky MB/den v databázi HA)
     _unrecorded_attributes = frozenset({"downloads", "files", "search_history", "sources", "notify_targets",
-                                        "subscription", "stream_progress", "search_progress", "directory"})
+                                        "subscription", "stream_progress", "search_progress", "directory",
+                                        "continue_cache"})
 
     def __init__(self, entry: ConfigEntry, downloader, owners, engine):
         self._downloader = downloader
@@ -125,6 +126,9 @@ class NokturnoDownloadsSensor(SensorEntity):
             "stream_progress": self._engine.stream_progress,
             # postup právě probíhajícího hledání titulu — {} když nic neběží
             "search_progress": self._engine.search_progress,
+            # poslední živý stav „Pokračovat ve sledování" — karta ho ukáže hned po
+            # načtení, než dorazí čerstvá odpověď z živého dotazu na Kodi
+            "continue_cache": self._engine.store.load(CONTINUE_CACHE_KEY, []),
         }
 
 
@@ -196,7 +200,13 @@ class NokturnoTraktSensor(SensorEntity):
     @property
     def _items(self) -> list[dict]:
         data = self._engine.store.load("trakt_list", {})
-        return sorted(data.values(), key=lambda i: (not i.get("streams"), i.get("title") or ""))
+        flags = self._engine.store.load("trakt_flags", {})
+        items = []
+        for item in data.values():
+            item = {**item, "flagged": item["id"] in flags}
+            items.append(item)
+        # lze pustit → kontrolovat dál (má streamy, ale ne v požadované kvalitě) → zatím ne
+        return sorted(items, key=lambda i: (not i.get("streams"), i.get("flagged"), i.get("title") or ""))
 
     @property
     def native_value(self) -> int:

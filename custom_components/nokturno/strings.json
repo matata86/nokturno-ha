@@ -449,6 +449,16 @@
       "name": "Trakt — watchlist",
       "description": "Loads the Trakt.tv watchlist and finds which titles already have a stream (otherwise runs once a day)."
     },
+    "trakt_flag": {
+      "name": "Trakt — mark for further checking",
+      "description": "Toggles a manual flag on a watchlist item that already has streams but not in the wanted quality/audio (e.g. 5.1) — keeps it visually separate from titles that are simply ready to watch.",
+      "fields": {
+        "id": {
+          "name": "Title ID",
+          "description": "ID as shown in the watchlist item."
+        }
+      }
+    },
     "share_file": {
       "name": "Send downloaded file",
       "description": "Creates a temporary link to a downloaded file through the public HA address (Nabu Casa) and sends it to the phone.",

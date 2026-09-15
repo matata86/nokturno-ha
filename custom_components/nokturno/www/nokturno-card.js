@@ -1014,16 +1014,20 @@ class NokturnoCard extends HTMLElement {
     const cont = st.continueItems || [];
     const manyKodi = new Set(cont.map((c) => c.entity_id)).size > 1;
     if (cont.length) {
+      // stejný textový řádkový styl jako „K zhlédnutí"/„Sledované seriály" — bez plakátu.
+      // Plakáty/fanart v plné velikosti se tu dřív dekódovaly do paměti prohlížeče
+      // (desítky MB na obrázek) a při delším prohlížení to vedlo ke „stránka neodpovídá".
       html += `<div class="section"><ha-icon icon="mdi:play-circle-outline"></ha-icon> ${this._t("Pokračovat ve sledování")}</div>
-        <div class="cont">${cont.map((c, i) => `
-          <button class="poster" data-cont="${i}" title="${this._esc(c.plot)}">
-            <span class="thumb"><ha-icon icon="mdi:filmstrip"></ha-icon>
-              ${c.fanart || c.thumbnail ? `<img src="${this._esc(c.fanart || c.thumbnail)}" referrerpolicy="no-referrer" />` : ""}
-              ${manyKodi ? `<span class="where">${this._esc(c.player)}</span>` : ""}
-              ${st.busy && st.loading === `cont:${i}` ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon><span class="pct"></span></span>` : ""}
-            </span>
-            <div class="t">${this._esc(c.label)}</div>
-          </button>`).join("")}</div>`;
+        <div>${cont.map((c, i) => {
+          const loading = st.busy && st.loading === `cont:${i}`;
+          return `
+          <div class="stream stacked" data-cont="${i}" style="cursor:pointer" title="${this._esc(c.plot)}">
+            <span class="tag" style="background:#2e8b57">
+              <ha-icon icon="${loading ? "mdi:loading" : "mdi:play-circle-outline"}" class="${loading ? "spin" : "ext"}"></ha-icon>
+              ${this._t("pokračovat")}</span>
+            <span class="label">${this._esc(c.label)}${manyKodi ? ` <span class="muted">· ${this._esc(c.player)}</span>` : ""}</span>
+          </div>`;
+        }).join("")}</div>`;
     }
     const trakt = this._traktList();
     if (trakt.length) {

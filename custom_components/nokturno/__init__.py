@@ -90,6 +90,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .downloader import Downloader
+from .lib.enrich import _capped
 from .lib.source_errors import summarize as summarize_failures
 from .lib.stats import COLLECT_URL, Stats
 from .lib.webshare_api import WebshareApiError
@@ -393,8 +394,8 @@ async def _kodi_continue_one(hass: HomeAssistant, kodi: dict) -> list[dict]:
             "label": f.get("label") or f.get("title") or "",
             "title": re.sub(r"\s*\(\d{4}\)\s*$", "", f.get("title") or f.get("label") or ""),
             "file": f.get("file"),
-            "thumbnail": kodi_image(art.get("thumb") or art.get("poster") or f.get("thumbnail") or ""),
-            "fanart": kodi_image(art.get("landscape") or art.get("fanart") or ""),
+            "thumbnail": kodi_image(art.get("thumb") or art.get("poster") or f.get("thumbnail") or "", "w500"),
+            "fanart": kodi_image(art.get("landscape") or art.get("fanart") or "", "w1280"),
             "year": f.get("year") or (re.search(r"\((\d{4})\)\s*$", f.get("label") or "") or [None, None])[1],
             "plot": (f.get("plot") or "")[:400],
             "series": f.get("showtitle") or "",
@@ -555,16 +556,18 @@ async def kodi_continue(hass: HomeAssistant, entity_id: str | None, engine: Engi
     return items
 
 
-def kodi_image(value: str) -> str:
+def kodi_image(value: str, size: str | None = None) -> str:
     """Kodi obaluje obrázky do `image://<zakódované URL>/` — prohlížeč potřebuje holé URL.
-    Mrtvé náhledy Sosáče (movies.sosac.tv, 404) radši vynechat, karta ukáže podklad."""
+    Mrtvé náhledy Sosáče (movies.sosac.tv, 404) radši vynechat, karta ukáže podklad.
+    Kodi posílá TMDB obrázky v plné `original` velikosti — `size` (např. „w500"/„w1280")
+    to ořízne, jinak to v prohlížeči po chvíli sežere gigabajty paměti."""
     if not value:
         return ""
     if value.startswith("image://"):
         value = urllib.parse.unquote(value[len("image://"):].rstrip("/"))
     if not value.startswith("http") or "movies.sosac.tv" in value:
         return ""
-    return value
+    return _capped(value, size) if size else value
 
 
 async def async_register_card(hass: HomeAssistant) -> None:

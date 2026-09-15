@@ -16,6 +16,7 @@ TIMEOUT = 8
 WORKERS = 8
 DEAD_IMAGES = "movies.sosac.tv"  # jejich náhledy jsou od 2026-09 pryč (404)
 DEADLINE = 6.0  # s – déle seznam nezdržovat; zbytek se dotáhne na pozadí do cache
+TMDB_IMG_PREFIX = "https://image.tmdb.org/t/p/"
 # jeden executor pro celý proces: dřív nový na každé hledání s `shutdown(wait=False)`, takže po
 # několika hledáních za sebou běžely desítky visících vláken (Luna má timeout 40 s)
 _POOL = ThreadPoolExecutor(max_workers=WORKERS, thread_name_prefix="nokturno-enrich")
@@ -33,6 +34,17 @@ def _cinemeta(ctype, imdb):
                                  headers={"User-Agent": "Nokturno (+https://github.com/matata86/nokturno-core)"})
     with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
         return json.loads(resp.read().decode("utf-8")).get("meta") or {}
+
+
+def _capped(url, size):
+    """Cinemeta (na rozdíl od naší vlastní cesty přes TMDB) vrací poster/fanart v plné
+    velikosti `original` — u fanartu klidně 3840×2160. Jako dekódovaná bitmapa v paměti
+    prohlížeče je to desítky MB na obrázek; při procházení katalogu se to sčítá do
+    gigabajtů a vede to k „stránka neodpovídá". Zmenšíme na stejné rozměry jako IMG/IMG_BIG
+    v tmdb_api.py, než se URL uloží do cache."""
+    if url and url.startswith(TMDB_IMG_PREFIX) and "/original/" in url:
+        return url.replace("/original/", f"/{size}/", 1)
+    return url
 
 
 def _poster_broken(meta):
@@ -71,6 +83,10 @@ def _fetch_title(luna, store, ctype, title, year):
             if year and my.isdigit() and abs(int(my) - int(year)) > 1:
                 continue
             picked = {k: m[k] for k in ("poster", "background", "description", "imdbRating", "genres") if m.get(k)}
+            if picked.get("poster"):
+                picked["poster"] = _capped(picked["poster"], "w500")
+            if picked.get("background"):
+                picked["background"] = _capped(picked["background"], "w1280")
             if m.get("imdb_id") or str(m.get("id", "")).startswith("tt"):
                 picked["imdb_id"] = m.get("imdb_id") or m["id"]
             return picked
@@ -96,6 +112,10 @@ def _fetch(luna, store, ctype, imdb):
         for k in ("imdbRating", "background", "genres", "year", "releaseInfo", "poster"):
             if data.get(k):
                 picked[k] = data[k]
+        if picked.get("poster"):
+            picked["poster"] = _capped(picked["poster"], "w500")
+        if picked.get("background"):
+            picked["background"] = _capped(picked["background"], "w1280")
         return picked
     key = f"ttmeta:{ctype}:{imdb}"
     return store.cached(key, TTL, load) if store else load()

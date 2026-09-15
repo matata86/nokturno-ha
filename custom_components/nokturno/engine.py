@@ -19,7 +19,7 @@ from datetime import datetime
 
 from .lib.const import CONF_HS_ENABLED, DEFAULT_SORT, LANGS, SORT_ORDERS
 from .lib.cinemeta_api import CinemetaApi, CinemetaError
-from .lib.enrich import DEAD_IMAGES, _cinemeta, _fetch, _fetch_title, enrich, enrich_one
+from .lib.enrich import DEAD_IMAGES, _capped, _cinemeta, _fetch, _fetch_title, enrich, enrich_one
 from .lib.luna_api import LunaApi, LunaError, clean_label, parse_base_url, parse_token
 from .lib.tmdb_api import TmdbApi, TmdbError
 from .lib.prowlarr import ProwlarrApi, ProwlarrError
@@ -547,9 +547,15 @@ class Engine:
         return merged
 
     @staticmethod
-    def _art(url):
-        """Mrtvé náhledy Sosáče neposílat — v kartě je lepší podklad než rozbitý obrázek."""
-        return "" if DEAD_IMAGES in (url or "") else (url or "")
+    def _art(url, size=None):
+        """Mrtvé náhledy Sosáče neposílat — v kartě je lepší podklad než rozbitý obrázek.
+
+        Syrová data ze Sosáče (`art.fanart`/`art.landscape`) i Cinemety chodí v plné
+        `original` velikosti TMDB obrázku — desítky MB na kus jako dekódovaná bitmapa
+        v prohlížeči. `size` (např. „w500"/„w1280") to ořízne na rozumnou velikost."""
+        if DEAD_IMAGES in (url or ""):
+            return ""
+        return _capped(url, size) if size else (url or "")
 
     def _item(self, meta, ctype, alt=None):
         return {
@@ -558,8 +564,8 @@ class Engine:
             "title": meta.get("_title") or meta.get("name") or "",
             "original_title": meta.get("_orig") or "",
             "year": self._year(meta),
-            "poster": self._art(meta.get("poster")),
-            "background": self._art(meta.get("background")),
+            "poster": self._art(meta.get("poster"), "w500"),
+            "background": self._art(meta.get("background"), "w1280"),
             "description": (meta.get("description") or "")[:4000],
             "rating": meta.get("imdbRating") or "",
             "source": meta.get("source") or ("sosac" if is_sosac_id(meta.get("id")) else "luna"),
@@ -742,8 +748,8 @@ class Engine:
                 "type": ctype,
                 "title": meta.get("name") or "",
                 "year": int(year) if year.isdigit() else None,
-                "poster": meta.get("poster") or "",
-                "background": meta.get("background") or "",
+                "poster": self._art(meta.get("poster"), "w500"),
+                "background": self._art(meta.get("background"), "w1280"),
                 "description": (meta.get("description") or "")[:4000],
                 "source": "katalog",
                 "alt": None,
@@ -786,8 +792,8 @@ class Engine:
             "type": kind,
             "title": self._local_title(kind, meta.get("name") or "", year_num) or meta.get("name") or "",
             "year": year_num,
-            "poster": meta.get("poster") or "",
-            "background": meta.get("background") or "",
+            "poster": self._art(meta.get("poster"), "w500"),
+            "background": self._art(meta.get("background"), "w1280"),
             "description": (meta.get("description") or self._summary(meta))[:4000],
             "rating": meta.get("imdbRating") or "",
             "genres": meta.get("genres") or [],

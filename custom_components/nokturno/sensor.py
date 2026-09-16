@@ -176,7 +176,7 @@ class NokturnoEpisodesSensor(SensorEntity):
 
 
 class NokturnoTraktSensor(SensorEntity):
-    """Seznam „k zhlédnutí" z Traktu — kolik titulů už má stream."""
+    """Hlídané z Traktu — kolik titulů už má stream."""
 
     _attr_has_entity_name = True
     _attr_translation_key = "trakt"

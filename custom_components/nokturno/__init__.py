@@ -76,6 +76,7 @@ from .const import (
     SERVICE_TRAKT_WATCHED,
     SERVICE_WANT,
     SERVICE_FAVOURITE_ADD,
+    SERVICE_FAVOURITE_TOGGLE,
     SERVICE_FULLTEXT,
     SERVICE_TORRENT,
     SERVICE_TORRENTS,
@@ -214,6 +215,15 @@ SEEN_SCHEMA = vol.Schema({vol.Optional("id"): vol.Any(cv.string, None)})
 TRAKT_FLAG_SCHEMA = vol.Schema({vol.Required("id"): cv.string})
 
 FAVOURITE_ADD_SCHEMA = vol.Schema({vol.Required("id"): cv.string})
+
+FAVOURITE_TOGGLE_SCHEMA = vol.Schema({
+    vol.Required("id"): cv.string,
+    vol.Optional("type", default="movie"): vol.In(["movie", "series"]),
+    vol.Optional("title"): vol.Any(cv.string, None),
+    vol.Optional("year"): vol.Any(vol.Coerce(int), None),
+    vol.Optional("alt"): vol.Any(cv.string, None),
+    vol.Optional("poster"): vol.Any(cv.string, None),
+})
 
 TRAKT_WATCHED_SCHEMA = vol.Schema({
     vol.Required("id"): cv.string,
@@ -939,7 +949,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return engine.store.load("wantlist", {})
 
     async def handle_want(call: ServiceCall):
-        """Titul do seznamu k zhlédnutí. Bez `id` stačí `query` — název se hlídá,
+        """Titul mezi hlídané. Bez `id` stačí `query` — název se hlídá,
         dokud se titul v některém zdroji neobjeví (film, který ještě nikde není)."""
         data = wantlist()
         query = (call.data.get("query") or "").strip()
@@ -971,17 +981,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.async_create_task(check_trakt(only=wid))
         return {"count": len(data), "watching": wid in data}
 
+    def favourite_info(title, year, extra):
+        """Sjednocené `items.json` očekává název s rokem v závorce (`display_name()`
+        v Kodi doplňku — `Matrix (1999)`), jinak se v „Mém seznamu" rok ukáže dvakrát
+        (karta ho k názvu bez roku dopisuje sama). Rok se dopisuje, jen když v názvu
+        ještě není."""
+        title = (title or "").strip()
+        year = str(year or "")[:4]
+        if year.isdigit() and not re.search(r"\(\d{4}\)\s*$", title):
+            title = f"{title} ({year})"
+        info = {"title": title}
+        info.update({k: v for k, v in extra.items() if v})
+        return info
+
     async def handle_favourite_add(call: ServiceCall):
-        """Přesune položku „K zhlédnutí“ do Mého seznamu (lokální oblíbené, sdílené
+        """Přesune položku „Hlídané“ do Mého seznamu (lokální oblíbené, sdílené
         s Kodi/Stremiem) a přestane titul dál hlídat/kontrolovat — stejné odebrání
         jako `want_to_watch` s `remove`, jen navíc přidá do `favourites`."""
         wid = call.data["id"]
         cache = trakt_cache()
         info = cache.get(wid) or wantlist().get(wid)
         if info is None:
-            raise HomeAssistantError("Titul s tímhle ID není v „K zhlédnutí“.")
+            raise HomeAssistantError("Titul s tímhle ID není mezi hlídanými.")
         if not engine.store.is_favourite(wid):
-            remember = {k: info.get(k) for k in ("title", "year", "poster", "alt", "type") if info.get(k)}
+            remember = favourite_info(info.get("title"), info.get("year"),
+                                       {k: info.get(k) for k in ("poster", "alt", "type")})
             await hass.async_add_executor_job(engine.store.toggle_favourite, wid, remember)
         wanted = wantlist()
         if wanted.pop(wid, None) is not None:
@@ -994,8 +1018,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async_dispatcher_send(hass, SIGNAL_TRAKT)
         return {"id": wid}
 
+    async def handle_favourite_toggle(call: ServiceCall):
+        """Přidá/odebere titul do/z Mého seznamu nezávisle na „Hlídaných" — tlačítko
+        rovnou v hlavičce detailu, ne jen přesun z hlídaného titulu se streamem."""
+        wid = call.data["id"]
+        info = favourite_info(call.data.get("title"), call.data.get("year"),
+                               {k: call.data.get(k) for k in ("poster", "alt", "type")})
+        added = await hass.async_add_executor_job(engine.store.toggle_favourite, wid, info)
+        async_dispatcher_send(hass, SIGNAL_TRAKT)
+        return {"id": wid, "favourite": added}
+
     async def check_trakt(_now=None, only=None):
-        """Seznam „k zhlédnutí" z Traktu + kontrola, co už jde pustit.
+        """Hlídané z Traktu + kontrola, co už jde pustit.
 
         Jednou denně; když titul, který stream neměl, ho nově má, přijde oznámení.
         `only=<id>`: jen ta jedna položka vlastního seznamu, výsledek se sloučí do
@@ -1719,6 +1753,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_TRAKT_FLAG, handle_trakt_flag, TRAKT_FLAG_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_WANT, handle_want, WANT_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_FAVOURITE_ADD, handle_favourite_add, FAVOURITE_ADD_SCHEMA, SupportsResponse.OPTIONAL),
+        (SERVICE_FAVOURITE_TOGGLE, handle_favourite_toggle, FAVOURITE_TOGGLE_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TORRENTS, handle_torrents, TORRENTS_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_FULLTEXT, handle_fulltext, FULLTEXT_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_TORRENT, handle_torrent, TORRENT_SCHEMA, SupportsResponse.OPTIONAL),

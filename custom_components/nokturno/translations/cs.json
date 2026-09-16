@@ -477,7 +477,7 @@
     },
     "want_to_watch": {
       "name": "Chci vidět",
-      "description": "Přidá titul do seznamu k zhlédnutí (kontroluje se denně, jestli už má stream). Bez ID stačí název — hlídá se, dokud se titul někde neobjeví. S `remove` položku odebere.",
+      "description": "Přidá titul mezi hlídané (kontroluje se denně, jestli už má stream). Bez ID stačí název — hlídá se, dokud se titul někde neobjeví. S `remove` položku odebere.",
       "fields": {
         "id": {
           "name": "ID titulu",
@@ -513,11 +513,35 @@
     },
     "favourite_add": {
       "name": "Přesunout do Mého seznamu",
-      "description": "Přesune titul z „K zhlédnutí\" do Mého seznamu (lokální oblíbené, sdílené s Kodi/Stremiem) a přestane ho dál hlídat/kontrolovat.",
+      "description": "Přesune titul z hlídaných do Mého seznamu (lokální oblíbené, sdílené s Kodi/Stremiem) a přestane ho dál hlídat/kontrolovat.",
       "fields": {
         "id": {
           "name": "ID titulu",
-          "description": "ID tak, jak je uvedené u položky „K zhlédnutí\"."
+          "description": "ID tak, jak je uvedené u hlídané položky."
+        }
+      }
+    },
+    "favourite_toggle": {
+      "name": "Přidat/odebrat v Mém seznamu",
+      "description": "Přidá titul do Mého seznamu, nebo ho odebere, je-li tam už uložený — nezávisle na hlídaných.",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "title": {
+          "name": "Název"
+        },
+        "year": {
+          "name": "Rok"
+        },
+        "alt": {
+          "name": "Alternativní ID"
+        },
+        "poster": {
+          "name": "Plakát (URL)"
         }
       }
     },
@@ -601,7 +625,7 @@
         "name": "Nové díly"
       },
       "trakt": {
-        "name": "K zhlédnutí"
+        "name": "Hlídané"
       }
     }
   }

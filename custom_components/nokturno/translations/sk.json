@@ -477,7 +477,7 @@
     },
     "want_to_watch": {
       "name": "Chcem vidieť",
-      "description": "Pridá titul do zoznamu na pozretie (denne sa kontroluje, či už má stream). Bez ID stačí názov — stráži sa, kým sa titul niekde neobjaví. S `remove` položku odoberie.",
+      "description": "Pridá titul medzi strážené (denne sa kontroluje, či už má stream). Bez ID stačí názov — stráži sa, kým sa titul niekde neobjaví. S `remove` položku odoberie.",
       "fields": {
         "id": {
           "name": "ID titulu",
@@ -513,11 +513,35 @@
     },
     "favourite_add": {
       "name": "Presunúť do Môjho zoznamu",
-      "description": "Presunie titul z „Na pozretie\" do Môjho zoznamu (lokálne obľúbené, zdieľané s Kodi/Stremiom) a prestane ho ďalej strážiť/kontrolovať.",
+      "description": "Presunie titul zo strážených do Môjho zoznamu (lokálne obľúbené, zdieľané s Kodi/Stremiom) a prestane ho ďalej strážiť/kontrolovať.",
       "fields": {
         "id": {
           "name": "ID titulu",
-          "description": "ID tak, ako je uvedené pri položke „Na pozretie\"."
+          "description": "ID tak, ako je uvedené pri strážené položke."
+        }
+      }
+    },
+    "favourite_toggle": {
+      "name": "Pridať/odobrať v Mojom zozname",
+      "description": "Pridá titul do Môjho zoznamu, alebo ho odoberie, ak je tam už uložený — nezávisle od strážených.",
+      "fields": {
+        "id": {
+          "name": "ID titulu"
+        },
+        "type": {
+          "name": "Typ"
+        },
+        "title": {
+          "name": "Názov"
+        },
+        "year": {
+          "name": "Rok"
+        },
+        "alt": {
+          "name": "Alternatívne ID"
+        },
+        "poster": {
+          "name": "Plagát (URL)"
         }
       }
     },
@@ -601,7 +625,7 @@
         "name": "Nové diely"
       },
       "trakt": {
-        "name": "Na pozretie"
+        "name": "Strážené"
       }
     }
   }

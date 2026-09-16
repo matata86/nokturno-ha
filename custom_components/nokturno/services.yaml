@@ -398,6 +398,33 @@ favourite_add:
       required: true
       selector:
         text: null
+favourite_toggle:
+  fields:
+    id:
+      required: true
+      selector:
+        text: null
+    type:
+      default: movie
+      selector:
+        select:
+          options:
+          - movie
+          - series
+    title:
+      selector:
+        text: null
+    year:
+      selector:
+        number:
+          min: 1900
+          max: 2100
+    alt:
+      selector:
+        text: null
+    poster:
+      selector:
+        text: null
 download_torrent:
   fields:
     url:

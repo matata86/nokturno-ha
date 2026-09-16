@@ -58,7 +58,7 @@ const SK = {
   "Smazat historii": "Zmazať históriu",
   "Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.": "Zadaj názov — hľadá sa vo WebShare, Sosáči aj Lune naraz.",
   "Pokračovat ve sledování": "Pokračovať v sledovaní",
-  "K zhlédnutí": "Na pozretie",
+  "Hlídané": "Strážené",
   "Otevřít streamy — {0} k dispozici": "Otvoriť streamy — {0} k dispozícii",
   "Zatím žádný stream; hlídám a dám vědět": "Zatiaľ žiadny stream; strážim a dám vedieť",
   "jen torrent": "len torrent",
@@ -71,6 +71,9 @@ const SK = {
   "Můj seznam": "Môj zoznam",
   "Přesunout do Mého seznamu": "Presunúť do Môjho zoznamu",
   "Přidáno do Mého seznamu": "Pridané do Môjho zoznamu",
+  "Odebráno z Mého seznamu": "Odobrané z Môjho zoznamu",
+  "Přidat do Mého seznamu": "Pridať do Môjho zoznamu",
+  "Odebrat z Mého seznamu": "Odobrať z Môjho zoznamu",
   "· {0} streamů": "· {0} streamov",
   "nový díl": "nový diel",
   "sleduji": "sledujem",
@@ -95,14 +98,14 @@ const SK = {
   "Hledat v databázi filmů (IMDb/TMDB) — najde i tituly, které zdroje nemají": "Hľadať v databáze filmov (IMDb/TMDB) — nájde aj tituly, ktoré zdroje nemajú",
   "Hledat v databázi filmů": "Hľadať v databáze filmov",
   "Ve zdrojích nic nenalezeno — zkus databázi filmů.": "V zdrojoch sa nič nenašlo — skús databázu filmov.",
-  "Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš do seznamu k zhlédnutí.": "Z databázy filmov — ťuknutím otvoríš detail; záložkou v ňom si titul uložíš do zoznamu na pozretie.",
+  "Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš mezi hlídané.": "Z databázy filmov — ťuknutím otvoríš detail; záložkou v ňom si titul uložíš medzi strážené.",
   "Sledovat nové díly": "Sledovať nové diely",
   "Sezóna": "Séria",
   "Speciály": "Špeciály",
   "Zobrazit streamy epizody": "Zobraziť streamy epizódy",
   "Přeskočeno — streamy jsou z ostatních zdrojů.": "Preskočené — streamy sú z ostatných zdrojov.",
-  "Odebrat ze seznamu k zhlédnutí": "Odobrať zo zoznamu na pozretie",
-  "Přidat do seznamu k zhlédnutí": "Pridať do zoznamu na pozretie",
+  "Odebrat z hlídaných": "Odobrať zo strážených",
+  "Přidat mezi hlídané": "Pridať medzi strážené",
   "Odebrat z Pokračovat ve sledování": "Odobrať z Pokračovať v sledovaní",
   "Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání": "Prehľadať torrentové trackery cez Prowlarr — trvá pár sekúnd, preto sa hľadá až na požiadanie",
   "Hledám torrenty…": "Hľadám torrenty…",
@@ -212,15 +215,15 @@ class NokturnoCard extends HTMLElement {
     if (!this._root || !this._sensorsChanged()) return;
     this._renderDownloads();
     this._renderProgress();
-    // změna sledovaných seriálů, historie, seznamu „K zhlédnutí" (vlaječka
-    // „kontrolovat dál") nebo Mého seznamu → překreslit úvod / detail (a zahodit dočasné stavy)
+    // změna sledovaných seriálů, historie, Hlídaných (vlaječka „kontrolovat dál")
+    // nebo Mého seznamu → překreslit úvod / detail (a zahodit dočasné stavy)
     const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history"),
                                  this._sensorAttr("items"), this._sensorAttr("favourites")]);
     if (key !== this._sensorKey) {
       this._sensorKey = key;
       this._watchOverride = {};
       this._wantOverride = {};
-      this._favMoved = {};
+      this._favOverride = {};
       if (this._state.view === "search" || this._state.view === "episodes" || this._state.view === "streams") this._paint();
     }
   }
@@ -1023,7 +1026,7 @@ class NokturnoCard extends HTMLElement {
     const cont = st.continueItems || [];
     const manyKodi = new Set(cont.map((c) => c.entity_id)).size > 1;
     if (cont.length) {
-      // stejný textový řádkový styl jako „K zhlédnutí"/„Sledované seriály" — bez plakátu.
+      // stejný textový řádkový styl jako „Hlídané"/„Sledované seriály" — bez plakátu.
       // Plakáty/fanart v plné velikosti se tu dřív dekódovaly do paměti prohlížeče
       // (desítky MB na obrázek) a při delším prohlížení to vedlo ke „stránka neodpovídá".
       html += `<div class="section"><ha-icon icon="mdi:play-circle-outline"></ha-icon> ${this._t("Pokračovat ve sledování")}</div>
@@ -1045,7 +1048,7 @@ class NokturnoCard extends HTMLElement {
     }
     const trakt = this._traktList();
     if (trakt.length) {
-      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> ${this._t("K zhlédnutí")}</div>
+      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> ${this._t("Hlídané")}</div>
         <div>${trakt.slice(0, 12).map((t, i) => {
           const opening = st.busy && st.loading === `trakt:${i}`;
           const flagging = st.busy && st.loading === `traktflag:${i}`;
@@ -1079,7 +1082,7 @@ class NokturnoCard extends HTMLElement {
         <div>${fav.slice(0, 20).map((f, i) => `
           <div class="stream stacked" data-fav="${i}" style="cursor:pointer">
             <span class="tag" style="background:#555"><ha-icon icon="mdi:bookmark-outline"></ha-icon></span>
-            <span class="label">${this._esc(f.title)}${f.year ? ` <span class="muted">(${this._esc(f.year)})</span>` : ""}</span>
+            <span class="label">${this._esc(f.title)}</span>
           </div>`).join("")}</div>`;
     }
     const series = this._watchlist();
@@ -1120,24 +1123,42 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
-  /** Seznam k zhlédnutí z Traktu (ze senzoru „K zhlédnutí"). Přesunuté položky
-      (`favourite_add`) mizí hned, ne až po potvrzení senzorem. */
+  /** Seznam Hlídaných (ze senzoru „Hlídané"). Titul právě přesunutý do Mého
+      seznamu (`_favOverride`) mizí hned, ne až po potvrzení senzorem. */
   _traktList() {
-    const moved = this._favMoved || {};
-    return (this._sensorAttr("items") || []).filter((i) => i && i.id && !moved[i.id]);
+    const over = this._favOverride || {};
+    return (this._sensorAttr("items") || []).filter((i) => i && i.id && !over[i.id]);
   }
 
-  /** Můj seznam — lokální oblíbené, sdílené s Kodi/Stremiem. Přesunutá položka se
-      objeví hned, senzor to potvrdí o chvíli později (podobně jako `_watchlist`). */
+  /** Můj seznam — lokální oblíbené, sdílené s Kodi/Stremiem. `_favOverride` (přesun
+      z Hlídaných i tlačítko přímo v detailu) se projeví hned, senzor to potvrdí
+      o chvíli později (stejný vzor jako `_watchlist`/`_watchOverride`). */
   _favourites() {
     const list = [...(this._sensorAttr("favourites") || [])];
-    const moved = this._favMoved || {};
-    Object.values(moved).forEach((f) => { if (f && !list.some((x) => x.id === f.id)) list.unshift(f); });
-    return list;
+    const over = this._favOverride || {};
+    const kept = list.filter((f) => over[f.id] !== false).map((f) => (over[f.id] ? { ...f, ...over[f.id] } : f));
+    Object.values(over).forEach((f) => { if (f && !kept.some((k) => k.id === f.id)) kept.push(f); });
+    return kept;
   }
 
-  /** Položka seznamu „K zhlédnutí" odpovídající právě otevřenému titulu/dílu — pro
-      vlaječku „kontrolovat dál" v hlavičce detailu streamů. */
+  _isFavourite(id) {
+    if (!id) return false;
+    const over = this._favOverride || {};
+    if (id in over) return over[id] !== false;
+    return (this._sensorAttr("favourites") || []).some((f) => f.id === id);
+  }
+
+  /** `items.json`/Kodi ukládá název rovnou s rokem („Matrix (1999)" — `display_name()`),
+      aby se v Mém seznamu nezobrazoval rok dvakrát. Optimistický zápis z karty musí
+      název sestavit stejně, jinak by po potvrzení senzorem jméno „skoklo". */
+  _withYear(title, year) {
+    title = String(title || "");
+    year = String(year || "");
+    return year && !title.includes(year) ? `${title} (${year})` : title;
+  }
+
+  /** Položka Hlídaných odpovídající právě otevřenému titulu/dílu — pro vlaječku
+      „kontrolovat dál" v hlavičce detailu streamů. */
   _currentTraktEntry() {
     const st = this._state;
     const id = (st.episode && st.episode.id) || (st.item && st.item.id);
@@ -1168,7 +1189,7 @@ class NokturnoCard extends HTMLElement {
              title: item.title, year: item.year, alt: item.alt, poster: item.poster };
   }
 
-  /** Seznam „k zhlédnutí" — vlastní i z Traktu; kontroluje se denně, jestli už má stream. */
+  /** Hlídané — vlastní seznam i z Traktu; kontroluje se denně, jestli už má stream. */
   async _toggleWant() {
     const target = this._wantTarget();
     if (!target) return;
@@ -1182,6 +1203,25 @@ class NokturnoCard extends HTMLElement {
         : { id: target.id, type: target.type, title: target.title, series: target.series || undefined,
             year: target.year || undefined, alt: target.alt || undefined, poster: target.poster || undefined }, false);
       this._toast(wanted ? this._t("Odebráno ze seznamu") : this._t("Přidáno — dám vědět, až bude ke sledování"));
+    });
+  }
+
+  /** Můj seznam z hlavičky detailu — nezávisle na Hlídaných, funguje i pro titul,
+      který se v Hlídaných vůbec neobjevuje (`favourite_toggle` umí přidat i odebrat). */
+  async _toggleFavourite() {
+    const target = this._wantTarget();
+    if (!target) return;
+    const already = this._isFavourite(target.id);
+    this._favOverride = this._favOverride || {};
+    this._favOverride[target.id] = already
+      ? false
+      : { id: target.id, title: this._withYear(target.title, target.year), year: target.year,
+          poster: target.poster, alt: target.alt, type: target.type };
+    this._paint();
+    await this._guard(async () => {
+      await this._call("favourite_toggle", { id: target.id, type: target.type, title: target.title,
+        year: target.year || undefined, alt: target.alt || undefined, poster: target.poster || undefined }, false);
+      this._toast(already ? this._t("Odebráno z Mého seznamu") : this._t("Přidáno do Mého seznamu"));
     });
   }
 
@@ -1210,7 +1250,7 @@ class NokturnoCard extends HTMLElement {
   async _searchCatalog() {
     const query = (this._readInput() || this._state.query || "").trim();
     if (!query) {
-      // „+“ u seznamu k zhlédnutí s prázdným polem: rovnou nachystat hledání v databázi
+      // „+“ u prázdných Hlídaných: rovnou nachystat hledání v databázi
       this._state.pendingCatalog = true;
       this._toast(this._t("Napiš název — hledat budu rovnou v databázi filmů."));
       if (this._input && this._input.focus) this._input.focus();
@@ -1275,7 +1315,7 @@ class NokturnoCard extends HTMLElement {
       : this._t("Ve zdrojích nic nenalezeno — zkus databázi filmů.")}</div>`;
     const files = st.results.every((r) => r.type === "file");
     const hint = st.catalog
-      ? `<div class="muted" style="margin-top:8px">${this._t("Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš do seznamu k zhlédnutí.")}</div>` : "";
+      ? `<div class="muted" style="margin-top:8px">${this._t("Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš mezi hlídané.")}</div>` : "";
     return home + hint + `<div class="grid${files ? " files" : ""}">` + st.results.map((r, i) => `
       <button class="poster" data-open="${i}" title="${this._esc(
         [r.title + (r.year ? ` (${r.year})` : ""), r.description].filter(Boolean).join("\n"))}">
@@ -1335,8 +1375,13 @@ class NokturnoCard extends HTMLElement {
             && !String(st.title).includes(String(st.item.year)) ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
           ${st.item ? (() => {
             const saved = this._isWanted((this._wantTarget() || {}).id);
-            return `<ha-icon-button data-want="1" title="${saved ? this._t("Odebrat ze seznamu k zhlédnutí") : this._t("Přidat do seznamu k zhlédnutí")}">
+            return `<ha-icon-button data-want="1" title="${saved ? this._t("Odebrat z hlídaných") : this._t("Přidat mezi hlídané")}">
             <ha-icon icon="${saved ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
+          </ha-icon-button>`; })() : ""}
+          ${st.item ? (() => {
+            const inFav = this._isFavourite((this._wantTarget() || {}).id);
+            return `<ha-icon-button data-favtoggle="1" title="${inFav ? this._t("Odebrat z Mého seznamu") : this._t("Přidat do Mého seznamu")}">
+            <ha-icon icon="${inFav ? "mdi:bookmark-multiple" : "mdi:bookmark-multiple-outline"}"></ha-icon>
           </ha-icon-button>`; })() : ""}
           ${st.continueSource ? `<ha-icon-button data-removeprogress="1" title="${this._t("Odebrat z Pokračovat ve sledování")}">
             <ha-icon icon="mdi:close-circle-outline"></ha-icon>
@@ -1614,7 +1659,7 @@ class NokturnoCard extends HTMLElement {
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
                   "contremove", "watch", "wopen", "wremove", "wseen", "trakt", "traktflag", "traktflagdetail",
                   "want", "catalog", "research", "torrent", "findtorrents", "findfulltext", "removeprogress",
-                  "favmove", "fav"];
+                  "favmove", "fav", "favtoggle"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -1660,9 +1705,10 @@ class NokturnoCard extends HTMLElement {
     if (data.favmove !== undefined) {
       const t = this._traktList()[+data.favmove];
       if (!t) return undefined;
-      // zmizí z „K zhlédnutí" a objeví se v Mém seznamu hned, senzor to potvrdí až po chvíli
-      this._favMoved = this._favMoved || {};
-      this._favMoved[t.id] = { id: t.id, title: t.title, year: t.year, poster: t.poster, alt: t.alt, type: t.type };
+      // zmizí z Hlídaných a objeví se v Mém seznamu hned, senzor to potvrdí až po chvíli
+      this._favOverride = this._favOverride || {};
+      this._favOverride[t.id] = { id: t.id, title: this._withYear(t.title, t.year), year: t.year,
+                                   poster: t.poster, alt: t.alt, type: t.type };
       st.loading = `favmove:${data.favmove}`;
       return this._guard(async () => {
         await this._call("favourite_add", { id: t.id }, false);
@@ -1675,6 +1721,7 @@ class NokturnoCard extends HTMLElement {
       return this._openItem({ id: f.id, type: f.type || "movie", title: f.title, year: f.year,
                               alt: f.alt || null, poster: f.poster || "" });
     }
+    if (data.favtoggle !== undefined) return this._toggleFavourite();
     if (data.trakt !== undefined) {
       const t = this._traktList()[+data.trakt];
       if (!t) return undefined;

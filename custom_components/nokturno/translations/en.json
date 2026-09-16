@@ -521,6 +521,30 @@
         }
       }
     },
+    "favourite_toggle": {
+      "name": "Add/remove in My List",
+      "description": "Adds a title to My List, or removes it if already saved there — independent of the watchlist.",
+      "fields": {
+        "id": {
+          "name": "Title ID"
+        },
+        "type": {
+          "name": "Type"
+        },
+        "title": {
+          "name": "Title"
+        },
+        "year": {
+          "name": "Year"
+        },
+        "alt": {
+          "name": "Alternative ID"
+        },
+        "poster": {
+          "name": "Poster (URL)"
+        }
+      }
+    },
     "download_torrent": {
       "name": "Download torrent",
       "description": "Hands a torrent to qBittorrent. The downloaded file ends up in the download folder, where Nokturno offers it like any other downloaded video.",

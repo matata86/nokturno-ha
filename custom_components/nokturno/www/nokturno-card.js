@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "5.2.6b4";
+const CARD_VERSION = "5.2.6b5";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -865,8 +865,9 @@ class NokturnoCard extends HTMLElement {
         .tag .ext { --mdc-icon-size:13px; opacity:.9; }
         .tag ha-icon.ext { --mdc-icon-size:12px; }
         /* v úvodních sekcích je název krátký, štítek se vejde vedle něj */
+        /* min-height jako tlačítko v .icons (40px) — ať řádek nezmenší, když žádnou ikonu nemá */
         .stream.stacked { grid-template-columns:auto minmax(0, 1fr) auto;
-                          grid-template-areas:"tag label icons"; align-items:center; row-gap:0; }
+                          grid-template-areas:"tag label icons"; align-items:center; row-gap:0; min-height:40px; }
         .stream.stacked .icons { align-self:center; margin-top:0; }
         .stream.stacked .label { -webkit-line-clamp:2; }
         /* u sledovaných seriálů patří stav ("ke sledování 1x10, odvysíláno 2x10")

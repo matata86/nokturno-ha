@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "5.2.6b2";
+const CARD_VERSION = "5.2.6b3";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -1085,7 +1085,7 @@ class NokturnoCard extends HTMLElement {
         }).join("")}</div>`;
     }
     if (trakt.length) {
-      html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> ${this._t("Hlídané")}</div>
+      html += `<div class="section"><ha-icon icon="mdi:bell-outline"></ha-icon> ${this._t("Hlídané")}</div>
         <div>${trakt.slice(0, 12).map((t, i) => {
           const opening = st.busy && st.loading === `trakt:${i}`;
           const flagging = st.busy && st.loading === `traktflag:${i}`;
@@ -1418,7 +1418,7 @@ class NokturnoCard extends HTMLElement {
           ${st.item ? (() => {
             const saved = this._isWanted((this._wantTarget() || {}).id);
             return `<ha-icon-button data-want="1" title="${saved ? this._t("Odebrat z hlídaných") : this._t("Přidat mezi hlídané")}">
-            <ha-icon icon="${saved ? "mdi:bookmark-check" : "mdi:bookmark-plus-outline"}"></ha-icon>
+            <ha-icon icon="${saved ? "mdi:bell-check" : "mdi:bell-plus-outline"}"></ha-icon>
           </ha-icon-button>`; })() : ""}
           ${st.item ? (() => {
             const inFav = this._isFavourite((this._wantTarget() || {}).id);

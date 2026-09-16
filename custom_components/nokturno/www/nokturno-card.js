@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "5.2.9";
+const CARD_VERSION = "5.2.12";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -603,7 +603,7 @@ class NokturnoCard extends HTMLElement {
   /** Torrenty se hledají až na vyžádání — trackery odpovídají v řádu sekund
       a u titulu, na který stream je, by to jen zdržovalo otevření detailu. */
   async _findTorrents() {
-    this._state.finding = true;   // vlastní příznak: jinak by tlačítko hlásilo hledání při každé akci
+    this._state.findingTorrents = true;   // vlastní příznak: jinak by tlačítko hlásilo hledání při každé akci
     await this._guard(async () => {
       const res = await this._call("torrents", { ...this._state.streamTarget });
       // torrenty patří nad streamy — kvůli nim se hledalo, tak ať jsou hned vidět
@@ -611,7 +611,7 @@ class NokturnoCard extends HTMLElement {
       this._state.torrents = true;
       if (!(res.streams || []).length) this._toast(this._t("Na trackerech nic nenašel"));
     });
-    this._state.finding = false;
+    this._state.findingTorrents = false;
     this._paint();
   }
 
@@ -620,7 +620,7 @@ class NokturnoCard extends HTMLElement {
       protože název souboru je neobvyklý. Výsledek karta označí jako neověřený,
       posouzení nechává na uživateli. */
   async _findFulltext() {
-    this._state.finding = true;
+    this._state.findingFulltext = true;
     await this._guard(async () => {
       const res = await this._call("fulltext_search", { ...this._state.streamTarget });
       const known = new Set(this._state.streams.map((s) => s.url));
@@ -629,7 +629,7 @@ class NokturnoCard extends HTMLElement {
       this._state.fulltext = true;
       if (!added.length) this._toast(this._t("Fulltext nic dalšího nenašel"));
     });
-    this._state.finding = false;
+    this._state.findingFulltext = false;
     this._paint();
   }
 
@@ -1448,7 +1448,7 @@ class NokturnoCard extends HTMLElement {
     // Hledání trvá pár sekund, takže se točí kolečko i v tlačítku, nejen přes fotku.
     const torrentBtn = st.torrents || !this._hasTorrents() ? "" : `<div class="chips" style="margin:8px 0 2px">
       <button class="chip" data-findtorrents="1"${st.busy ? " disabled" : ""} title="${this._t("Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání")}">
-        <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:magnify-scan"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? this._t("Hledám torrenty…") : this._t("Hledat torrenty")}
+        <ha-icon class="${st.findingTorrents ? "spin" : ""}" icon="${st.findingTorrents ? "mdi:loading" : "mdi:magnify-scan"}" style="--mdc-icon-size:14px"></ha-icon> ${st.findingTorrents ? this._t("Hledám torrenty…") : this._t("Hledat torrenty")}
       </button></div>`;
     // ruční, uvolněné hledání na fulltextových zdrojích — pro případ, že přísný filtr
     // skutečnou shodu zahodil (nebo naopak, i mezi nalezenými je dobré umět ověřit).
@@ -1458,7 +1458,7 @@ class NokturnoCard extends HTMLElement {
     const fLabel = fNames.length > 1 ? `${fNames.slice(0, -1).join(", ")} a ${fNames[fNames.length - 1]}` : (fNames[0] || "");
     const fulltextBtn = st.fulltext || !fsrc.length ? "" : `<div class="chips" style="margin:8px 0 2px">
       <button class="chip" data-findfulltext="1"${st.busy ? " disabled" : ""} title="${this._t("Uvolněné hledání podle slov v názvu souboru — najde i to, co přísný filtr zahodí jako podobný, ale jiný titul")}">
-        <ha-icon class="${st.finding ? "spin" : ""}" icon="${st.finding ? "mdi:loading" : "mdi:text-search"}" style="--mdc-icon-size:14px"></ha-icon> ${st.finding ? this._t("Hledám…") : this._t("Zkusit fulltext na {0}", fLabel)}
+        <ha-icon class="${st.findingFulltext ? "spin" : ""}" icon="${st.findingFulltext ? "mdi:loading" : "mdi:text-search"}" style="--mdc-icon-size:14px"></ha-icon> ${st.findingFulltext ? this._t("Hledám…") : this._t("Zkusit fulltext na {0}", fLabel)}
       </button></div>`;
     if (!st.streams.length) return head + torrentBtn + fulltextBtn + `<div class="muted empty">${this._t("Pro tento titul se nenašel žádný stream.")}${
       st.item && st.item.source === "katalog" ? " " + this._t("Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví.") : ""}</div>`;

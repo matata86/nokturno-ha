@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "1.50.0";
+const CARD_VERSION = "5.2.6b1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -152,6 +152,10 @@ const SK = {
   "Přehrávače na výběr": "Prehrávače na výber",
   "Výchozí mobil": "Predvolený mobil",
   "Senzor stahování": "Senzor sťahovania",
+  "Domů": "Domov",
+  "Knihovna": "Knižnica",
+  "Zatím nic rozkoukaného ani hlídaného.": "Zatiaľ nič rozkukané ani strážené.",
+  "Zatím nic v Mém seznamu ani mezi sledovanými seriály.": "Zatiaľ nič v Mojom zozname ani medzi sledovanými seriálmi.",
 };
 
 /** Text v jazyce UI z HA (`hass.locale.language`, u starších verzí `hass.language`). */
@@ -186,7 +190,7 @@ class NokturnoCard extends HTMLElement {
       seasons: [], season: null, item: null, title: "", busy: false, searching: false, loading: null, error: "",
       byType: { movie: [], series: [] }, bothTypes: false,
       player: config.player || (config.players || [])[0] || "", phone: config.phone || "",
-      continueItems: null, continueSource: null, stack: [],
+      continueItems: null, continueSource: null, stack: [], homeTab: "domov",
     };
     this._started = false;
   }
@@ -883,6 +887,15 @@ class NokturnoCard extends HTMLElement {
         .chip.x { color: var(--secondary-text-color); }
         .section { margin-top:14px; font-weight:500; display:flex; align-items:center; gap:6px; }
         .section ha-icon { --mdc-icon-size:18px; }
+        /* taby úvodní obrazovky — Domů / Knihovna / Stažené */
+        .tabs { display:flex; gap:4px; margin-top:12px; border-bottom:1px solid var(--divider-color); }
+        .tab { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; border:none;
+               background:none; color: var(--secondary-text-color); font:inherit; font-size:.82rem;
+               padding:8px 4px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+        .tab ha-icon { --mdc-icon-size:16px; }
+        .tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); font-weight:500; }
+        .tabbadge { background: var(--primary-color); color:#fff; border-radius:9px; min-width:16px;
+                    height:16px; padding:0 4px; font-size:.65rem; line-height:16px; text-align:center; }
         /* rozkoukané: dlaždice na šířku, ať je poznat záběr z filmu */
         .cont { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:8px; }
         .cont .poster .thumb { aspect-ratio:16/9; }
@@ -1013,7 +1026,9 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
-  /** Úvodní obrazovka: poslední dotazy, rozkoukané z Kodi, sledované seriály. */
+  /** Úvodní obrazovka: poslední dotazy nad taby, obsah podle vybraného tabu
+      (Domů = rozkoukané + hlídané, Knihovna = Můj seznam + sledované seriály,
+      Stažené = probíhající i hotová stahování — kreslí `_renderDownloads`). */
   _home() {
     const st = this._state;
     const sensor = this._hass && this._hass.states[this._config.downloads];
@@ -1024,6 +1039,29 @@ class NokturnoCard extends HTMLElement {
       : `<div class="muted" style="margin-top:10px">${this._t("Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.")}</div>`;
     if (st.continueItems === null) this._loadContinue();
     const cont = st.continueItems || [];
+    const trakt = this._traktList();
+    const fav = this._favourites();
+    const series = this._watchlist();
+    const jobs = (sensor && sensor.attributes.downloads) || [];
+    const activeCount = jobs.filter((j) => j.status === "running" || j.status === "queued").length;
+    const tabs = [
+      { id: "domov", label: this._t("Domů"), icon: "mdi:home-outline" },
+      { id: "knihovna", label: this._t("Knihovna"), icon: "mdi:bookmark-multiple-outline" },
+      { id: "stazene", label: this._t("Stažené"), icon: "mdi:folder-download-outline", badge: activeCount },
+    ];
+    html += `<div class="tabs">${tabs.map((tb) => `
+      <button class="tab${st.homeTab === tb.id ? " active" : ""}" data-hometab="${tb.id}">
+        <ha-icon icon="${tb.icon}"></ha-icon> ${tb.label}${tb.badge ? `<span class="tabbadge">${tb.badge}</span>` : ""}
+      </button>`).join("")}</div>`;
+    if (st.homeTab === "domov") html += this._homeTabDomov(cont, trakt);
+    else if (st.homeTab === "knihovna") html += this._homeTabKnihovna(fav, series);
+    // obsah tabu Stažené kreslí samostatně `_renderDownloads` do #downloads
+    return html;
+  }
+
+  _homeTabDomov(cont, trakt) {
+    const st = this._state;
+    let html = "";
     const manyKodi = new Set(cont.map((c) => c.entity_id)).size > 1;
     if (cont.length) {
       // stejný textový řádkový styl jako „Hlídané"/„Sledované seriály" — bez plakátu.
@@ -1046,7 +1084,6 @@ class NokturnoCard extends HTMLElement {
           </div>`;
         }).join("")}</div>`;
     }
-    const trakt = this._traktList();
     if (trakt.length) {
       html += `<div class="section"><ha-icon icon="mdi:bookmark-check-outline"></ha-icon> ${this._t("Hlídané")}</div>
         <div>${trakt.slice(0, 12).map((t, i) => {
@@ -1076,7 +1113,12 @@ class NokturnoCard extends HTMLElement {
           </div>`;
         }).join("")}</div>`;
     }
-    const fav = this._favourites();
+    if (!cont.length && !trakt.length) html += `<div class="muted empty">${this._t("Zatím nic rozkoukaného ani hlídaného.")}</div>`;
+    return html;
+  }
+
+  _homeTabKnihovna(fav, series) {
+    let html = "";
     if (fav.length) {
       html += `<div class="section"><ha-icon icon="mdi:bookmark-multiple-outline"></ha-icon> ${this._t("Můj seznam")}</div>
         <div>${fav.slice(0, 20).map((f, i) => `
@@ -1085,7 +1127,6 @@ class NokturnoCard extends HTMLElement {
             <span class="label">${this._esc(f.title)}</span>
           </div>`).join("")}</div>`;
     }
-    const series = this._watchlist();
     if (series.length) {
       html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> Sledované seriály</div>
         <div>${series.map((w, i) => `
@@ -1104,6 +1145,7 @@ class NokturnoCard extends HTMLElement {
             </span>
           </div>`).join("")}</div>`;
     }
+    if (!fav.length && !series.length) html += `<div class="muted empty">${this._t("Zatím nic v Mém seznamu ani mezi sledovanými seriály.")}</div>`;
     return html;
   }
 
@@ -1488,12 +1530,22 @@ class NokturnoCard extends HTMLElement {
     const sensor = this._hass && this._hass.states[this._config.downloads];
     const jobs = (sensor && sensor.attributes.downloads) || [];
     const files = (sensor && sensor.attributes.files) || [];
-    const active = jobs.filter((j) => j.status === "running" || j.status === "queued");
-    // Stažené patří na úvod; v detailu titulu by jen odváděly pozornost od streamů.
-    const home = !["results", "episodes", "streams"].includes(this._state.view);
+    const activeAll = jobs.filter((j) => j.status === "running" || j.status === "queued");
+    // Stažené je vlastní tab na úvodní obrazovce; v detailu titulu by jen odváděly pozornost od streamů.
+    const home = !["results", "episodes", "streams"].includes(this._state.view) && this._state.homeTab === "stazene";
+    const active = home ? activeAll : [];
     const shown = home ? files : [];
     this._files = shown;
     this._active = active;
+    // badge na tabu Stažené: aktualizuje se i mimo _paint, tiky senzoru chodí častěji
+    const tabBtn = this._root.querySelector('.tab[data-hometab="stazene"]');
+    if (tabBtn) {
+      let badge = tabBtn.querySelector(".tabbadge");
+      if (activeAll.length) {
+        if (!badge) { badge = document.createElement("span"); badge.className = "tabbadge"; tabBtn.appendChild(badge); }
+        badge.textContent = activeAll.length;
+      } else if (badge) badge.remove();
+    }
     if (!active.length && !shown.length) { box.hidden = true; box.innerHTML = ""; return; }
     box.hidden = false;
     box.innerHTML = (active.length ? `<div class="section"><ha-icon icon="mdi:progress-download"></ha-icon> ${this._t("Stahování")}</div>` : "")
@@ -1659,10 +1711,11 @@ class NokturnoCard extends HTMLElement {
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
                   "contremove", "watch", "wopen", "wremove", "wseen", "trakt", "traktflag", "traktflagdetail",
                   "want", "catalog", "research", "torrent", "findtorrents", "findfulltext", "removeprogress",
-                  "favmove", "fav", "favtoggle"];
+                  "favmove", "fav", "favtoggle", "hometab"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
+    if (data.hometab !== undefined) { st.homeTab = data.hometab; this._paint(); return; }
     if (data.toggle === "desc") { this._state.descOpen = !this._state.descOpen; this._paint(); return; }
     if (data.hist !== undefined) {
       const sensor = this._hass.states[this._config.downloads];

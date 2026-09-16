@@ -1081,7 +1081,7 @@ class NokturnoCard extends HTMLElement {
       html += `<div class="section"><ha-icon icon="mdi:bookmark-multiple-outline"></ha-icon> ${this._t("Můj seznam")}</div>
         <div>${fav.slice(0, 20).map((f, i) => `
           <div class="stream stacked" data-fav="${i}" style="cursor:pointer">
-            <span class="tag" style="background:#555"><ha-icon icon="mdi:bookmark-outline"></ha-icon></span>
+            <span class="tag" style="background:#555"><ha-icon icon="mdi:bookmark-outline" class="ext"></ha-icon> ${this._t("Můj seznam")}</span>
             <span class="label">${this._esc(f.title)}</span>
           </div>`).join("")}</div>`;
     }

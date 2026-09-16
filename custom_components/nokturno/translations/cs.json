@@ -511,6 +511,16 @@
         }
       }
     },
+    "favourite_add": {
+      "name": "Přesunout do Mého seznamu",
+      "description": "Přesune titul z „K zhlédnutí\" do Mého seznamu (lokální oblíbené, sdílené s Kodi/Stremiem) a přestane ho dál hlídat/kontrolovat.",
+      "fields": {
+        "id": {
+          "name": "ID titulu",
+          "description": "ID tak, jak je uvedené u položky „K zhlédnutí\"."
+        }
+      }
+    },
     "download_torrent": {
       "name": "Stáhnout torrent",
       "description": "Předá torrent qBittorrentu. Stažený soubor skončí ve složce stahování, odkud ho Nokturno nabídne k přehrání jako každé jiné stažené video.",

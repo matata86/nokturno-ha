@@ -183,7 +183,7 @@ class NokturnoTraktSensor(SensorEntity):
     _attr_icon = "mdi:bookmark-check-outline"
     _attr_should_poll = False
     _attr_native_unit_of_measurement = "titulů"
-    _unrecorded_attributes = frozenset({"items"})
+    _unrecorded_attributes = frozenset({"items", "favourites"})
 
     def __init__(self, entry: ConfigEntry, engine):
         self._engine = engine
@@ -192,6 +192,9 @@ class NokturnoTraktSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_TRAKT, self._updated))
+        # „Můj seznam" se mění i mimo Trakt tok — synchronizací z jiného Kodi/Stremia
+        # (`NokturnoSyncView` posílá `SIGNAL_WATCHLIST`, ne `SIGNAL_TRAKT`)
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_WATCHLIST, self._updated))
 
     @callback
     def _updated(self) -> None:
@@ -209,9 +212,26 @@ class NokturnoTraktSensor(SensorEntity):
         return sorted(items, key=lambda i: (not i.get("streams"), i.get("flagged"), i.get("title") or ""))
 
     @property
+    def _favourites(self) -> list[dict]:
+        """Můj seznam — lokální oblíbené, sdílené s Kodi/Stremiem přes `favlog`."""
+        store = self._engine.store
+        items = []
+        for key in store.favourites():
+            info = store.item(key) or {}
+            items.append({
+                "id": key,
+                "title": info.get("title") or key,
+                "year": info.get("year"),
+                "poster": info.get("poster"),
+                "alt": info.get("alt"),
+                "type": info.get("type", "movie"),
+            })
+        return items
+
+    @property
     def native_value(self) -> int:
         return sum(1 for item in self._items if item.get("streams"))
 
     @property
     def extra_state_attributes(self) -> dict:
-        return {"total": len(self._items), "items": self._items[:60]}
+        return {"total": len(self._items), "items": self._items[:60], "favourites": self._favourites[:60]}

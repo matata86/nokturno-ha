@@ -75,6 +75,7 @@ from .const import (
     SERVICE_TRAKT_LIST,
     SERVICE_TRAKT_WATCHED,
     SERVICE_WANT,
+    SERVICE_FAVOURITE_ADD,
     SERVICE_FULLTEXT,
     SERVICE_TORRENT,
     SERVICE_TORRENTS,
@@ -211,6 +212,8 @@ REMOVE_PROGRESS_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.string, vo
 SEEN_SCHEMA = vol.Schema({vol.Optional("id"): vol.Any(cv.string, None)})
 
 TRAKT_FLAG_SCHEMA = vol.Schema({vol.Required("id"): cv.string})
+
+FAVOURITE_ADD_SCHEMA = vol.Schema({vol.Required("id"): cv.string})
 
 TRAKT_WATCHED_SCHEMA = vol.Schema({
     vol.Required("id"): cv.string,
@@ -968,6 +971,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.async_create_task(check_trakt(only=wid))
         return {"count": len(data), "watching": wid in data}
 
+    async def handle_favourite_add(call: ServiceCall):
+        """Přesune položku „K zhlédnutí“ do Mého seznamu (lokální oblíbené, sdílené
+        s Kodi/Stremiem) a přestane titul dál hlídat/kontrolovat — stejné odebrání
+        jako `want_to_watch` s `remove`, jen navíc přidá do `favourites`."""
+        wid = call.data["id"]
+        cache = trakt_cache()
+        info = cache.get(wid) or wantlist().get(wid)
+        if info is None:
+            raise HomeAssistantError("Titul s tímhle ID není v „K zhlédnutí“.")
+        if not engine.store.is_favourite(wid):
+            remember = {k: info.get(k) for k in ("title", "year", "poster", "alt", "type") if info.get(k)}
+            await hass.async_add_executor_job(engine.store.toggle_favourite, wid, remember)
+        wanted = wantlist()
+        if wanted.pop(wid, None) is not None:
+            await hass.async_add_executor_job(engine.store.save, "wantlist", wanted)
+        if cache.pop(wid, None) is not None:
+            await hass.async_add_executor_job(engine.store.save, "trakt_list", cache)
+        flags = engine.store.load("trakt_flags", {})
+        if flags.pop(wid, None) is not None:
+            await hass.async_add_executor_job(engine.store.save, "trakt_flags", flags)
+        async_dispatcher_send(hass, SIGNAL_TRAKT)
+        return {"id": wid}
+
     async def check_trakt(_now=None, only=None):
         """Seznam „k zhlédnutí" z Traktu + kontrola, co už jde pustit.
 
@@ -1692,6 +1718,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         (SERVICE_TRAKT_LIST, handle_trakt_list, vol.Schema({}), SupportsResponse.OPTIONAL),
         (SERVICE_TRAKT_FLAG, handle_trakt_flag, TRAKT_FLAG_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_WANT, handle_want, WANT_SCHEMA, SupportsResponse.OPTIONAL),
+        (SERVICE_FAVOURITE_ADD, handle_favourite_add, FAVOURITE_ADD_SCHEMA, SupportsResponse.OPTIONAL),
         (SERVICE_TORRENTS, handle_torrents, TORRENTS_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_FULLTEXT, handle_fulltext, FULLTEXT_SCHEMA, SupportsResponse.ONLY),
         (SERVICE_TORRENT, handle_torrent, TORRENT_SCHEMA, SupportsResponse.OPTIONAL),
@@ -1716,6 +1743,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.async_add_executor_job(engine.store.load, "trakt_list", {})
     await hass.async_add_executor_job(engine.store.load, "trakt_flags", {})
     await hass.async_add_executor_job(engine.store.load, "wantlist", {})
+    await hass.async_add_executor_job(engine.store.load, "favourites", [])
+    await hass.async_add_executor_job(engine.store.load, "items", {})
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True

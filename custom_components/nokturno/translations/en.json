@@ -511,6 +511,16 @@
         }
       }
     },
+    "favourite_add": {
+      "name": "Move to My List",
+      "description": "Moves a title from the watchlist into My List (local favourites, shared with Kodi/Stremio) and stops watching/checking it further.",
+      "fields": {
+        "id": {
+          "name": "Title ID",
+          "description": "ID as shown in the watchlist item."
+        }
+      }
+    },
     "download_torrent": {
       "name": "Download torrent",
       "description": "Hands a torrent to qBittorrent. The downloaded file ends up in the download folder, where Nokturno offers it like any other downloaded video.",

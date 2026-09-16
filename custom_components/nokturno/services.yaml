@@ -392,6 +392,12 @@ want_to_watch:
       default: false
       selector:
         boolean: null
+favourite_add:
+  fields:
+    id:
+      required: true
+      selector:
+        text: null
 download_torrent:
   fields:
     url:

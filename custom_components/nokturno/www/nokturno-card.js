@@ -68,6 +68,9 @@ const SK = {
   "kontrolovat dál": "kontrolovať ďalej",
   "Streamy jsou, ale ne v požadované kvalitě/zvuku — kliknutím přestaneš kontrolovat dál": "Streamy sú, ale nie v požadovanej kvalite/zvuku — kliknutím prestaneš kontrolovať ďalej",
   "Streamy jsou, ale ne v požadované kvalitě/zvuku (např. 5.1) — označit, ať se to dál sleduje": "Streamy sú, ale nie v požadovanej kvalite/zvuku (napr. 5.1) — označiť, nech sa to ďalej sleduje",
+  "Můj seznam": "Môj zoznam",
+  "Přesunout do Mého seznamu": "Presunúť do Môjho zoznamu",
+  "Přidáno do Mého seznamu": "Pridané do Môjho zoznamu",
   "· {0} streamů": "· {0} streamov",
   "nový díl": "nový diel",
   "sleduji": "sledujem",
@@ -209,13 +212,15 @@ class NokturnoCard extends HTMLElement {
     if (!this._root || !this._sensorsChanged()) return;
     this._renderDownloads();
     this._renderProgress();
-    // změna sledovaných seriálů, historie nebo seznamu „K zhlédnutí" (vlaječka
-    // „kontrolovat dál") → překreslit úvod / detail (a zahodit dočasné stavy)
-    const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history"), this._sensorAttr("items")]);
+    // změna sledovaných seriálů, historie, seznamu „K zhlédnutí" (vlaječka
+    // „kontrolovat dál") nebo Mého seznamu → překreslit úvod / detail (a zahodit dočasné stavy)
+    const key = JSON.stringify([this._sensorAttr("series"), this._sensorAttr("search_history"),
+                                 this._sensorAttr("items"), this._sensorAttr("favourites")]);
     if (key !== this._sensorKey) {
       this._sensorKey = key;
       this._watchOverride = {};
       this._wantOverride = {};
+      this._favMoved = {};
       if (this._state.view === "search" || this._state.view === "episodes" || this._state.view === "streams") this._paint();
     }
   }
@@ -1044,6 +1049,10 @@ class NokturnoCard extends HTMLElement {
         <div>${trakt.slice(0, 12).map((t, i) => {
           const opening = st.busy && st.loading === `trakt:${i}`;
           const flagging = st.busy && st.loading === `traktflag:${i}`;
+          const moving = st.busy && st.loading === `favmove:${i}`;
+          // do Mého seznamu jde přesunout jen titul, který má stream a není označený
+          // k dalšímu hlídání kvality/zvuku — ten se má dál kontrolovat, ne odložit
+          const canMove = t.streams && !t.flagged;
           return `
           <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? this._t("Otevřít streamy — {0} k dispozici", t.streams) : this._t("Zatím žádný stream; hlídám a dám vědět")}">
             <span class="tag" style="background:${t.streams ? (t.flagged ? "#b8860b" : "#2e8b57") : "#777"}">
@@ -1052,6 +1061,9 @@ class NokturnoCard extends HTMLElement {
             <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${this._esc(t.year)})</span>` : ""}${
               t.streams ? ` <span class="muted">${this._t("· {0} streamů", t.streams)}</span>` : ""}</span>
             ${t.streams ? `<span class="icons">
+              ${canMove ? `<ha-icon-button data-favmove="${i}" title="${this._t("Přesunout do Mého seznamu")}">
+                <ha-icon icon="${moving ? "mdi:loading" : "mdi:bookmark-plus-outline"}" class="${moving ? "spin" : ""}"></ha-icon>
+              </ha-icon-button>` : ""}
               <ha-icon-button data-traktflag="${i}" title="${t.flagged
                 ? this._t("Streamy jsou, ale ne v požadované kvalitě/zvuku — kliknutím přestaneš kontrolovat dál")
                 : this._t("Streamy jsou, ale ne v požadované kvalitě/zvuku (např. 5.1) — označit, ať se to dál sleduje")}">
@@ -1060,6 +1072,15 @@ class NokturnoCard extends HTMLElement {
             </span>` : ""}
           </div>`;
         }).join("")}</div>`;
+    }
+    const fav = this._favourites();
+    if (fav.length) {
+      html += `<div class="section"><ha-icon icon="mdi:bookmark-multiple-outline"></ha-icon> ${this._t("Můj seznam")}</div>
+        <div>${fav.slice(0, 20).map((f, i) => `
+          <div class="stream stacked" data-fav="${i}" style="cursor:pointer">
+            <span class="tag" style="background:#555"><ha-icon icon="mdi:bookmark-outline"></ha-icon></span>
+            <span class="label">${this._esc(f.title)}${f.year ? ` <span class="muted">(${this._esc(f.year)})</span>` : ""}</span>
+          </div>`).join("")}</div>`;
     }
     const series = this._watchlist();
     if (series.length) {
@@ -1099,9 +1120,20 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
-  /** Seznam k zhlédnutí z Traktu (ze senzoru „K zhlédnutí"). */
+  /** Seznam k zhlédnutí z Traktu (ze senzoru „K zhlédnutí"). Přesunuté položky
+      (`favourite_add`) mizí hned, ne až po potvrzení senzorem. */
   _traktList() {
-    return (this._sensorAttr("items") || []).filter((i) => i && i.id);
+    const moved = this._favMoved || {};
+    return (this._sensorAttr("items") || []).filter((i) => i && i.id && !moved[i.id]);
+  }
+
+  /** Můj seznam — lokální oblíbené, sdílené s Kodi/Stremiem. Přesunutá položka se
+      objeví hned, senzor to potvrdí o chvíli později (podobně jako `_watchlist`). */
+  _favourites() {
+    const list = [...(this._sensorAttr("favourites") || [])];
+    const moved = this._favMoved || {};
+    Object.values(moved).forEach((f) => { if (f && !list.some((x) => x.id === f.id)) list.unshift(f); });
+    return list;
   }
 
   /** Položka seznamu „K zhlédnutí" odpovídající právě otevřenému titulu/dílu — pro
@@ -1581,7 +1613,8 @@ class NokturnoCard extends HTMLElement {
     const st = this._state;
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
                   "contremove", "watch", "wopen", "wremove", "wseen", "trakt", "traktflag", "traktflagdetail",
-                  "want", "catalog", "research", "torrent", "findtorrents", "findfulltext", "removeprogress"];
+                  "want", "catalog", "research", "torrent", "findtorrents", "findfulltext", "removeprogress",
+                  "favmove", "fav"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
     if (!hit) return;
     const data = hit.dataset;
@@ -1623,6 +1656,24 @@ class NokturnoCard extends HTMLElement {
       if (!t) return undefined;
       st.loading = "traktflagdetail";
       return this._guard(async () => { await this._call("trakt_flag", { id: t.id }, false); });
+    }
+    if (data.favmove !== undefined) {
+      const t = this._traktList()[+data.favmove];
+      if (!t) return undefined;
+      // zmizí z „K zhlédnutí" a objeví se v Mém seznamu hned, senzor to potvrdí až po chvíli
+      this._favMoved = this._favMoved || {};
+      this._favMoved[t.id] = { id: t.id, title: t.title, year: t.year, poster: t.poster, alt: t.alt, type: t.type };
+      st.loading = `favmove:${data.favmove}`;
+      return this._guard(async () => {
+        await this._call("favourite_add", { id: t.id }, false);
+        this._toast(this._t("Přidáno do Mého seznamu"));
+      });
+    }
+    if (data.fav !== undefined) {
+      const f = this._favourites()[+data.fav];
+      if (!f) return undefined;
+      return this._openItem({ id: f.id, type: f.type || "movie", title: f.title, year: f.year,
+                              alt: f.alt || null, poster: f.poster || "" });
     }
     if (data.trakt !== undefined) {
       const t = this._traktList()[+data.trakt];

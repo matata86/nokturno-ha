@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "5.2.6b3";
+const CARD_VERSION = "5.2.6b4";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -1123,7 +1123,7 @@ class NokturnoCard extends HTMLElement {
       html += `<div class="section"><ha-icon icon="mdi:bookmark-multiple-outline"></ha-icon> ${this._t("Můj seznam")}</div>
         <div>${fav.slice(0, 20).map((f, i) => `
           <div class="stream stacked" data-fav="${i}" style="cursor:pointer">
-            <span class="tag" style="background:var(--disabled-text-color, #555)"><ha-icon icon="mdi:bookmark-outline" class="ext"></ha-icon> ${this._t("Můj seznam")}</span>
+            <span class="tag" style="background:var(--primary-color, #555)"><ha-icon icon="mdi:bookmark-outline" class="ext"></ha-icon> ${this._t("Můj seznam")}</span>
             <span class="label">${this._esc(f.title)}</span>
           </div>`).join("")}</div>`;
     }

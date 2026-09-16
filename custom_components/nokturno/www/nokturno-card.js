@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "5.2.8";
+const CARD_VERSION = "5.2.9";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -928,7 +928,8 @@ class NokturnoCard extends HTMLElement {
         .file .label { flex:1; font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .prog { height:4px; border-radius:2px; background: var(--divider-color); overflow:hidden; margin-top:3px; }
         .prog > div { height:100%; background: var(--primary-color); }
-        .spin { animation: sp 1s linear infinite; display:inline-block; }
+        /* vlastní vrstva — otáčení kolečka nesmí překreslovat plakát pod maskou */
+        .spin { animation: sp 1s linear infinite; display:inline-block; will-change:transform; }
         @keyframes sp { to { transform: rotate(360deg); } }
       </style>
       <ha-card>
@@ -1366,7 +1367,7 @@ class NokturnoCard extends HTMLElement {
         [r.title + (r.year ? ` (${r.year})` : ""), r.description].filter(Boolean).join("\n"))}">
         <span class="thumb">
           <ha-icon icon="mdi:filmstrip"></ha-icon>
-          ${r.poster ? `<img src="${this._esc(r.poster)}" referrerpolicy="no-referrer" />` : ""}
+          ${r.poster ? `<img src="${this._esc(this._thumb(r.poster))}" decoding="async" referrerpolicy="no-referrer" />` : ""}
           ${st.busy && st.loading === `res:${i}` ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon><span class="pct"></span></span>` : ""}
         </span>
         <div class="t">${this._esc(r.title)}${r.year ? ` <span class="year">(${r.year})</span>` : ""}</div>
@@ -1504,7 +1505,7 @@ class NokturnoCard extends HTMLElement {
     return `
       <div class="hero">
         ${art ? `<span class="heroart">
-          <img src="${this._esc(art)}" referrerpolicy="no-referrer" />
+          <img src="${this._esc(art)}" decoding="async" referrerpolicy="no-referrer" />
           ${st.busy ? `<span class="mask"><ha-icon class="spin" icon="mdi:loading"></ha-icon><span class="pct"></span></span>` : ""}
         </span>` : ""}
         ${text ? `<div class="desc${st.descOpen ? " open" : ""}" data-toggle="desc" title="${this._t("Klepnutím rozbalíš")}">${this._esc(text)}</div>` : ""}
@@ -1518,13 +1519,13 @@ class NokturnoCard extends HTMLElement {
     const streamText = pct(this._sensorAttr("stream_progress"));
     const searchText = pct(this._sensorAttr("search_progress"));
     const maskEls = this._root.querySelectorAll(".mask .pct");
-    if (maskEls.length) {
-      maskEls.forEach((el) => { el.textContent = streamText; });
-    }
+    // stejný text nepřepisovat — každé přiřazení textContent je nový uzel a překreslení
+    // vrstvy i s plakátem pod maskou, a senzor tiká po celou dobu hledání streamů
+    const setText = (el, text) => { if (el && el.textContent !== text) el.textContent = text; };
+    maskEls.forEach((el) => setText(el, streamText));
     // tlačítko Hledat se točí při každém načítání, ne jen při hledání — ukáže
     // tedy procenta hledání, a když zrovna neběží, procenta načítání streamů
-    const goPct = this._root.querySelector("#go .pct");
-    if (goPct) goPct.textContent = searchText || streamText;
+    setText(this._root.querySelector("#go .pct"), searchText || streamText);
   }
 
   _renderDownloads() {
@@ -1549,7 +1550,10 @@ class NokturnoCard extends HTMLElement {
         badge.textContent = activeAll.length;
       } else if (badge) badge.remove();
     }
-    if (!active.length && !shown.length) { box.hidden = true; box.innerHTML = ""; return; }
+    if (!active.length && !shown.length) {
+      if (!box.hidden || box.firstChild) { box.hidden = true; box.innerHTML = ""; }
+      return;
+    }
     box.hidden = false;
     box.innerHTML = (active.length ? `<div class="section"><ha-icon icon="mdi:progress-download"></ha-icon> ${this._t("Stahování")}</div>` : "")
       + active.map((j, i) => `
@@ -1857,6 +1861,15 @@ class NokturnoCard extends HTMLElement {
 
   /** Text karty v jazyce UI — viz slovník SK nahoře. */
   _t(text, ...args) { return nokturnoText(this._hass, text, ...args); }
+
+  /** Dlaždice v mřížce je ~110×160 px, TMDB ale posílá plakát w500 (Sosáč dokonce
+   *  600×900). Prohlížeč si každý drží jako dekódovanou bitmapu — u 24 výsledků
+   *  a opakovaného hledání to zbytečně nafukuje paměť záložky. w342 stačí i na HiDPI. */
+  _thumb(url) {
+    return String(url || "")
+      .replace(/(image\.tmdb\.org\/t\/p\/)(w500|w780|original)\//, "$1w342/")
+      .replace(/(image\.tmdb\.org\/t\/p\/)w600_and_h900_bestv2\//, "$1w300_and_h450_bestv2/");
+  }
 
   _esc(text) {
     return String(text == null ? "" : text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "5.2.6b1";
+const CARD_VERSION = "5.2.6b2";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -1072,7 +1072,7 @@ class NokturnoCard extends HTMLElement {
           const loading = st.busy && st.loading === `cont:${i}`;
           return `
           <div class="stream stacked" data-cont="${i}" style="cursor:pointer" title="${this._esc(c.plot)}">
-            <span class="tag" style="background:#2e8b57">
+            <span class="tag" style="background:var(--success-color, #2e8b57)">
               <ha-icon icon="${loading ? "mdi:loading" : "mdi:play-circle-outline"}" class="ext${loading ? " spin" : ""}"></ha-icon>
               ${this._t("pokračovat")}</span>
             <span class="label">${this._esc(c.label)}${manyKodi ? ` <span class="muted">· ${this._esc(c.player)}</span>` : ""}</span>
@@ -1095,7 +1095,7 @@ class NokturnoCard extends HTMLElement {
           const canMove = t.streams && !t.flagged;
           return `
           <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? this._t("Otevřít streamy — {0} k dispozici", t.streams) : this._t("Zatím žádný stream; hlídám a dám vědět")}">
-            <span class="tag" style="background:${t.streams ? (t.flagged ? "#b8860b" : "#2e8b57") : "#777"}">
+            <span class="tag" style="background:${t.streams ? (t.flagged ? "var(--warning-color, #b8860b)" : "var(--success-color, #2e8b57)") : "var(--disabled-text-color, #777)"}">
               <ha-icon icon="${opening ? "mdi:loading" : (t.streams ? (t.flagged ? "mdi:flag-outline" : "mdi:play-circle-outline") : (t.pending ? "mdi:radar" : "mdi:clock-outline"))}" class="ext${opening ? " spin" : ""}"></ha-icon>
               ${this._t(t.streams ? (t.flagged ? "kontrolovat dál" : (t.torrent ? "jen torrent" : "lze pustit")) : (t.pending ? "hlídám" : "zatím ne"))}</span>
             <span class="label">${this._esc(t.title)}${t.year ? ` <span class="muted">(${this._esc(t.year)})</span>` : ""}${
@@ -1123,7 +1123,7 @@ class NokturnoCard extends HTMLElement {
       html += `<div class="section"><ha-icon icon="mdi:bookmark-multiple-outline"></ha-icon> ${this._t("Můj seznam")}</div>
         <div>${fav.slice(0, 20).map((f, i) => `
           <div class="stream stacked" data-fav="${i}" style="cursor:pointer">
-            <span class="tag" style="background:#555"><ha-icon icon="mdi:bookmark-outline" class="ext"></ha-icon> ${this._t("Můj seznam")}</span>
+            <span class="tag" style="background:var(--disabled-text-color, #555)"><ha-icon icon="mdi:bookmark-outline" class="ext"></ha-icon> ${this._t("Můj seznam")}</span>
             <span class="label">${this._esc(f.title)}</span>
           </div>`).join("")}</div>`;
     }
@@ -1131,7 +1131,7 @@ class NokturnoCard extends HTMLElement {
       html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> Sledované seriály</div>
         <div>${series.map((w, i) => `
           <div class="stream stacked">
-            <span class="tag" style="background:${w.new ? "#2e8b57" : "#777"}">${w.new ? this._t("nový díl") : this._t("sleduji")}</span>
+            <span class="tag" style="background:${w.new ? "var(--success-color, #2e8b57)" : "var(--disabled-text-color, #777)"}">${w.new ? this._t("nový díl") : this._t("sleduji")}</span>
             <span class="label${w.new ? "" : " label--meta"}">${this._esc(w.title)}${w.new
               ? ` — ${w.new.season}x${String(w.new.episode).padStart(2, "0")} ${this._esc(w.new.title)}`
               : `<span class="muted">${w.available
@@ -1462,7 +1462,7 @@ class NokturnoCard extends HTMLElement {
       ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = ${this._t("hraje i mimo domácí síť")}</div>` : "";
     return head + torrentBtn + legend + `<div>${st.streams.map((s, i) => `
       <div class="stream" title="${this._esc(this._streamTitle(s))}">
-        <span class="tag" style="background:${SOURCE_COLORS[s.source] || (String(s.url || "").startsWith("dav:") ? "#5f9e3a" : "#777")}">${this._esc(s.source || "?")}${
+        <span class="tag" style="background:${SOURCE_COLORS[s.source] || (String(s.url || "").startsWith("dav:") ? "var(--success-color, #5f9e3a)" : "var(--disabled-text-color, #777)")}">${this._esc(s.source || "?")}${
           s.direct ? `<ha-icon class="ext" icon="mdi:earth" title="${this._t("Hraje i mimo domácí síť")}"></ha-icon>` : ""}${
           s._loose ? `<ha-icon class="ext" icon="mdi:help-circle-outline" title="${this._t("Neověřeno — z ručního fulltextového hledání, může to být i jiný titul")}"></ha-icon>` : ""}</span>
         <span class="label">${this._esc(String(s.label || "").replace(s.source + "  ·  ", ""))}</span>

@@ -303,7 +303,12 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
 
     def test_karta_existuje_a_hlasi_verzi(self):
         card = (COMPONENT / "www" / "nokturno-card.js").read_text(encoding="utf-8")
-        self.assertRegex(card, r'const CARD_VERSION = "\d+\.\d+\.\d+"')
+        # HA bety mají tvar „5.2.6b6“ — dřívější regex bral jen X.Y.Z a od první bety padal.
+        # Verze karty je jen banner v konzoli (cache-busting bere manifest), ale má sedět.
+        m = re.search(r'const CARD_VERSION = "(\d+\.\d+\.\d+(?:b\d+)?)"', card)
+        self.assertIsNotNone(m, "CARD_VERSION chybí nebo má neznámý tvar")
+        manifest = json.loads((COMPONENT / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(m.group(1), manifest["version"], "CARD_VERSION neodpovídá manifest.json")
         self.assertIn("customElements.define(", card)
         self.assertIn("window.customCards", card)
 

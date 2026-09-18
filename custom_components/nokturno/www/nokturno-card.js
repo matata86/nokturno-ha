@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "5.2.12";
+const CARD_VERSION = "5.2.31b1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -1120,14 +1120,18 @@ class NokturnoCard extends HTMLElement {
   }
 
   _homeTabKnihovna(fav, series) {
+    const st = this._state;
     let html = "";
     if (fav.length) {
       html += `<div class="section"><ha-icon icon="mdi:bookmark-multiple-outline"></ha-icon> ${this._t("Můj seznam")}</div>
-        <div>${fav.slice(0, 20).map((f, i) => `
+        <div>${fav.slice(0, 20).map((f, i) => {
+          const opening = st.busy && st.loading === `fav:${i}`;
+          return `
           <div class="stream stacked" data-fav="${i}" style="cursor:pointer">
-            <span class="tag" style="background:var(--primary-color, #555)"><ha-icon icon="mdi:bookmark-outline" class="ext"></ha-icon> ${this._t("Můj seznam")}</span>
+            <span class="tag" style="background:var(--primary-color, #555)"><ha-icon icon="${opening ? "mdi:loading" : "mdi:bookmark-outline"}" class="ext${opening ? " spin" : ""}"></ha-icon> ${this._t("Můj seznam")}</span>
             <span class="label">${this._esc(f.title)}</span>
-          </div>`).join("")}</div>`;
+          </div>`;
+        }).join("")}</div>`;
     }
     if (series.length) {
       html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> Sledované seriály</div>
@@ -1778,6 +1782,7 @@ class NokturnoCard extends HTMLElement {
     if (data.fav !== undefined) {
       const f = this._favourites()[+data.fav];
       if (!f) return undefined;
+      st.loading = `fav:${data.fav}`;
       return this._openItem({ id: f.id, type: f.type || "movie", title: f.title, year: f.year,
                               alt: f.alt || null, poster: f.poster || "" });
     }

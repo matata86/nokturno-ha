@@ -178,6 +178,17 @@ class TestNastaveni(unittest.TestCase):
                     const.CONF_HS_ENABLED, const.CONF_STATS_ENABLED):
             self.assertIn(key, predvolby)
 
+    def test_madarstina_mezi_volbami_jazyka(self):
+        """`LANGS` (jádro) řídí volby přímo — bez `const.py` v souladu se sync_core.py by HU chybělo."""
+        schema = config_flow.preferences_schema({})
+        for marker in schema.schema:
+            if marker.schema == const.CONF_PREF_LANG:
+                validator = schema.schema[marker]
+                self.assertIn("HU", validator.args[0].kwargs["options"])
+                break
+        else:
+            self.fail("pref_lang není ve schématu")
+
 
 class TestSouboryProHomeAssistant(unittest.TestCase):
     """Co HA a HACS čtou samy — chyba se neprojeví v Pythonu, ale až u uživatele."""

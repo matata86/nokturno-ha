@@ -111,6 +111,16 @@ class TmdbApi:
         data = details if details is not None else self._details(self._kind(ctype), tmdb_id)
         return ((data.get("external_ids") or {}).get("imdb_id")) or ""
 
+    def imdb_id(self, ctype, tmdb_id):
+        """`id z TMDB → tt…`, prázdno když TMDB titul nezná nebo IMDb id nemá.
+
+        Celý doplněk stojí na IMDb id (podle něj se hledá ve zdrojích), ale klienti
+        Stremia posílají u titulů z TMDB katalogů `tmdb:<id>` — viz
+        `nokturno-stremio/nokturno/routes.py`. Detail je cachovaný (`_details`),
+        takže je to jeden dotaz na titul, ne na požadavek.
+        """
+        return self._imdb_id(ctype, tmdb_id)
+
     def _art(self, kind, tmdb_id, background_path="", images=None):
         """Náhled (`landscapePoster`) a logo z obrázků TMDB.
 
@@ -193,6 +203,34 @@ class TmdbApi:
         with ThreadPoolExecutor(max_workers=WORKERS) as pool:
             items = list(pool.map(lambda r: self._item(ctype, r, genre_map), raw))
         return [i for i in items if i]
+
+    def similar(self, ctype, imdb_id, limit=40):
+        """Podobné tituly: TMDB doporučení (podle toho, co sledují lidé se stejným
+        titulem), doplněná o `/similar` (žánry a klíčová slova), když doporučení je
+        málo. Bez samotného titulu a bez duplicit, tvar jako `catalog()`."""
+        kind = self._kind(ctype)
+
+        def load():
+            found = self._get(f"/find/{imdb_id}", external_source="imdb_id")
+            results = found.get(f"{kind}_results") or []
+            if not results:
+                return []
+            tmdb_id = results[0]["id"]
+            raw = list(self._get(f"/{kind}/{tmdb_id}/recommendations").get("results") or [])
+            if len(raw) < 10:
+                raw += self._get(f"/{kind}/{tmdb_id}/similar").get("results") or []
+            seen, out = {tmdb_id}, []
+            for r in raw:
+                if r.get("id") and r["id"] not in seen:
+                    seen.add(r["id"])
+                    out.append(r)
+            return out[:limit]
+
+        raw = self._cached(f"tmdb:similar:{kind}:{imdb_id}", SEARCH_TTL * 14, load)
+        genre_map = self._genres(ctype)
+        with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+            items = list(pool.map(lambda r: self._item(ctype, r, genre_map), raw))
+        return [i for i in items if i and i["id"] != imdb_id]
 
     def meta(self, ctype, imdb_id):
         """Detail podle `tt…` id (přes TMDB `/find`) — titul, popis, žánry, obsazení,

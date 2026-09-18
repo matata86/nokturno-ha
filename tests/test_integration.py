@@ -26,7 +26,7 @@ ha_stubs.install()
 
 from custom_components.nokturno import (                 # noqa: E402
     KODI_PLUGIN, _continue_key, _encode_signed, _removed_by_user, _stats_title, android_play_intent,
-    episode_target, kodi_image, kodi_url,
+    episode_target, kodi_image, kodi_url, skip_gap_candidates,
 )
 from custom_components.nokturno import config_flow, const  # noqa: E402
 
@@ -74,6 +74,14 @@ class TestKnihovnaJeKopieJadra(unittest.TestCase):
 
 
 class TestOdkazy(unittest.TestCase):
+    def test_kontrola_dilu_preskoci_mezeru(self):
+        # Zrádci: S02E09 dostupný, S02E10–13 nikde, S03E01–02 odvysílané
+        aired = [{"season": s, "episode": e} for s, e in ((2, 9), (2, 10), (2, 13), (3, 1), (3, 2))]
+        self.assertEqual([(e["season"], e["episode"]) for e in skip_gap_candidates(aired, (2, 10))], [(3, 2), (3, 1)])
+        # mezera v nejnovější sezóně: chybějící díl ani starší se znovu nezkouší
+        self.assertEqual([(e["season"], e["episode"]) for e in skip_gap_candidates(aired, (3, 1))], [(3, 2)])
+        self.assertEqual(skip_gap_candidates([], (0, 0)), [])
+
     def test_kodi_url_nese_jen_potrebne(self):
         url = kodi_url("movie", "tt1", None, None, {"url": "ws:abc"})
         self.assertEqual(url, KODI_PLUGIN + "?action=play&type=movie&id=tt1&url=ws%3Aabc")

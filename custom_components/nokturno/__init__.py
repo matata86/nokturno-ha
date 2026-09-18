@@ -241,6 +241,20 @@ def _entry_data(hass: HomeAssistant) -> dict:
     return next(iter(data.values()))
 
 
+def skip_gap_candidates(aired: list[dict], key: tuple[int, int]) -> list[dict]:
+    """Díly nejnovější sezóny novější než `key`, od nejnovějšího.
+
+    Kontrola nových dílů jde od posledního dostupného dopředu a končí u prvního dílu
+    bez streamu. Když ve zdrojích chybí díl uprostřed (Zrádci: S02E10–13 nikde,
+    S03E01 ano), nová řada by se nikdy nenahlásila. Tyhle díly se proto zkusí zvlášť.
+    """
+    if not aired:
+        return []
+    season = max(e["season"] for e in aired)
+    newer = [e for e in aired if e["season"] == season and (e["season"], e["episode"]) > key]
+    return sorted(newer, key=lambda e: e["episode"], reverse=True)
+
+
 def episode_target(engine: Engine, call_data: dict) -> tuple[str, str, str | None, str | None]:
     """Z parametrů služby udělá (typ, id k přehrání, id seriálu, alt id).
 
@@ -1224,11 +1238,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         known_key = (season, last_per_season[season]["episode"])
                         break
             # pak po dílech dopředu — díly přibývají postupně, první chybějící ukončí hledání
+            gap = None
             for ep in (e for e in aired if (e["season"], e["episode"]) > known_key):
                 opts = await options(ep)
                 if not opts:
+                    gap = (ep["season"], ep["episode"])
                     break
                 found = describe(ep, opts)
+                known_key = (ep["season"], ep["episode"])
+            # díl chybí uprostřed — zkusit rovnou nejnovější sezónu, ať se nová řada nahlásí
+            if gap:
+                for ep in skip_gap_candidates(aired, max(known_key, gap)):
+                    opts = await options(ep)
+                    if opts:
+                        found = describe(ep, opts)
+                        break
             if found:
                 first_check = "available" not in item and "checked" not in item
                 item["available"] = found

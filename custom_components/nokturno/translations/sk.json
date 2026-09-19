@@ -47,7 +47,8 @@
           "dav3_url": "Úložisko 3 — adresa priečinka (WebDAV)",
           "dav3_username": "Úložisko 3 — používateľ",
           "dav3_password": "Úložisko 3 — heslo",
-          "dav3_name": "Úložisko 3 — názov pri streamoch"
+          "dav3_name": "Úložisko 3 — názov pri streamoch",
+          "cz_enabled": "CZtor (predplatné na cztor.com) — spáruje sa PIN kódom v ďalšom kroku"
         }
       },
       "reauth_confirm": {
@@ -57,11 +58,21 @@
           "ws_username": "WebShare — e-mail",
           "ws_password": "WebShare — heslo (alebo uložený hash)"
         }
+      },
+      "cztor": {
+        "title": "CZtor — spárovanie",
+        "description": "Na telefóne alebo počítači otvor **{url}**, prihlás sa a zadaj PIN **{pin}**. Potom tu daj Odoslať. Heslo účtu sa do Home Assistantu nezadáva.",
+        "data": {
+          "pair": "Spárovať CZtor (odškrtnutím CZtor vypneš)"
+        }
       }
     },
     "error": {
       "ws_auth": "Nesprávny e-mail alebo heslo.",
-      "ws_network": "WebShare neodpovedal, skús to o chvíľu."
+      "ws_network": "WebShare neodpovedal, skús to o chvíľu.",
+      "cz_pending": "PIN ešte nie je potvrdený — zadaj ho na cztor.com/activate a daj znova Odoslať.",
+      "cz_failed": "PIN vypršal alebo sa spárovanie nepodarilo — zobrazuje sa nový PIN, skús to znova.",
+      "cz_network": "Server CZtor neodpovedal. Skús to neskôr."
     },
     "abort": {
       "already_configured": "Nokturno už je nastavené.",
@@ -115,9 +126,22 @@
           "dav3_url": "Úložisko 3 — adresa priečinka (WebDAV)",
           "dav3_username": "Úložisko 3 — používateľ",
           "dav3_password": "Úložisko 3 — heslo",
-          "dav3_name": "Úložisko 3 — názov pri streamoch"
+          "dav3_name": "Úložisko 3 — názov pri streamoch",
+          "cz_enabled": "CZtor (predplatné na cztor.com) — spáruje sa PIN kódom v ďalšom kroku"
+        }
+      },
+      "cztor": {
+        "title": "CZtor — spárovanie",
+        "description": "Na telefóne alebo počítači otvor **{url}**, prihlás sa a zadaj PIN **{pin}**. Potom tu daj Odoslať. Heslo účtu sa do Home Assistantu nezadáva.",
+        "data": {
+          "pair": "Spárovať CZtor (odškrtnutím CZtor vypneš)"
         }
       }
+    },
+    "error": {
+      "cz_pending": "PIN ešte nie je potvrdený — zadaj ho na cztor.com/activate a daj znova Odoslať.",
+      "cz_failed": "PIN vypršal alebo sa spárovanie nepodarilo — zobrazuje sa nový PIN, skús to znova.",
+      "cz_network": "Server CZtor neodpovedal. Skús to neskôr."
     }
   },
   "services": {

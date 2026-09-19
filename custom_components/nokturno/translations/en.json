@@ -47,7 +47,8 @@
           "dav3_url": "Storage 3 — folder address (WebDAV)",
           "dav3_username": "Storage 3 — username",
           "dav3_password": "Storage 3 — password",
-          "dav3_name": "Storage 3 — name shown with streams"
+          "dav3_name": "Storage 3 — name shown with streams",
+          "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
         }
       },
       "reauth_confirm": {
@@ -57,11 +58,21 @@
           "ws_username": "WebShare — e-mail",
           "ws_password": "WebShare — password (or stored hash)"
         }
+      },
+      "cztor": {
+        "title": "CZtor — pairing",
+        "description": "On your phone or computer open **{url}**, log in and enter PIN **{pin}**. Then press Submit here. The account password is never entered into Home Assistant.",
+        "data": {
+          "pair": "Pair CZtor (uncheck to turn CZtor off)"
+        }
       }
     },
     "error": {
       "ws_auth": "Wrong e-mail or password.",
-      "ws_network": "WebShare did not answer, try again later."
+      "ws_network": "WebShare did not answer, try again later.",
+      "cz_pending": "PIN not confirmed yet — enter it at cztor.com/activate and press Submit again.",
+      "cz_failed": "PIN expired or pairing failed — a new PIN is shown, try again.",
+      "cz_network": "CZtor server did not respond. Try again later."
     },
     "abort": {
       "already_configured": "Nokturno is already set up.",
@@ -115,9 +126,22 @@
           "dav3_url": "Storage 3 — folder address (WebDAV)",
           "dav3_username": "Storage 3 — username",
           "dav3_password": "Storage 3 — password",
-          "dav3_name": "Storage 3 — name shown with streams"
+          "dav3_name": "Storage 3 — name shown with streams",
+          "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+        }
+      },
+      "cztor": {
+        "title": "CZtor — pairing",
+        "description": "On your phone or computer open **{url}**, log in and enter PIN **{pin}**. Then press Submit here. The account password is never entered into Home Assistant.",
+        "data": {
+          "pair": "Pair CZtor (uncheck to turn CZtor off)"
         }
       }
+    },
+    "error": {
+      "cz_pending": "PIN not confirmed yet — enter it at cztor.com/activate and press Submit again.",
+      "cz_failed": "PIN expired or pairing failed — a new PIN is shown, try again.",
+      "cz_network": "CZtor server did not respond. Try again later."
     }
   },
   "services": {

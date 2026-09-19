@@ -307,12 +307,50 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
         self.assertIn("reauth_confirm", strings["config"]["step"])
         self.assertIn("reauth_successful", strings["config"]["abort"])
-        self.assertEqual(set(strings["config"]["error"]), {"ws_auth", "ws_network"})
+        self.assertEqual(set(strings["config"]["error"]), {"ws_auth", "ws_network", "cz_pending", "cz_failed", "cz_network"})
         self.assertTrue(hasattr(config_flow.NokturnoConfigFlow, "async_step_reauth"))
         self.assertTrue(hasattr(config_flow.NokturnoConfigFlow, "async_step_reauth_confirm"))
         init = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
         self.assertIn("async_start_reauth", init)
         self.assertIn("WebshareApiError", init.split("async_start_reauth")[0][-600:], "reauth jen na chybu API, ne výpadek sítě")
+
+    def test_cztor_parovani_pinem_v_nastaveni(self):
+        """Zapnutý CZtor bez spárování otevře krok s PINem; uloží se až po potvrzení."""
+        import asyncio
+
+        class Api:
+            polls = [False, True]
+            def paired(self):
+                return False
+            def start_pin(self):
+                return {"pin": "434252", "poll_token": "P", "url": "https://cztor.com/activate"}
+            def poll_pin(self, token):
+                return self.polls.pop(0)
+
+        class Hass:
+            async def async_add_executor_job(self, fn, *args):
+                return fn(*args)
+
+        flow = config_flow.NokturnoOptionsFlow()
+        flow.hass = Hass()
+        flow._cztor = Api
+        shown, created = [], []
+        flow.async_show_form = lambda **kw: shown.append(kw) or ("form", kw["step_id"])
+        flow.async_create_entry = lambda **kw: created.append(kw) or "entry"
+        flow._cz_pending = {"cz_enabled": True, "hide_sd": False}
+        self.assertEqual(asyncio.run(flow.async_step_cztor()), ("form", "cztor"))
+        self.assertEqual(shown[-1]["description_placeholders"]["pin"], "434252")
+        asyncio.run(flow.async_step_cztor({"pair": True}))
+        self.assertEqual(shown[-1]["errors"], {"base": "cz_pending"})
+        self.assertEqual(asyncio.run(flow.async_step_cztor({"pair": True})), "entry")
+        self.assertTrue(created[-1]["data"]["cz_enabled"])
+        # odškrtnutím se CZtor vypne a formulář uloží bez párování
+        flow2 = config_flow.NokturnoOptionsFlow()
+        flow2.hass, flow2._cztor = Hass(), Api
+        flow2.async_create_entry = lambda **kw: created.append(kw) or "entry"
+        flow2._cz_pending = {"cz_enabled": True}
+        self.assertEqual(asyncio.run(flow2.async_step_cztor({"pair": False})), "entry")
+        self.assertFalse(created[-1]["data"]["cz_enabled"])
 
     def test_kazdy_klic_nastaveni_ma_popisek(self):
         strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))

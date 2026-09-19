@@ -688,8 +688,9 @@ class NokturnoSyncView(HomeAssistantView):
         since = int(body.get("since") or 0)
 
         def work():
-            applied = apply_changes(store, body.get("changes"))
-            return {"now": int(time.time()), "applied": applied, "changes": collect_changes(store, since)}
+            now = int(time.time())   # před výměnou: cokoli dorazí za běhu, má `rts` >= now a příště se pošle
+            applied = apply_changes(store, body.get("changes"), stamp=True)
+            return {"now": now, "applied": applied, "changes": collect_changes(store, since)}
 
         result = await self.hass.async_add_executor_job(work)
         # obnovit senzor (a tím kartu) — přišlo zhlédnuto/Můj seznam/historie z jiného Kodi

@@ -12,6 +12,7 @@ from homeassistant.helpers import selector
 
 from .engine import STORAGE_OPTIONS
 from .const import (
+    CONF_CZ_ENABLED,
     CONF_DOWNLOAD_DIR,
     CONF_PROWLARR_URL,
     CONF_PROWLARR_KEY,
@@ -99,6 +100,8 @@ def preferences_schema(data: dict) -> vol.Schema:
         # Trakt, Prowlarr a qBittorrent jsou účty → ACCOUNT_KEYS (entry.data), ne tady
         # HellSpy je veřejný, účet nepotřebuje — proto jen přepínač mezi předvolbami
         vol.Optional(CONF_HS_ENABLED, default=data.get(CONF_HS_ENABLED, True)): bool,
+        # CZtor účet do formuláře nepatří — zařízení se spáruje PINem v dalším kroku (`CztorPairing`)
+        vol.Optional(CONF_CZ_ENABLED, default=data.get(CONF_CZ_ENABLED, False)): bool,
         # 0 = upozornění na konec předplatného WebShare vypnuté
         vol.Optional(CONF_SUB_WARN_DAYS, default=data.get(CONF_SUB_WARN_DAYS, 5)):
             vol.All(vol.Coerce(int), vol.Range(min=0, max=14)),
@@ -106,7 +109,54 @@ def preferences_schema(data: dict) -> vol.Schema:
     })
 
 
-class NokturnoConfigFlow(ConfigFlow, domain=DOMAIN):
+class CztorPairing:
+    """Krok „CZtor": PIN z webu cztor.com/activate. Heslo účtu integrace nikdy nevidí,
+    tokeny si drží úložiště jádra v `.storage/nokturno` (tam je čte i `Engine`).
+
+    Zapnutý přepínač bez spárování otevře tenhle krok; formulář se uloží až po
+    spárování, nebo když uživatel CZtor v kroku vypne."""
+
+    _cz_pending: dict | None = None
+    _cz_pin: dict | None = None
+
+    def _cztor(self):
+        from .lib.cztor_api import CztorApi
+        from .lib.store import Store
+        return CztorApi(Store(self.hass.config.path(f".storage/{DOMAIN}")), device_name="Nokturno (Home Assistant)")
+
+    async def _cztor_needs_pairing(self, user_input) -> bool:
+        if not user_input.get(CONF_CZ_ENABLED):
+            return False
+        api = await self.hass.async_add_executor_job(self._cztor)
+        return not await self.hass.async_add_executor_job(api.paired)
+
+    async def async_step_cztor(self, user_input=None):
+        from .lib.cztor_api import CztorError
+        api = await self.hass.async_add_executor_job(self._cztor)
+        errors = {}
+        if user_input is not None:
+            if not user_input.get("pair", True):
+                self._cz_pending[CONF_CZ_ENABLED] = False
+                return await self._cztor_finish()
+            try:
+                if self._cz_pin and await self.hass.async_add_executor_job(api.poll_pin, self._cz_pin["poll_token"]):
+                    return await self._cztor_finish()
+                errors["base"] = "cz_pending"
+            except CztorError:
+                self._cz_pin = None
+                errors["base"] = "cz_failed"
+        if not self._cz_pin:
+            try:
+                self._cz_pin = await self.hass.async_add_executor_job(api.start_pin)
+            except CztorError:
+                errors["base"] = "cz_network"
+                self._cz_pin = {"pin": "—", "url": "https://cztor.com/activate", "poll_token": ""}
+        schema = vol.Schema({vol.Optional("pair", default=True): bool})
+        return self.async_show_form(step_id="cztor", data_schema=schema, errors=errors,
+                                    description_placeholders={"url": self._cz_pin["url"], "pin": self._cz_pin["pin"]})
+
+
+class NokturnoConfigFlow(CztorPairing, ConfigFlow, domain=DOMAIN):
     """Jediná instance — jeden formulář se vším, stejný jako pozdější Nastavení
     integrace (`NokturnoOptionsFlow`), ať se uživatel při přidávání nemusí
     proklikávat víc kroků a hned vidí, co všechno jde (i nepovinně) nastavit."""
@@ -123,7 +173,10 @@ class NokturnoConfigFlow(ConfigFlow, domain=DOMAIN):
             # klíč pro synchronizaci s Kodi doplňkem — vzniká jednou, uživatel si ho opíše do Kodi
             if not accounts.get(CONF_SYNC_KEY):
                 accounts[CONF_SYNC_KEY] = secrets.token_hex(16)
-            return self.async_create_entry(title="Nokturno", data=accounts, options=user_input)
+            self._cz_pending, self._cz_accounts = user_input, accounts
+            if await self._cztor_needs_pairing(user_input):
+                return await self.async_step_cztor()
+            return await self._cztor_finish()
         # sync_key ukázat rovnou vyplněný — ať ho jde zkopírovat do Kodi hned napoprvé,
         # ne až po dodatečném otevření Nastavení integrace. 128 bitů: klíč chrání
         # neautentizované endpointy /sync a /files (dřív 48 bitů).
@@ -154,13 +207,16 @@ class NokturnoConfigFlow(ConfigFlow, domain=DOMAIN):
         })
         return self.async_show_form(step_id="reauth_confirm", data_schema=schema, errors=errors)
 
+    async def _cztor_finish(self):
+        return self.async_create_entry(title="Nokturno", data=self._cz_accounts, options=self._cz_pending)
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         return NokturnoOptionsFlow()
 
 
-class NokturnoOptionsFlow(OptionsFlow):
+class NokturnoOptionsFlow(CztorPairing, OptionsFlow):
     """Změna účtů i předvoleb po instalaci (účty patří do `data`, zbytek do `options`)."""
 
     async def async_step_init(self, user_input=None):
@@ -171,7 +227,13 @@ class NokturnoOptionsFlow(OptionsFlow):
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data={**self.config_entry.data, **accounts}
             )
-            return self.async_create_entry(title="", data=user_input)
+            self._cz_pending = user_input
+            if await self._cztor_needs_pairing(user_input):
+                return await self.async_step_cztor()
+            return await self._cztor_finish()
         current = {**self.config_entry.data, **self.config_entry.options}
         schema = vol.Schema(accounts_schema(current)).extend(preferences_schema(current).schema)
         return self.async_show_form(step_id="init", data_schema=schema)
+
+    async def _cztor_finish(self):
+        return self.async_create_entry(title="", data=self._cz_pending)

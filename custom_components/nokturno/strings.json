@@ -4,52 +4,94 @@
       "user": {
         "title": "Nokturno",
         "description": "Fill in only the sources and options you want to use — or nothing at all. Even without a single field the integration offers a catalogue and search (through the public Sosáč/Cinemeta database, in Czech with a TMDB key). The values are the same as in the Nokturno add-on for Kodi. Anything can be changed later in the integration settings.",
-        "data": {
-          "ws_username": "WebShare — e-mail",
-          "ws_password": "WebShare — password (or stored hash)",
-          "streamuj_username": "Streamuj.tv — username (for Sosáč)",
-          "streamuj_password": "Streamuj.tv — password",
-          "st_email": "Sledujteto — e-mail",
-          "st_password": "Sledujteto — password (playback needs Premium)",
-          "fs_username": "FastShare — username",
-          "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
-          "luna_url": "Luna — server address",
-          "luna_token": "Luna — token (or the whole install URL)",
-          "tmdb_api_key": "TMDB — API key (optional, but takes precedence even over Luna — Czech titles and descriptions)",
-          "kodi_entity": "Default player (Kodi)",
-          "pref_lang": "Preferred audio language",
-          "pref_surround": "Prefer surround sound (5.1 and up)",
-          "hide_sd": "Hide SD streams",
-          "sort_streams": "Stream order",
-          "download_dir": "Download folder",
-          "external_host": "Address outside the home network (Tailscale/VPN) — for phone links",
-          "notify_target": "Notifications about downloads and new episodes (e.g. notify.mobile_app_phone; empty = HA notification)",
-          "trakt_client_id": "Trakt.tv — Client ID (from trakt.tv/oauth/applications)",
-          "trakt_client_secret": "Trakt.tv — Client Secret",
-          "prowlarr_url": "Prowlarr — address (torrent search)",
-          "prowlarr_key": "Prowlarr — API key",
-          "qbit_url": "qBittorrent — address",
-          "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
-          "qbit_password": "qBittorrent — password",
-          "hs_enabled": "Search HellSpy too",
-          "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)",
-          "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
-          "sync_key": "Sync key for Kodi (copy it into the Nokturno add-on)",
-          "sync_code": "Group code from Kodi (only when Kodi outside the home network syncs via the dashboard)",
-          "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)",
-          "dav1_url": "Storage 1 — folder address (WebDAV)",
-          "dav1_username": "Storage 1 — username",
-          "dav1_password": "Storage 1 — password",
-          "dav1_name": "Storage 1 — name shown with streams",
-          "dav2_url": "Storage 2 — folder address (WebDAV)",
-          "dav2_username": "Storage 2 — username",
-          "dav2_password": "Storage 2 — password",
-          "dav2_name": "Storage 2 — name shown with streams",
-          "dav3_url": "Storage 3 — folder address (WebDAV)",
-          "dav3_username": "Storage 3 — username",
-          "dav3_password": "Storage 3 — password",
-          "dav3_name": "Storage 3 — name shown with streams",
-          "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+        "sections": {
+          "prehravani": {
+            "name": "Playback",
+            "description": "Where to play and how to pick a stream.",
+            "data": {
+              "kodi_entity": "Default player (Kodi)",
+              "pref_lang": "Preferred audio language",
+              "pref_surround": "Prefer surround sound (5.1 and up)",
+              "hide_sd": "Hide SD streams",
+              "sort_streams": "Stream order",
+              "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)"
+            }
+          },
+          "zdroje": {
+            "name": "Sources and accounts",
+            "description": "Sign-in for the individual sources. Empty = source is off.",
+            "data": {
+              "ws_username": "WebShare — e-mail",
+              "ws_password": "WebShare — password (or stored hash)",
+              "streamuj_username": "Streamuj.tv — username (for Sosáč)",
+              "streamuj_password": "Streamuj.tv — password",
+              "st_email": "Sledujteto — e-mail",
+              "st_password": "Sledujteto — password (playback needs Premium)",
+              "fs_username": "FastShare — username",
+              "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
+              "luna_url": "Luna — server address",
+              "luna_token": "Luna — token (or the whole install URL)",
+              "hs_enabled": "Search HellSpy too",
+              "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
+              "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+            }
+          },
+          "uloziste": {
+            "name": "Own storage (WebDAV)",
+            "description": "Up to three folders of your own, searched alongside the sources.",
+            "data": {
+              "dav1_url": "Storage 1 — folder address (WebDAV)",
+              "dav1_username": "Storage 1 — username",
+              "dav1_password": "Storage 1 — password",
+              "dav1_name": "Storage 1 — name shown with streams",
+              "dav2_url": "Storage 2 — folder address (WebDAV)",
+              "dav2_username": "Storage 2 — username",
+              "dav2_password": "Storage 2 — password",
+              "dav2_name": "Storage 2 — name shown with streams",
+              "dav3_url": "Storage 3 — folder address (WebDAV)",
+              "dav3_username": "Storage 3 — username",
+              "dav3_password": "Storage 3 — password",
+              "dav3_name": "Storage 3 — name shown with streams"
+            }
+          },
+          "torrenty": {
+            "name": "Torrents",
+            "description": "Optional — search via Prowlarr, downloading via qBittorrent.",
+            "data": {
+              "prowlarr_url": "Prowlarr — address (torrent search)",
+              "prowlarr_key": "Prowlarr — API key",
+              "qbit_url": "qBittorrent — address",
+              "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
+              "qbit_password": "qBittorrent — password"
+            }
+          },
+          "stahovani": {
+            "name": "Downloads and links",
+            "description": "Where files land and how notifications and phone links are sent.",
+            "data": {
+              "download_dir": "Download folder",
+              "external_host": "Address outside the home network (Tailscale/VPN) — for phone links",
+              "notify_target": "Notifications about downloads and new episodes (e.g. notify.mobile_app_phone; empty = HA notification)"
+            }
+          },
+          "synchronizace": {
+            "name": "Sync with Kodi",
+            "description": "Watched state, My list and search history shared with the Kodi add-on.",
+            "data": {
+              "sync_key": "Sync key for Kodi (copy it into the Nokturno add-on)",
+              "sync_code": "Group code from Kodi (only when Kodi outside the home network syncs via the dashboard)"
+            }
+          },
+          "ostatni": {
+            "name": "Other",
+            "description": "TMDB, Trakt.tv and anonymous statistics.",
+            "data": {
+              "tmdb_api_key": "TMDB — API key (optional, but takes precedence even over Luna — Czech titles and descriptions)",
+              "trakt_client_id": "Trakt.tv — Client ID (from trakt.tv/oauth/applications)",
+              "trakt_client_secret": "Trakt.tv — Client Secret",
+              "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)"
+            }
+          }
         }
       },
       "reauth_confirm": {
@@ -85,52 +127,94 @@
     "step": {
       "init": {
         "title": "Nokturno",
-        "data": {
-          "ws_username": "WebShare — e-mail",
-          "ws_password": "WebShare — password (or stored hash)",
-          "streamuj_username": "Streamuj.tv — username (for Sosáč)",
-          "streamuj_password": "Streamuj.tv — password",
-          "st_email": "Sledujteto — e-mail",
-          "st_password": "Sledujteto — password (playback needs Premium)",
-          "fs_username": "FastShare — username",
-          "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
-          "luna_url": "Luna — server address",
-          "luna_token": "Luna — token (or the whole install URL)",
-          "tmdb_api_key": "TMDB — API key (optional, but takes precedence even over Luna — Czech titles and descriptions)",
-          "kodi_entity": "Default player (Kodi)",
-          "pref_lang": "Preferred audio language",
-          "pref_surround": "Prefer surround sound (5.1 and up)",
-          "hide_sd": "Hide SD streams",
-          "sort_streams": "Stream order",
-          "download_dir": "Download folder",
-          "external_host": "Address outside the home network (Tailscale/VPN) — for phone links",
-          "notify_target": "Notifications about downloads and new episodes (e.g. notify.mobile_app_phone; empty = HA notification)",
-          "trakt_client_id": "Trakt.tv — Client ID (from trakt.tv/oauth/applications)",
-          "trakt_client_secret": "Trakt.tv — Client Secret",
-          "prowlarr_url": "Prowlarr — address (torrent search)",
-          "prowlarr_key": "Prowlarr — API key",
-          "qbit_url": "qBittorrent — address",
-          "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
-          "qbit_password": "qBittorrent — password",
-          "hs_enabled": "Search HellSpy too",
-          "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)",
-          "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
-          "sync_key": "Sync key for Kodi (copy it into the Nokturno add-on)",
-          "sync_code": "Group code from Kodi (only when Kodi outside the home network syncs via the dashboard)",
-          "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)",
-          "dav1_url": "Storage 1 — folder address (WebDAV)",
-          "dav1_username": "Storage 1 — username",
-          "dav1_password": "Storage 1 — password",
-          "dav1_name": "Storage 1 — name shown with streams",
-          "dav2_url": "Storage 2 — folder address (WebDAV)",
-          "dav2_username": "Storage 2 — username",
-          "dav2_password": "Storage 2 — password",
-          "dav2_name": "Storage 2 — name shown with streams",
-          "dav3_url": "Storage 3 — folder address (WebDAV)",
-          "dav3_username": "Storage 3 — username",
-          "dav3_password": "Storage 3 — password",
-          "dav3_name": "Storage 3 — name shown with streams",
-          "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+        "sections": {
+          "prehravani": {
+            "name": "Playback",
+            "description": "Where to play and how to pick a stream.",
+            "data": {
+              "kodi_entity": "Default player (Kodi)",
+              "pref_lang": "Preferred audio language",
+              "pref_surround": "Prefer surround sound (5.1 and up)",
+              "hide_sd": "Hide SD streams",
+              "sort_streams": "Stream order",
+              "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)"
+            }
+          },
+          "zdroje": {
+            "name": "Sources and accounts",
+            "description": "Sign-in for the individual sources. Empty = source is off.",
+            "data": {
+              "ws_username": "WebShare — e-mail",
+              "ws_password": "WebShare — password (or stored hash)",
+              "streamuj_username": "Streamuj.tv — username (for Sosáč)",
+              "streamuj_password": "Streamuj.tv — password",
+              "st_email": "Sledujteto — e-mail",
+              "st_password": "Sledujteto — password (playback needs Premium)",
+              "fs_username": "FastShare — username",
+              "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
+              "luna_url": "Luna — server address",
+              "luna_token": "Luna — token (or the whole install URL)",
+              "hs_enabled": "Search HellSpy too",
+              "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
+              "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+            }
+          },
+          "uloziste": {
+            "name": "Own storage (WebDAV)",
+            "description": "Up to three folders of your own, searched alongside the sources.",
+            "data": {
+              "dav1_url": "Storage 1 — folder address (WebDAV)",
+              "dav1_username": "Storage 1 — username",
+              "dav1_password": "Storage 1 — password",
+              "dav1_name": "Storage 1 — name shown with streams",
+              "dav2_url": "Storage 2 — folder address (WebDAV)",
+              "dav2_username": "Storage 2 — username",
+              "dav2_password": "Storage 2 — password",
+              "dav2_name": "Storage 2 — name shown with streams",
+              "dav3_url": "Storage 3 — folder address (WebDAV)",
+              "dav3_username": "Storage 3 — username",
+              "dav3_password": "Storage 3 — password",
+              "dav3_name": "Storage 3 — name shown with streams"
+            }
+          },
+          "torrenty": {
+            "name": "Torrents",
+            "description": "Optional — search via Prowlarr, downloading via qBittorrent.",
+            "data": {
+              "prowlarr_url": "Prowlarr — address (torrent search)",
+              "prowlarr_key": "Prowlarr — API key",
+              "qbit_url": "qBittorrent — address",
+              "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
+              "qbit_password": "qBittorrent — password"
+            }
+          },
+          "stahovani": {
+            "name": "Downloads and links",
+            "description": "Where files land and how notifications and phone links are sent.",
+            "data": {
+              "download_dir": "Download folder",
+              "external_host": "Address outside the home network (Tailscale/VPN) — for phone links",
+              "notify_target": "Notifications about downloads and new episodes (e.g. notify.mobile_app_phone; empty = HA notification)"
+            }
+          },
+          "synchronizace": {
+            "name": "Sync with Kodi",
+            "description": "Watched state, My list and search history shared with the Kodi add-on.",
+            "data": {
+              "sync_key": "Sync key for Kodi (copy it into the Nokturno add-on)",
+              "sync_code": "Group code from Kodi (only when Kodi outside the home network syncs via the dashboard)"
+            }
+          },
+          "ostatni": {
+            "name": "Other",
+            "description": "TMDB, Trakt.tv and anonymous statistics.",
+            "data": {
+              "tmdb_api_key": "TMDB — API key (optional, but takes precedence even over Luna — Czech titles and descriptions)",
+              "trakt_client_id": "Trakt.tv — Client ID (from trakt.tv/oauth/applications)",
+              "trakt_client_secret": "Trakt.tv — Client Secret",
+              "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)"
+            }
+          }
         }
       },
       "cztor": {

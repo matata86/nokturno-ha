@@ -389,10 +389,31 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         self.assertFalse(created[-1]["data"]["cz_enabled"])
 
     def test_kazdy_klic_nastaveni_ma_popisek(self):
+        # Formulář je rozdělený do sbalitelných sekcí, takže popisky polí leží
+        # v `sections.<sekce>.data`, ne rovnou v `step.data`.
         strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
-        popisky = set(strings["config"]["step"]["user"]["data"])
         klice = set(config_flow.ACCOUNT_KEYS) | {m.schema for m in config_flow.preferences_schema({}).schema}
-        self.assertEqual(klice - popisky, set(), "klíč nastavení bez popisku ve formuláři")
+        for blok, krok in (("config", "user"), ("options", "init")):
+            sekce = strings[blok]["step"][krok]["sections"]
+            popisky = {k for s in sekce.values() for k in s["data"]}
+            self.assertEqual(klice - popisky, set(),
+                             f"klíč nastavení bez popisku ve formuláři ({blok})")
+            for jmeno, obsah in sekce.items():
+                self.assertTrue(obsah.get("name"), f"sekce {jmeno} bez názvu")
+
+    def test_kazde_pole_je_v_nejake_sekci(self):
+        """Nové pole nesmí z formuláře vypadnout jen proto, že se zapomnělo v SEKCE."""
+        schema = config_flow.formular({})
+        v_sekcich = {k.schema for sekce in schema.schema.values() for k in sekce.schema.schema}
+        klice = set(config_flow.ACCOUNT_KEYS) | {m.schema for m in config_flow.preferences_schema({}).schema}
+        self.assertEqual(klice - v_sekcich, set(), "pole mimo všechny sekce")
+        self.assertEqual({k.schema for k in schema.schema} - {j for j, _, _ in config_flow.SEKCE}, set())
+
+    def test_zplosteni_vstupu_ze_sekci(self):
+        """Uživatelův vstup přijde po sekcích, ukládá se ale naplocho jako dřív."""
+        plocho = config_flow._zploskuj({"prehravani": {"pref_lang": "CZ"},
+                                        "zdroje": {"ws_username": "a@b.cz"}})
+        self.assertEqual(plocho, {"pref_lang": "CZ", "ws_username": "a@b.cz"})
 
     def test_karta_existuje_a_hlasi_verzi(self):
         card = (COMPONENT / "www" / "nokturno-card.js").read_text(encoding="utf-8")

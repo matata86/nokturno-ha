@@ -5,6 +5,7 @@ from __future__ import annotations
 import secrets
 
 import voluptuous as vol
+from homeassistant.data_entry_flow import section
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
@@ -87,6 +88,64 @@ def _kod_skupiny(accounts: dict) -> str | None:
         return "sync_code"
     accounts[CONF_SYNC_CODE] = normalize_code(raw)
     return None
+
+
+# Formulář má přes čtyřicet polí. Naráz pod sebou to byl nepřehledný sloupec, ve
+# kterém se hledalo očima, proto je rozdělený do sbalitelných sekcí
+# (`data_entry_flow.section`, HA 2024.6+). Pořadí je podle toho, jak často se do
+# nich sahá: přehrávání je otevřené, zbytek sbalený.
+#
+# Sekce mění tvar dat — uživatelův vstup přijde jako {"sekce": {"klíč": …}}, takže
+# se před uložením zase zploští (`_zploskuj`). Uloženo zůstává naplocho, jak to
+# bylo: `entry.data` i `entry.options` si nesmí kvůli vzhledu formuláře měnit tvar.
+SEKCE = [
+    ("prehravani", [CONF_KODI_ENTITY, CONF_PREF_LANG, CONF_PREF_SURROUND, CONF_HIDE_SD,
+                    CONF_MAX_BITRATE, CONF_SORT], False),
+    ("zdroje", [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS,
+                CONF_ST_EMAIL, CONF_ST_PASS, CONF_FS_USER, CONF_FS_PASS,
+                CONF_HS_ENABLED, CONF_CZ_ENABLED, CONF_LUNA_URL, CONF_LUNA_TOKEN,
+                CONF_SUB_WARN_DAYS], True),
+    ("uloziste", STORAGE_KEYS, True),
+    ("torrenty", [CONF_PROWLARR_URL, CONF_PROWLARR_KEY, CONF_QBIT_URL,
+                  CONF_QBIT_USER, CONF_QBIT_PASS], True),
+    ("stahovani", [CONF_DOWNLOAD_DIR, CONF_EXTERNAL_HOST, CONF_NOTIFY_TARGET], True),
+    ("synchronizace", [CONF_SYNC_KEY, CONF_SYNC_CODE], True),
+    ("ostatni", [CONF_TMDB_KEY, CONF_TRAKT_ID, CONF_TRAKT_SECRET, CONF_STATS_ENABLED], True),
+]
+
+
+def _pole(current: dict) -> dict:
+    """Všechna pole obou formulářů jako {klíč: (marker, validátor)} k rozdělení do sekcí."""
+    out = dict(accounts_schema(current))
+    out.update(preferences_schema(current).schema)
+    return {marker.schema: (marker, validator) for marker, validator in out.items()}
+
+
+def formular(current: dict) -> vol.Schema:
+    """Schéma se sbalitelnými sekcemi. Pole, které by v žádné nebylo, spadne do „ostatní“ —
+    ať nový klíč nezmizí z formuláře jen proto, že se zapomnělo doplnit sem."""
+    pole = _pole(current)
+    rozdelene, schema = set(), {}
+    for jmeno, klice, sbalena in SEKCE:
+        vybrane = {pole[k][0]: pole[k][1] for k in klice if k in pole}
+        rozdelene.update(k for k in klice if k in pole)
+        if jmeno == "ostatni":
+            zbytek = [k for k in pole if k not in rozdelene]
+            vybrane.update({pole[k][0]: pole[k][1] for k in zbytek})
+        if vybrane:
+            schema[vol.Required(jmeno)] = section(vol.Schema(vybrane), {"collapsed": sbalena})
+    return vol.Schema(schema)
+
+
+def _zploskuj(user_input: dict) -> dict:
+    """Ze sekcí zase plochý dict — tak se to ukládá i čte po zbytek integrace."""
+    plocho = {}
+    for klic, hodnota in (user_input or {}).items():
+        if isinstance(hodnota, dict) and any(j == klic for j, _, _ in SEKCE):
+            plocho.update(hodnota)
+        else:
+            plocho[klic] = hodnota
+    return plocho
 
 
 def _heslo():
@@ -187,6 +246,7 @@ class NokturnoConfigFlow(CztorPairing, ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         if user_input is not None:
+            user_input = _zploskuj(user_input)
             if user_input.get(CONF_PREF_LANG) == "—":
                 user_input[CONF_PREF_LANG] = ""
             accounts = {key: user_input.pop(key) for key in ACCOUNT_KEYS if key in user_input}
@@ -195,10 +255,8 @@ class NokturnoConfigFlow(CztorPairing, ConfigFlow, domain=DOMAIN):
                 accounts[CONF_SYNC_KEY] = secrets.token_hex(16)
             chyba = _kod_skupiny(accounts)
             if chyba:
-                schema = vol.Schema(accounts_schema({**accounts, **user_input})).extend(
-                    preferences_schema(user_input).schema)
-                return self.async_show_form(step_id="user", data_schema=schema,
-                                            errors={CONF_SYNC_CODE: chyba})
+                return self.async_show_form(step_id="user", errors={CONF_SYNC_CODE: chyba},
+                                            data_schema=formular({**accounts, **user_input}))
             self._cz_pending, self._cz_accounts = user_input, accounts
             if await self._cztor_needs_pairing(user_input):
                 return await self.async_step_cztor()
@@ -206,8 +264,8 @@ class NokturnoConfigFlow(CztorPairing, ConfigFlow, domain=DOMAIN):
         # sync_key ukázat rovnou vyplněný — ať ho jde zkopírovat do Kodi hned napoprvé,
         # ne až po dodatečném otevření Nastavení integrace. 128 bitů: klíč chrání
         # neautentizované endpointy /sync a /files (dřív 48 bitů).
-        schema = vol.Schema(accounts_schema({CONF_SYNC_KEY: secrets.token_hex(16)})).extend(preferences_schema({}).schema)
-        return self.async_show_form(step_id="user", data_schema=schema)
+        return self.async_show_form(step_id="user",
+                                    data_schema=formular({CONF_SYNC_KEY: secrets.token_hex(16)}))
 
     async def async_step_reauth(self, entry_data):
         """WebShare odmítl přihlášení — HA ukáže „vyžaduje opravu" a tenhle krok."""
@@ -247,15 +305,14 @@ class NokturnoOptionsFlow(CztorPairing, OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
+            user_input = _zploskuj(user_input)
             if user_input.get(CONF_PREF_LANG) == "—":
                 user_input[CONF_PREF_LANG] = ""
             accounts = {key: user_input.pop(key) for key in ACCOUNT_KEYS if key in user_input}
             chyba = _kod_skupiny(accounts)
             if chyba:
-                schema = vol.Schema(accounts_schema({**accounts, **user_input})).extend(
-                    preferences_schema(user_input).schema)
-                return self.async_show_form(step_id="init", data_schema=schema,
-                                            errors={CONF_SYNC_CODE: chyba})
+                return self.async_show_form(step_id="init", errors={CONF_SYNC_CODE: chyba},
+                                            data_schema=formular({**accounts, **user_input}))
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data={**self.config_entry.data, **accounts}
             )
@@ -264,8 +321,7 @@ class NokturnoOptionsFlow(CztorPairing, OptionsFlow):
                 return await self.async_step_cztor()
             return await self._cztor_finish()
         current = {**self.config_entry.data, **self.config_entry.options}
-        schema = vol.Schema(accounts_schema(current)).extend(preferences_schema(current).schema)
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="init", data_schema=formular(current))
 
     async def _cztor_finish(self):
         return self.async_create_entry(title="", data=self._cz_pending)

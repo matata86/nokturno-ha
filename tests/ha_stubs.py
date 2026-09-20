@@ -26,6 +26,14 @@ def _decorator(fn):
     return fn
 
 
+class _Sekce:
+    """Náhrada `homeassistant.data_entry_flow.section`."""
+
+    def __init__(self, schema, options=None):
+        self.schema = schema
+        self.options = options or {}
+
+
 # --- voluptuous ----------------------------------------------------------------
 
 class _Marker:
@@ -194,6 +202,9 @@ def install_homeassistant():
     _module("homeassistant.core", HomeAssistant=object, ServiceCall=object, SupportsResponse=SupportsResponse,
             callback=_decorator)
     _module("homeassistant.exceptions", HomeAssistantError=HomeAssistantError, Unauthorized=Unauthorized)
+    # `section()` (HA 2024.6+) obaluje podschéma sbalitelnou sekcí formuláře. Pro testy
+    # stačí, aby si podschéma zapamatoval — kontroluje se, že každé pole má popisek.
+    _module("homeassistant.data_entry_flow", section=_Sekce)
     _module("homeassistant.components.persistent_notification", async_create=_noop, async_dismiss=_noop)
     _module("homeassistant.helpers")
     _module("homeassistant.helpers.config_validation", string=str, boolean=bool, ensure_list=list,

@@ -96,6 +96,12 @@ class HomeAssistantError(Exception):
     pass
 
 
+class Unauthorized(HomeAssistantError):
+    def __init__(self, context=None, permission=None):
+        super().__init__(permission or "unauthorized")
+        self.context, self.permission = context, permission
+
+
 class ConfigEntry:
     def __init__(self, data=None, options=None, entry_id="test"):
         self.data, self.options, self.entry_id = dict(data or {}), dict(options or {}), entry_id
@@ -187,7 +193,8 @@ def install_homeassistant():
             EVENT_HOMEASSISTANT_STARTED="homeassistant_started", EVENT_SERVICE_REGISTERED="service_registered")
     _module("homeassistant.core", HomeAssistant=object, ServiceCall=object, SupportsResponse=SupportsResponse,
             callback=_decorator)
-    _module("homeassistant.exceptions", HomeAssistantError=HomeAssistantError)
+    _module("homeassistant.exceptions", HomeAssistantError=HomeAssistantError, Unauthorized=Unauthorized)
+    _module("homeassistant.components.persistent_notification", async_create=_noop, async_dismiss=_noop)
     _module("homeassistant.helpers")
     _module("homeassistant.helpers.config_validation", string=str, boolean=bool, ensure_list=list,
             comp_entity_ids=str)

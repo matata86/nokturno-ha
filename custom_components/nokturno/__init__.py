@@ -7,6 +7,7 @@ aby si Kodi vedl evidenci zhlédnuto/rozkoukáno; ostatní přehrávače dostano
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import json
 import logging
@@ -25,8 +26,8 @@ from homeassistant.components.http.auth import async_sign_path
 from homeassistant.components.http.ban import process_wrong_login
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID, Platform
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse, callback
+from homeassistant.exceptions import HomeAssistantError, Unauthorized
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -848,11 +849,43 @@ def storage_link(hass: HomeAssistant, ref: str, external: bool = False, hours: i
     return base.rstrip("/") + _encode_signed(signed)
 
 
+POSLEDNI_STREAMU_MAX = 300   # kolik řádků streamů si HA pamatuje pro přehrání podle adresy
+SYNC_KEY_MIN_HEX = 32   # 128 bitů; do 6.1.4 doplňoval `async_setup_entry` starším instalacím jen 12 znaků
+
+
+@callback
+def _varovat_kratky_klic(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Klíč pro `/api/nokturno/sync` a `/files` kratší než 128 bitů — jen upozornit.
+
+    Instalace, které klíč nikdy nezadaly, ho do 6.1.4 dostaly automaticky jen
+    o 48 bitech (`token_hex(6)`). Oba endpointy jsou bez přihlášení HA a `/files`
+    podepisuje odkazy na soubory. Klíč se **nepřegeneruje sám**: je zapsaný i v každém
+    Kodi (Nastavení → Synchronizace), takže tichá výměna by synchronizaci rozbila bez
+    varování. Uživatel ho přepíše v nastavení integrace a zkopíruje do Kodi.
+    """
+    klic = str(entry.data.get(CONF_SYNC_KEY) or "")
+    if len(klic) >= SYNC_KEY_MIN_HEX:
+        return
+    from homeassistant.components import persistent_notification
+
+    persistent_notification.async_create(
+        hass,
+        "Klíč pro synchronizaci s Kodi má jen 48 bitů — starší instalace ho dostaly "
+        "automaticky. Vyměň ho za delší: Nastavení → Zařízení a služby → Nokturno → "
+        "Konfigurovat, pole „Klíč pro synchronizaci“ přepiš (např. 32 náhodných znaků) "
+        "a stejnou hodnotu vlož v Kodi do Nastavení → Synchronizace. Do té doby "
+        "synchronizace funguje dál.",
+        title="Nokturno: slabý klíč pro synchronizaci",
+        notification_id=f"{DOMAIN}_slaby_sync_key",
+    )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await async_register_card(hass)
     # starší instalace klíč nemají — doplnit jednou (spustí to jeden reload přes update listener)
     if not entry.data.get(CONF_SYNC_KEY):
-        hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_SYNC_KEY: secrets.token_hex(6)})
+        hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_SYNC_KEY: secrets.token_hex(16)})
+    _varovat_kratky_klic(hass, entry)
     if not hass.data.get(f"{DOMAIN}_sync_view"):
         hass.http.register_view(NokturnoSyncView(hass))
         hass.http.register_view(NokturnoFilesView(hass))
@@ -1181,12 +1214,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"season": last["season"], "episode": last["episode"], "title": last.get("title") or "",
                 "id": last.get("id"), "released": (last.get("released") or "")[:10]}
 
+    kontrola_zamek = asyncio.Lock()
+
     async def check_series(_now=None):
         """Projde sledované seriály: nový díl se hlásí, až když má stream (ne jen když byl odvysílán).
 
         `latest` = poslední odvysílaný podle metadat, `available` = nejnovější díl se streamem.
         Zkouší se jen díly novější než dosud dostupný, nejvýš tři nejnovější (každý dotaz stojí pár sekund).
+
+        Jeden průchod naráz (`kontrola_zamek`): kontrola běží z časovače po 6 h, z ruční služby
+        i po startu HA a jeden seriál stojí desítky dotazů na zdroje. Dva souběžné průchody
+        se do 6.1.4 ptaly zdrojů dvakrát na totéž a uměly poslat dvě oznámení „nový díl“
+        na tentýž díl (oba viděly `available` ještě před zápisem toho druhého).
         """
+        if kontrola_zamek.locked():
+            # tvar odpovědi musí zůstat stejný jako z plného průchodu (`handle_check_series`
+            # z něj dělá `count`/`series`) — vrátit poslední známý stav, ne prázdno
+            _LOGGER.debug("kontrola seriálů už běží — přeskakuji")
+            return watchlist()
+        async with kontrola_zamek:
+            return await _check_series()
+
+    async def _check_series():
         data = watchlist()
         changed = False
         for sid, item in list(data.items()):
@@ -1299,7 +1348,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         pamatuje jen první přehrávač — na druhém Kodi pak položka zůstala a hned se
         vrátila (Hospoda 1x02 na Obýváku i v Office). Kodi, kde položka není, odebrání
         nijak neublíží; vypnuté Kodi se přeskočí, selže jen to, kam karta mířila."""
-        import asyncio
 
         target = call.data[ATTR_ENTITY_ID]
         # nejdřív do stavu HA — platí hned pro kartu a ostatní Kodi si to převezmou
@@ -1457,6 +1505,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             data["season"], data["episode"] = 1, 1
         return data
 
+    # poslední výpisy streamů podle adresy souboru (karta klikne → přehraj přesně tenhle)
+    posledni_streamy: dict = {}
+
     async def _streams(call_data):
         call_data = await _with_query(call_data)
         if not call_data.get("id"):
@@ -1474,19 +1525,49 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         streams = await _in_executor(engine.streams, ctype, item_id, alt, series, on_progress, failures)
         engine.stream_progress = {}
         async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
+        _zapamatuj_streamy(ctype, item_id, series, alt, streams)
         return ctype, item_id, series, alt, streams, summarize_failures(failures)
 
+    def _zapamatuj_streamy(ctype, item_id, series, alt, streams):
+        """Poslední výsledky `engine.streams()` v paměti — z nich se pak bere stream,
+        na který uživatel v kartě klikl (viz `_chosen_stream`)."""
+        for stream in streams:
+            url = str(stream.get("url") or "")
+            if url:
+                posledni_streamy[url] = (ctype, item_id, series, alt, stream)
+        while len(posledni_streamy) > POSLEDNI_STREAMU_MAX:
+            posledni_streamy.pop(next(iter(posledni_streamy)))
+
     async def _chosen_stream(call_data):
-        """Vybraný stream (`stream` index) nebo přímé `url`, jinak nejlepší. `query` místo `id` se dohledá."""
+        """Vybraný stream: `url` z posledního výpisu, jinak `stream` index, jinak nejlepší.
+
+        Karta posílá `url` toho řádku, na který se kliklo. Do 6.1.4 posílala jen pořadí
+        (`stream`) a server kvůli němu pouštěl `engine.streams()` podruhé: druhý průchod
+        má dočtené hlavičky z cache, takže **pořadí bývá jiné** a přehrál se jiný soubor,
+        než uživatel vybral (a Play trvalo dvakrát tak dlouho, u vlastního úložiště včetně
+        nového PROPFIND). `query` místo `id` se dohledá.
+        """
         call_data = await _with_query(call_data)
         if not call_data.get("id") and not call_data.get("url"):
             raise HomeAssistantError("Chybí `id` titulu, `query` nebo `url` streamu.")
-        if call_data.get("url"):
-            return None, None, None, None, {"url": call_data["url"], "label": "", "subtitles": []}
+        url = str(call_data.get("url") or "")
+        if url:
+            zname = posledni_streamy.get(url)
+            if zname:
+                return zname   # celý řádek i s titulkem, popiskem a id titulu (Trakt, plugin:// do Kodi)
+            if not call_data.get("id"):
+                # holá adresa bez titulu (automatizace, torrent) — nic k dohledání
+                return None, None, None, None, {"url": url, "label": "", "subtitles": []}
+            # adresu si HA nepamatuje (restart mezi výpisem a kliknutím) — spočítat znovu a najít ji tam
         ctype, item_id, series, alt, streams, warnings = await _streams(call_data)
         if not streams:
             raise HomeAssistantError("Pro tento titul se nenašel žádný stream."
                                      + (f" Přeskočeno: {'; '.join(warnings)}." if warnings else ""))
+        if url:
+            shoda = next((s for s in streams if str(s.get("url") or "") == url), None)
+            if shoda is not None:
+                return ctype, item_id, series, alt, shoda
+            # soubor mezitím ze zdroje zmizel — spadnout na pořadí jako dřív
         index = call_data.get("stream")
         if index is not None and not 0 <= int(index) < len(streams):
             raise HomeAssistantError(f"Stream č. {index} neexistuje (nalezeno {len(streams)}).")
@@ -1695,6 +1776,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def handle_share_file(call: ServiceCall):
         """Odkaz na stažený soubor přes veřejnou adresu HA (Nabu Casa), volitelně rovnou do mobilu."""
+        await _jen_spravce(call, "share_file")
         from datetime import timedelta as _timedelta
 
         from homeassistant.components import media_source
@@ -1740,7 +1822,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         torrent_stav["aktivni_do"] = time.time() + 300   # čerstvý torrent sledovat hustě, než se rozjede
         return {"queued": True, "name": name}
 
+    async def _jen_spravce(call: ServiceCall, co: str) -> None:
+        """Službu smí zavolat jen správce HA.
+
+        Služby integrace může jinak spustit každý přihlášený uživatel (i host a dítě):
+        `delete_file` maže soubory na disku, `share_file` vydá podepsaný odkaz na soubor
+        skrz veřejnou adresu HA (Nabu Casa) až na 30 dní. Volání z automatizace nebo
+        ze skriptu `context.user_id` nemá — to se bere jako systém a projde.
+        """
+        user_id = call.context.user_id
+        if not user_id:
+            return
+        user = await hass.auth.async_get_user(user_id)
+        if user is None or not user.is_admin:
+            raise Unauthorized(context=call.context, permission=f"nokturno.{co}")
+
     async def handle_delete_file(call: ServiceCall):
+        await _jen_spravce(call, "delete_file")
         path = call.data["path"]
         # film ze staženého torrentu by v klientu zůstal seedovat a po smazání
         # hlásil chybějící data — odebrat ho, ale mazání souboru na tom nestojí
@@ -1805,6 +1903,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.async_add_executor_job(engine.store.load, "wantlist", {})
     await hass.async_add_executor_job(engine.store.load, "favourites", [])
     await hass.async_add_executor_job(engine.store.load, "items", {})
+    # „Pokračovat ve sledování“ čte senzor z event loopu při každém přepsání stavu —
+    # bez předčtení dělal první výpočet po restartu `open()` + `json.load` přímo v něm
+    await hass.async_add_executor_job(engine.store.load, CONTINUE_CACHE_KEY, [])
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True

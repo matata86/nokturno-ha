@@ -31,9 +31,11 @@ class NokturnoDownloadsSensor(SensorEntity):
     _attr_native_unit_of_measurement = "souborů"
     # atributy čte jen karta; do recorderu nepatří — stav se přepisuje každé 2 s během
     # stahování a nesl celý výpis složky (desítky MB/den v databázi HA)
+    # `current`/`percent`/`speed`/`eta` se během stahování mění každé 2 s a `free_gb` s nimi —
+    # do 6.1.4 z toho recorder zapisoval ~1800 řádků `states` za hodinu stahování
     _unrecorded_attributes = frozenset({"downloads", "files", "search_history", "sources", "notify_targets",
                                         "subscription", "stream_progress", "search_progress", "directory",
-                                        "continue_cache"})
+                                        "continue_cache", "current", "percent", "speed", "eta", "free_gb"})
 
     def __init__(self, entry: ConfigEntry, downloader, owners, engine):
         self._downloader = downloader

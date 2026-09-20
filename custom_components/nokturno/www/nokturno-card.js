@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "6.1.4";
+const CARD_VERSION = "6.1.6";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -443,9 +443,17 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
+  /** Co poslat službě, aby přehrála/stáhla PRÁVĚ tenhle řádek.
+      Posílá se adresa souboru — server si poslední výpis streamů pamatuje a vezme
+      z něj celý řádek. Pořadí (`stream`) zůstává jako záloha pro starší integraci:
+      server z něj počítal seznam znovu a druhý průchod míval jiné pořadí, takže se
+      občas přehrál jiný soubor, než na který se kliklo. */
   _target(stream) {
     const target = { ...this._state.streamTarget };
-    if (!target.url) target.stream = stream.index;
+    if (!target.url) {
+      target.stream = stream.index;
+      if (stream.url) target.url = stream.url;
+    }
     return target;
   }
 

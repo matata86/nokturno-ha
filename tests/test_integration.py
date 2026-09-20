@@ -25,9 +25,10 @@ import ha_stubs                                          # noqa: E402
 ha_stubs.install()
 
 from custom_components.nokturno import (                 # noqa: E402
-    KODI_PLUGIN, _continue_key, _encode_signed, _removed_by_user, _stats_title, android_play_intent,
-    episode_target, kodi_image, kodi_url, skip_gap_candidates,
+    KODI_PLUGIN, SYNC_KEY_MIN_HEX, _continue_key, _encode_signed, _removed_by_user, _stats_title,
+    _varovat_kratky_klic, android_play_intent, episode_target, kodi_image, kodi_url, skip_gap_candidates,
 )
+from custom_components.nokturno import sensor as nokturno_sensor  # noqa: E402
 from custom_components.nokturno import config_flow, const  # noqa: E402
 
 
@@ -478,3 +479,84 @@ class TestUdrzbaHA(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertNotIn("kopie z Kodi doplňku", readme)
         self.assertIn("nokturno-core", readme)
+
+
+class _FakeEntry:
+    def __init__(self, data):
+        self.data = data
+
+
+class TestAudit615(unittest.TestCase):
+    """Nálezy z auditu 2026-09-19 (`../AUDIT-2026-09-19.md`, § HA), opraveno ve 6.1.5."""
+
+    def setUp(self):
+        self.src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+        self.card = (COMPONENT / "www" / "nokturno-card.js").read_text(encoding="utf-8")
+
+    # 11. klíč pro /api/nokturno/sync jen 48 bitů u starších instalací
+    def test_doplneny_sync_key_ma_128_bitu(self):
+        self.assertIn("CONF_SYNC_KEY: secrets.token_hex(16)", self.src)
+        self.assertNotIn("CONF_SYNC_KEY: secrets.token_hex(6)", self.src, "doplňovaný klíč musí mít 128 bitů")
+
+    def test_kratky_sync_key_da_upozorneni_dlouhy_ne(self):
+        from homeassistant.components import persistent_notification
+        volani = []
+        puvodni = persistent_notification.async_create
+        persistent_notification.async_create = lambda *a, **kw: volani.append((a, kw))
+        try:
+            _varovat_kratky_klic(object(), _FakeEntry({const.CONF_SYNC_KEY: "a" * 12}))
+            self.assertEqual(len(volani), 1, "48bitový klíč má uživatele upozornit")
+            self.assertIn("notification_id", volani[0][1])
+            _varovat_kratky_klic(object(), _FakeEntry({const.CONF_SYNC_KEY: "b" * SYNC_KEY_MIN_HEX}))
+            self.assertEqual(len(volani), 1, "dost dlouhý klíč se nehlásí")
+        finally:
+            persistent_notification.async_create = puvodni
+
+    def test_sync_key_se_nemeni_sam(self):
+        """Klíč je zapsaný i v každém Kodi — tichá výměna by synchronizaci rozbila bez varování."""
+        usek = self.src.split("async def async_setup_entry")[1].split("\nasync def")[0]
+        self.assertEqual(usek.count("token_hex"), 1, "klíč se generuje jen tam, kde žádný není")
+        pred, _po = usek.split("token_hex", 1)
+        self.assertTrue(pred.rstrip().endswith(
+            "hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_SYNC_KEY: secrets."),
+            "generování musí zůstat pod `if not entry.data.get(CONF_SYNC_KEY)`")
+        self.assertIn("if not entry.data.get(CONF_SYNC_KEY):", pred)
+
+    # 23. senzor zapisoval průběh stahování do recorderu každé 2 s
+    def test_prubeh_stahovani_neni_v_recorderu(self):
+        neulozene = nokturno_sensor.NokturnoDownloadsSensor._unrecorded_attributes
+        for key in ("current", "percent", "speed", "eta", "free_gb", "downloads", "continue_cache"):
+            self.assertIn(key, neulozene, key)
+
+    # continue_cache: open() + json.load v event loopu při prvním výpočtu po restartu
+    def test_continue_cache_se_predcita_pri_startu(self):
+        self.assertIn("engine.store.load, CONTINUE_CACHE_KEY", self.src)
+
+    # 22. přehrání podle indexu do znovu spočítaného seznamu
+    def test_prehrani_bere_stream_podle_adresy(self):
+        self.assertIn("posledni_streamy[url] = (ctype, item_id, series, alt, stream)", self.src)
+        self.assertIn('zname = posledni_streamy.get(url)', self.src)
+        self.assertIn('shoda = next((s for s in streams if str(s.get("url") or "") == url), None)', self.src)
+
+    def test_karta_posila_adresu_streamu(self):
+        usek = self.card.split("_target(stream) {")[1].split("\n  }")[0]
+        self.assertIn("target.url = stream.url", usek)
+        self.assertIn("target.stream = stream.index", usek, "pořadí zůstává jako záloha")
+
+    # 21. souběžné check_series = dvojí dotazy a dvojí oznámení „nový díl"
+    def test_kontrola_serialu_bezi_jen_jedna(self):
+        self.assertIn("kontrola_zamek = asyncio.Lock()", self.src)
+        usek = self.src.split("async def check_series(_now=None):")[1].split("async def _check_series")[0]
+        self.assertIn("if kontrola_zamek.locked():", usek)
+        self.assertIn("return watchlist()", usek, "tvar odpovědi musí zůstat stejný")
+        self.assertIn("async with kontrola_zamek:", usek)
+
+    # mazání a sdílení souborů mohl volat každý přihlášený uživatel HA
+    def test_mazani_a_sdileni_jen_pro_spravce(self):
+        for handler in ("handle_delete_file", "handle_share_file"):
+            usek = self.src.split(f"async def {handler}(call: ServiceCall):")[1].split("async def")[0]
+            self.assertIn("_jen_spravce(call", usek, handler)
+        usek = self.src.split("async def _jen_spravce")[1].split("async def")[0]
+        self.assertIn("user.is_admin", usek)
+        self.assertIn("raise Unauthorized", usek)
+        self.assertIn("if not user_id:", usek, "volání z automatizace nemá user_id a musí projít")

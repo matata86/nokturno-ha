@@ -242,6 +242,29 @@ def _entry_data(hass: HomeAssistant) -> dict:
     return next(iter(data.values()))
 
 
+def aired_episodes(episodes: list[dict], today: str) -> list[dict]:
+    """Odvysílané díly bez speciálů, setříděné podle sezóny a čísla.
+
+    **Chybějící datum znamená neodvysíláno**, ne naopak. U běžícího seriálu nemá TMDB
+    datum právě u posledních dílů sezóny, protože se teprve natáčejí. Do 6.2.8 se takový
+    díl počítal za odvysílaný, takže kontrola sledovaných seriálů hledala každých šest
+    hodin ve všech zdrojích díly, které ještě neexistují. Nenašla nic, a protože se
+    ukládá jen nález (`cached_if`), za šest hodin se ptala znovu — u jednoho běžícího
+    seriálu zhruba 180 HTTP dotazů denně. Právě opakovanými dotazy na zdroje si doplněk
+    už dvakrát řekl o blokaci od HellSpy (6.0.2 a 6.0.4).
+
+    Seriály, kterým TMDB data nedává vůbec, se řídí dál starým pravidlem: nemá-li datum
+    ani jeden díl, projde celý seznam. Jinak by u nich kontrola přestala fungovat.
+
+    Díl bez data je něco jiného než díl, který ve zdrojích chybí — mezeru v dostupnosti
+    řeší `skip_gap_candidates()` nad tímhle už profiltrovaným seznamem.
+    """
+    known = [e for e in episodes if e.get("season")]
+    if any(e.get("released") for e in known):
+        known = [e for e in known if e.get("released") and e["released"][:10] <= today]
+    return sorted(known, key=lambda e: (e["season"], e["episode"]))
+
+
 def skip_gap_candidates(aired: list[dict], key: tuple[int, int]) -> list[dict]:
     """Díly nejnovější sezóny novější než `key`, od nejnovějšího.
 
@@ -1206,11 +1229,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     def _latest_aired(episodes):
         """Poslední odvysílaná epizoda (bez speciálů a bez budoucích termínů)."""
-        today = dt_util.now().date().isoformat()
-        aired = [e for e in episodes if e.get("season") and (not e.get("released") or e["released"][:10] <= today)]
+        aired = aired_episodes(episodes, dt_util.now().date().isoformat())
         if not aired:
             return None
-        last = max(aired, key=lambda e: (e["season"], e["episode"]))
+        last = aired[-1]
         return {"season": last["season"], "episode": last["episode"], "title": last.get("title") or "",
                 "id": last.get("id"), "released": (last.get("released") or "")[:10]}
 
@@ -1252,9 +1274,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 changed = True
             known = item.get("available") or {}
             known_key = (known.get("season", 0), known.get("episode", 0))
-            today = dt_util.now().date().isoformat()
-            aired = sorted((e for e in episodes if e.get("season") and (not e.get("released") or e["released"][:10] <= today)),
-                           key=lambda e: (e["season"], e["episode"]))
+            aired = aired_episodes(episodes, dt_util.now().date().isoformat())
             budget = [6]  # kolik dotazů na streamy si jedna kontrola seriálu může dovolit
 
             async def options(ep):

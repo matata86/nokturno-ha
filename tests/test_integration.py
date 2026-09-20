@@ -26,7 +26,8 @@ ha_stubs.install()
 
 from custom_components.nokturno import (                 # noqa: E402
     KODI_PLUGIN, SYNC_KEY_MIN_HEX, _continue_key, _encode_signed, _removed_by_user, _stats_title,
-    _varovat_kratky_klic, android_play_intent, episode_target, kodi_image, kodi_url, skip_gap_candidates,
+    _varovat_kratky_klic, aired_episodes, android_play_intent, episode_target, kodi_image, kodi_url,
+    skip_gap_candidates,
 )
 from custom_components.nokturno import sensor as nokturno_sensor  # noqa: E402
 from custom_components.nokturno import config_flow, const  # noqa: E402
@@ -72,6 +73,40 @@ class TestKnihovnaJeKopieJadra(unittest.TestCase):
         out = subprocess.run([sys.executable, str(CORE / "tools" / "sync_core.py"), "--check", "ha"],
                              capture_output=True, text=True)
         self.assertIn("ke změně: 0 souborů", out.stdout, f"spusť `python3 tools/sync_core.py ha` v jádru\n{out.stdout}")
+
+
+class TestOdvysilaneDily(unittest.TestCase):
+    """Chybějící datum vydání znamená neodvysíláno (do 6.2.8 to bylo obráceně)."""
+
+    def test_dil_bez_data_se_u_bezicoho_serialu_preskoci(self):
+        # Cizinka: díly s daty, poslední tři se teprve natáčejí (TMDB u nich datum nemá)
+        epizody = [{"season": 2, "episode": n, "released": "2026-09-%02d" % n} for n in range(1, 7)]
+        epizody += [{"season": 2, "episode": 7, "released": "2026-10-30"}]          # ještě nevysíláno
+        epizody += [{"season": 2, "episode": n} for n in (8, 9, 10)]                 # bez data
+        aired = aired_episodes(epizody, "2026-09-20")
+        self.assertEqual([e["episode"] for e in aired], [1, 2, 3, 4, 5, 6])
+
+    def test_serial_bez_jedineho_data_projde_cely(self):
+        # TMDB u některých seriálů data nedává vůbec — tam se chová jako dřív
+        epizody = [{"season": 1, "episode": 2}, {"season": 1, "episode": 1}, {"season": 2, "episode": 1}]
+        aired = aired_episodes(epizody, "2026-09-20")
+        self.assertEqual([(e["season"], e["episode"]) for e in aired], [(1, 1), (1, 2), (2, 1)])
+
+    def test_specialy_a_prazdny_seznam(self):
+        self.assertEqual(aired_episodes([{"season": 0, "episode": 1, "released": "2020-01-01"}], "2026-09-20"), [])
+        self.assertEqual(aired_episodes([], "2026-09-20"), [])
+
+    def test_mezera_ve_zdrojich_zustava_pruchozi(self):
+        # díl, který chybí ve zdrojích, není totéž co díl, který se nevysílal:
+        # S02E10–13 datum mají (odvysílané, jen nikde ke stažení), S03E03 se teprve natáčí
+        epizody = [{"season": 2, "episode": n, "released": "2026-05-%02d" % n} for n in (9, 10, 13)]
+        epizody += [{"season": 3, "episode": n, "released": "2026-09-%02d" % n} for n in (1, 2)]
+        epizody += [{"season": 3, "episode": 3}]
+        aired = aired_episodes(epizody, "2026-09-20")
+        self.assertEqual([(e["season"], e["episode"]) for e in aired],
+                         [(2, 9), (2, 10), (2, 13), (3, 1), (3, 2)])
+        self.assertEqual([(e["season"], e["episode"]) for e in skip_gap_candidates(aired, (2, 10))],
+                         [(3, 2), (3, 1)])
 
 
 class TestOdkazy(unittest.TestCase):

@@ -1,4 +1,4 @@
-"""Náhrada `homeassistant` a `voluptuous` pro testy bez nainstalovaného Home Assistantu.
+"""Náhrada `homeassistant`, `voluptuous` a `aiohttp` pro testy bez nainstalovaného Home Assistantu.
 
 Instaluje se do `sys.modules` jen to, co integrace importuje na úrovni modulu —
 tolik, aby šel `custom_components.nokturno` naimportovat a otestovat jeho čisté
@@ -214,6 +214,37 @@ def install_homeassistant():
     _module("homeassistant.util.dt", now=_noop)
 
 
+def install_aiohttp():
+    """`downloader.py` sahá na `aiohttp` už při importu (`STAHOVANI_TIMEOUT`).
+
+    Vývojový stroj aiohttp obvykle má, CI ne — testy tam proto od 6.2.3 padaly na
+    `ModuleNotFoundError`, aniž by si toho kdokoli všiml (lokálně procházely).
+    """
+    if "aiohttp" in sys.modules:
+        return
+    try:
+        import aiohttp  # noqa: F401
+        return
+    except ImportError:
+        pass
+
+    class ClientTimeout:
+        def __init__(self, total=None, sock_connect=None, sock_read=None, **kwargs):
+            self.total, self.sock_connect, self.sock_read = total, sock_connect, sock_read
+
+    class BasicAuth:
+        def __init__(self, login, password="", encoding="latin1"):
+            self.login, self.password, self.encoding = login, password, encoding
+
+    class ClientError(Exception):
+        pass
+
+    mod = _module("aiohttp", ClientTimeout=ClientTimeout, BasicAuth=BasicAuth, ClientError=ClientError,
+                  ClientSession=object, ClientResponseError=ClientError)
+    mod.web = _module("aiohttp.web", Response=object, StreamResponse=object, HTTPNotFound=ClientError)
+
+
 def install():
     install_voluptuous()
     install_homeassistant()
+    install_aiohttp()

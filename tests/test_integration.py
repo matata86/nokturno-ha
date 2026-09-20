@@ -486,6 +486,20 @@ class _FakeEntry:
         self.data = data
 
 
+class TestStahovaniTimeout(unittest.TestCase):
+    """Nález 24 z auditu: bez `sock_read` zůstalo stahování z mlčícího zdroje
+    ve stavu „stahuje se" navždy a frontu nikdo neposunul."""
+
+    def test_mlcici_zdroj_stahovani_ukonci(self):
+        from custom_components.nokturno import downloader
+        src = (COMPONENT / "downloader.py").read_text(encoding="utf-8")
+        self.assertNotIn("timeout=None", src, "stahování nesmí čekat na mlčící zdroj donekonečna")
+        self.assertIn("timeout=STAHOVANI_TIMEOUT", src)
+        self.assertIsNone(downloader.STAHOVANI_TIMEOUT.total, "na celé stahování strop být nesmí")
+        self.assertEqual(downloader.STAHOVANI_TIMEOUT.sock_read, 120)
+        self.assertEqual(downloader.STAHOVANI_TIMEOUT.sock_connect, 30)
+
+
 class TestAudit615(unittest.TestCase):
     """Nálezy z auditu 2026-09-19 (`../AUDIT-2026-09-19.md`, § HA), opraveno ve 6.1.5."""
 

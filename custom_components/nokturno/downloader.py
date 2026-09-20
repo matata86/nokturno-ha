@@ -11,6 +11,7 @@ import unicodedata
 import time
 import uuid
 
+import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -20,6 +21,10 @@ from .const import SIGNAL_DOWNLOADS
 _LOGGER = logging.getLogger(__name__)
 
 CHUNK = 1024 * 512
+# Na celé stahování strop být nesmí (film má desítky GB a pomalá linka je v právu),
+# ale mlčící zdroj ano: bez `sock_read` zůstalo stahování ve stavu „stahuje se" navždy
+# a frontu nikdo neposunul (audit 2026-09-19, nález 24).
+STAHOVANI_TIMEOUT = aiohttp.ClientTimeout(total=None, sock_connect=30, sock_read=120)
 FLUSH = 8 * 1024 * 1024   # kolik se nasbírá, než se sáhne na disk
 SUBTITLE_EXT = (".srt", ".sub", ".ass", ".vtt")
 
@@ -310,7 +315,7 @@ class Downloader:
         headers = {"Range": f"bytes={have}-"} if have else {}
         last = time.time()
         last_done = job["done"]
-        async with session.get(job["url"], headers=headers, timeout=None) as resp:
+        async with session.get(job["url"], headers=headers, timeout=STAHOVANI_TIMEOUT) as resp:
             resp.raise_for_status()
             length = int(resp.headers.get("Content-Length") or 0)
             if resp.status == 206 and have:  # server umí navázat

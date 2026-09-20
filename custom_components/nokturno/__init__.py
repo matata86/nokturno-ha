@@ -45,9 +45,11 @@ from .const import (
     CONTINUE_CACHE_KEY,
     CONF_STATS_ENABLED,
     CONF_SUB_WARN_DAYS,
+    CONF_SYNC_CODE,
     CONF_SYNC_KEY,
     STATS_INTERVAL_HOURS,
     SUB_CHECK_INTERVAL_HOURS,
+    SYNC_RELAY_INTERVAL_MINUTES,
     CONF_KODI_ENTITY,
     CONF_NOTIFY_TARGET,
     CONF_TRAKT_ID,
@@ -103,7 +105,8 @@ from .lib.enrich import _capped
 from .lib.source_errors import summarize as summarize_failures
 from .lib.stats import COLLECT_URL, Stats
 from .lib.webshare_api import WebshareApiError
-from .lib.sync import apply_changes, collect_changes
+from .lib.sync import DEFAULT_CIRCLES, apply_changes, collect_changes
+from .lib import syncbox
 from .engine import Engine, NokturnoError, _fold, split_episode_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -1514,6 +1517,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as err:  # noqa: BLE001 – obnova na pozadí nesmí shodit integraci
             _LOGGER.debug("stav zdrojů se nepodařilo obnovit: %s", err)
         async_dispatcher_send(hass, SIGNAL_ACCOUNTS)
+
+    async def sync_relay(_now=None):
+        """HA jako člen skupiny na slepém relayi dashboardu.
+
+        Kodi mimo domácí síť (mobil) na `/api/nokturno/sync` nedosáhne — na relay ano.
+        HA si odtud změny přebere do stejného úložiště, se kterým pracuje i jeho vlastní
+        endpoint, takže se rozešlou dál oběma cestami: Kodi v místní síti je dostanou
+        v HA kole, Kodi venku z relaye. Bez toho by most musel dělat některé Kodi
+        v režimu „obojí", a to jen dokud běží.
+
+        `stamp=True`: přijatým záznamům se vyrazí čas příjmu (`rts`), jinak by je
+        filtr `since` v HA kole přeskočil, kdyby vznikly před poslední výměnou.
+        Okruhy `settings`/`accounts` sem nepatří — HA nastavení Kodi doplňku nemá
+        a obě Kodi si je vymění přes relay napřímo.
+        """
+        kod = (entry.data.get(CONF_SYNC_CODE) or "").strip()
+        if not kod:
+            return
+        ok, poslano, prijato, proc = await hass.async_add_executor_job(
+            partial(syncbox.sync_once, engine.store, kod, circles=DEFAULT_CIRCLES,
+                    name="Home Assistant", stamp=True))
+        if not ok:
+            _LOGGER.debug("relay synchronizace selhala: %s", proc)
+            return
+        if prijato:
+            async_dispatcher_send(hass, SIGNAL_WATCHLIST)
+        _LOGGER.debug("relay synchronizace: odesláno %s, přijato %s", poslano, prijato)
+
+    entry.async_on_unload(async_track_time_interval(
+        hass, sync_relay, timedelta(minutes=SYNC_RELAY_INTERVAL_MINUTES)))
+    entry.async_on_unload(async_at_started(hass, sync_relay))
 
     entry.async_on_unload(async_track_time_interval(hass, check_subscription, timedelta(hours=SUB_CHECK_INTERVAL_HOURS)))
     entry.async_on_unload(async_at_started(hass, check_subscription))

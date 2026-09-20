@@ -343,7 +343,7 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
         self.assertIn("reauth_confirm", strings["config"]["step"])
         self.assertIn("reauth_successful", strings["config"]["abort"])
-        self.assertEqual(set(strings["config"]["error"]), {"ws_auth", "ws_network", "cz_pending", "cz_failed", "cz_network"})
+        self.assertEqual(set(strings["config"]["error"]), {"ws_auth", "ws_network", "cz_pending", "cz_failed", "cz_network", "sync_code"})
         self.assertTrue(hasattr(config_flow.NokturnoConfigFlow, "async_step_reauth"))
         self.assertTrue(hasattr(config_flow.NokturnoConfigFlow, "async_step_reauth_confirm"))
         init = (COMPONENT / "__init__.py").read_text(encoding="utf-8")

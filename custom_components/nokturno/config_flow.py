@@ -20,6 +20,7 @@ from .const import (
     CONF_QBIT_USER,
     CONF_QBIT_PASS,
     CONF_STATS_ENABLED,
+    CONF_SYNC_CODE,
     CONF_SYNC_KEY,
     DEFAULT_PROWLARR_URL,
     DEFAULT_QBIT_URL,
@@ -58,7 +59,7 @@ from .const import (
 STORAGE_KEYS = [key for slot in STORAGE_OPTIONS for key in slot]
 # účty a klíče patří do `entry.data`, ne do options — od 2026-09-14 i Trakt, Prowlarr a qBittorrent
 ACCOUNT_KEYS = [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS, CONF_ST_EMAIL, CONF_ST_PASS,
-                CONF_FS_USER, CONF_FS_PASS, CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_TMDB_KEY,
+                CONF_FS_USER, CONF_FS_PASS, CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_SYNC_CODE, CONF_TMDB_KEY,
                 CONF_TRAKT_ID, CONF_TRAKT_SECRET, CONF_PROWLARR_URL, CONF_PROWLARR_KEY,
                 CONF_QBIT_URL, CONF_QBIT_USER, CONF_QBIT_PASS, *STORAGE_KEYS]
 # ve formuláři skrytě — každé otevření Nastavení dřív ukázalo všech dvanáct hesel čitelně
@@ -67,6 +68,25 @@ SECRET_KEYS = frozenset({CONF_WS_PASS, CONF_STREAMUJ_PASS, CONF_ST_PASS, CONF_FS
                          *(key for slot in STORAGE_OPTIONS for key in slot if key.endswith("_password"))})
 ACCOUNT_DEFAULTS = {CONF_LUNA_URL: DEFAULT_LUNA_URL, CONF_PROWLARR_URL: DEFAULT_PROWLARR_URL,
                     CONF_QBIT_URL: DEFAULT_QBIT_URL}
+
+
+def _kod_skupiny(accounts: dict) -> str | None:
+    """Srovná kód skupiny do tvaru `NKT-…` a vrátí chybu pro formulář, když nesedí.
+
+    Prázdné pole znamená „HA do skupiny na dashboardu nechodí" — to je výchozí stav
+    a žádná chyba. Kód se opisuje z obrazovky televize, takže se nehlídá jen tvar,
+    ale rovnou se i normalizuje (malá písmena, chybějící pomlčky).
+    """
+    from .lib.syncbox import normalize_code, valid_code
+
+    raw = (accounts.get(CONF_SYNC_CODE) or "").strip()
+    if not raw:
+        accounts[CONF_SYNC_CODE] = ""
+        return None
+    if not valid_code(raw):
+        return "sync_code"
+    accounts[CONF_SYNC_CODE] = normalize_code(raw)
+    return None
 
 
 def _heslo():
@@ -173,6 +193,12 @@ class NokturnoConfigFlow(CztorPairing, ConfigFlow, domain=DOMAIN):
             # klíč pro synchronizaci s Kodi doplňkem — vzniká jednou, uživatel si ho opíše do Kodi
             if not accounts.get(CONF_SYNC_KEY):
                 accounts[CONF_SYNC_KEY] = secrets.token_hex(16)
+            chyba = _kod_skupiny(accounts)
+            if chyba:
+                schema = vol.Schema(accounts_schema({**accounts, **user_input})).extend(
+                    preferences_schema(user_input).schema)
+                return self.async_show_form(step_id="user", data_schema=schema,
+                                            errors={CONF_SYNC_CODE: chyba})
             self._cz_pending, self._cz_accounts = user_input, accounts
             if await self._cztor_needs_pairing(user_input):
                 return await self.async_step_cztor()
@@ -224,6 +250,12 @@ class NokturnoOptionsFlow(CztorPairing, OptionsFlow):
             if user_input.get(CONF_PREF_LANG) == "—":
                 user_input[CONF_PREF_LANG] = ""
             accounts = {key: user_input.pop(key) for key in ACCOUNT_KEYS if key in user_input}
+            chyba = _kod_skupiny(accounts)
+            if chyba:
+                schema = vol.Schema(accounts_schema({**accounts, **user_input})).extend(
+                    preferences_schema(user_input).schema)
+                return self.async_show_form(step_id="init", data_schema=schema,
+                                            errors={CONF_SYNC_CODE: chyba})
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data={**self.config_entry.data, **accounts}
             )

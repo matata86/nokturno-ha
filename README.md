@@ -1,6 +1,6 @@
 # Nokturno pro Home Assistant
 
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-podpo%C5%99%20autora-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/matata86) [![PayPal](https://img.shields.io/badge/PayPal-paypal.me%2Fmatata86-00457C?logo=paypal&logoColor=white)](https://paypal.me/matata86) [![Bitcoin](https://img.shields.io/badge/Bitcoin-BTC-f7931a?logo=bitcoin&logoColor=white)](#podpora)
+[![PayPal](https://img.shields.io/badge/PayPal-paypal.me%2Fmatata86-00457C?logo=paypal&logoColor=white)](https://paypal.me/matata86) [![Bitcoin](https://img.shields.io/badge/Bitcoin-BTC-f7931a?logo=bitcoin&logoColor=white)](#podpora)
 
 [![HACS: vlastní repozitář](https://img.shields.io/badge/HACS-vlastn%C3%AD%20repozit%C3%A1%C5%99-41BDF5.svg)](https://hacs.xyz/)
 
@@ -127,7 +127,6 @@ Přidej kartu **Nokturno** (`custom:nokturno-card`). Má vizuální editor, tak�
 type: custom:nokturno-card
 title: Nokturno                  # nadpis karty
 show_header: true                # false skryje nadpis i ikonu
-player: media_player.coreelec    # výchozí přehrávač
 players:                         # nabídka v detailu (víc Kodi, TV, Cast…)
   - media_player.coreelec
   - media_player.samsung_tv_q6
@@ -137,13 +136,12 @@ phones:                          # volitelně ruční seznam; jinak se doplní s
 downloads: sensor.nokturno_stahovani   # senzor s frontou stahování
 ```
 
-Vše je volitelné: bez `player` se vezme první `media_player`, bez `phone` první telefon s aplikací HA, `downloads` má výchozí hodnotu.
+Vše je volitelné: bez `players` se nabídnou všechny `media_player`, bez `phone` první telefon s aplikací HA, `downloads` má výchozí hodnotu.
 
 | Pole v editoru | Odpovídá |
 |---|---|
 | Nadpis karty | `title` |
 | Zobrazit nadpis a ikonu | `show_header` |
-| Výchozí přehrávač | `player` |
 | Přehrávače na výběr | `players` |
 | Výchozí mobil | `phone` (nabídka se plní z telefonů, které integrace našla, i se jménem majitele) |
 | Senzor stahování | `downloads` |
@@ -392,8 +390,7 @@ MIT
 
 ## Podpora
 
-[![Podpoř Nokturno — Ko-fi, PayPal, Bitcoin](https://raw.githubusercontent.com/matata86/nokturno-ha/main/.github/podpora.png)](https://ko-fi.com/matata86)
+[![Podpoř Nokturno — PayPal, Bitcoin](https://raw.githubusercontent.com/matata86/nokturno-ha/main/.github/podpora.png)](https://paypal.me/matata86)
 
-- **Ko-fi:** https://ko-fi.com/matata86
 - **PayPal:** https://paypal.me/matata86
 - **Bitcoin:** `bc1qhjwt8xxmuym0xsd50yfpvjph00386uz73gqwlc`

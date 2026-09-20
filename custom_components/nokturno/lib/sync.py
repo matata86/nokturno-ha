@@ -24,6 +24,25 @@ import urllib.request
 from .store import ITEMS_MAX, WATCHED_MAX
 
 STATE = "sync"          # sync.json v profilu: {"since", "last_ok", "last_error", "pushed", "pulled"}
+
+# Okruhy: co se z celkového stavu posílá a přijímá. Uživatel si je zapíná zvlášť
+# a platí pro obě střediska stejně — přes Home Assistant i přes slepý relay
+# (`syncbox.py`, který je odsud importuje).
+CIRCLES = {
+    "watched": ("watched", "next_hidden"),   # zhlédnuto, rozkoukanost, skryté další díly
+    "favourites": ("favlog",),               # Můj seznam jako deník zapnuto/vypnuto
+    "history": ("histlog",),                 # historie hledání
+    # volby doplňku a přihlášení ke zdrojům (`setsync.py`). Nejsou ve `Store`,
+    # takže je `collect_changes` nesbírá — plní je hostitel přes `syncbox`
+    # a přes Home Assistant nechodí vůbec.
+    "settings": ("setlog",),
+    "accounts": ("acclog",),
+}
+# Nastavení ani účty ve výchozím stavu nejdou — sdílení přihlášení má být vědomé.
+DEFAULT_CIRCLES = ("watched", "favourites", "history")
+# Snímky titulů jdou vždy k tomu, co se posílá — bez nich by druhá strana
+# neuměla položku vykreslit. `collect_changes` je omezuje na dotčené klíče.
+SNAPSHOTS = "items"
 ENDPOINT = "/api/nokturno/sync"
 TIMEOUT = 20
 
@@ -84,6 +103,22 @@ def collect_changes(store, since):
     keys = set(watched) | set(favlog)
     return {"watched": watched, "favlog": favlog, "histlog": histlog, "next_hidden": next_hidden,
             "items": {k: items[k] for k in keys if k in items}}
+
+
+def reset_since(store):
+    """Zahodí „kam jsme došli" a příští kolo s HA pošle celý stav.
+
+    Volá se, když do `Store` přiteklo něco odjinud než z HA — typicky ze slepého
+    relaye (`syncbox.py`), když je některé Kodi mostem mezi oběma středisky.
+    Přijatý záznam si nese čas vzniku, a ten bývá starší než poslední výměna
+    s HA, takže by ho filtr `since` už nikdy neposlal. `rts` razí jen střed,
+    takže most jinou možnost nemá; celý stav je malý a pošle se jen po skutečné
+    změně. Most je ale nouzové řešení — jede jen dokud to Kodi běží. Čistší je
+    dát kód skupiny i samotnému HA (`CONF_SYNC_CODE` v integraci).
+    """
+    state = store.reload(STATE, {})
+    if state.get("since"):
+        store.save(STATE, dict(state, since=0))
 
 
 def apply_changes(store, changes, stamp=False):
@@ -157,14 +192,39 @@ def apply_changes(store, changes, stamp=False):
     return applied
 
 
-def sync_once(store, base_url, key, device=""):
-    """Jedna výměna s HA. Vrací (ok, odesláno, přijato, důvod) — nikdy nevyhodí výjimku."""
+def filter_circles(changes, circles):
+    """Ze stavu nechá jen zapnuté okruhy; snímky titulů jdou vždy s tím, co zbyde.
+
+    `circles=None` znamená „neomezovat" — tak se modul choval, než okruhy vznikly.
+    """
+    if circles is None:
+        return changes or {}
+    allowed = set()
+    for name in circles:
+        allowed.update(CIRCLES.get(name, ()))
+    out = {k: v for k, v in (changes or {}).items() if k in allowed}
+    # snímky jen k tomu, co je umí potřebovat — blob jen s nastavením je nemá proč vézt
+    if (changes or {}).get(SNAPSHOTS) and ({"watched", "favlog"} & set(out)):
+        out[SNAPSHOTS] = changes[SNAPSHOTS]
+    return out
+
+
+def sync_once(store, base_url, key, device="", circles=None):
+    """Jedna výměna s HA. Vrací (ok, odesláno, přijato, důvod) — nikdy nevyhodí výjimku.
+
+    `circles` je sada zapnutých okruhů (viz `CIRCLES`); `None` posílá a přijímá vše.
+    """
     state = store.reload(STATE, {})
     # stav bez `v` je z doby, kdy filtr šel podle času změny: jednou se vymění všechno,
     # aby se dorovnaly záznamy, které se tím mohly minout
     since = int(state.get("since") or 0) if state.get("v") == 2 else 0
-    outgoing = collect_changes(store, since)
-    pushed = len(outgoing["watched"]) + len(outgoing["favlog"])
+    # Zapnutý okruh musí dostat i to, co přišlo, když byl vypnutý — filtr zahodil
+    # změny, ale `since` se posouvalo dál, takže jinak by se dorovnal až novou změnou.
+    znamka = ",".join(sorted(circles)) if circles is not None else "*"
+    if state.get("circles") != znamka:
+        since = 0
+    outgoing = filter_circles(collect_changes(store, since), circles)
+    pushed = len(outgoing.get("watched") or {}) + len(outgoing.get("favlog") or {})
     body = json.dumps({"device": device, "since": since, "changes": outgoing}).encode("utf-8")
     req = urllib.request.Request((base_url or "").rstrip("/") + ENDPOINT, data=body, headers={
         "Content-Type": "application/json", "X-Nokturno-Key": key or "",
@@ -176,10 +236,10 @@ def sync_once(store, base_url, key, device=""):
         return _fail(store, state, f"HTTP {e.code}" + (" (špatný klíč)" if e.code == 403 else ""))
     except Exception as e:  # noqa: BLE001 – síť, DNS, špatná adresa
         return _fail(store, state, str(e)[:120])
-    pulled = apply_changes(store, answer.get("changes"))
+    pulled = apply_changes(store, filter_circles(answer.get("changes"), circles))
     now = int(time.time())
     store.save(STATE, {"v": 2, "since": int(answer.get("now") or now), "last_ok": now, "last_error": "",
-                       "pushed": pushed, "pulled": pulled})
+                       "circles": znamka, "pushed": pushed, "pulled": pulled})
     return True, pushed, pulled, ""
 
 

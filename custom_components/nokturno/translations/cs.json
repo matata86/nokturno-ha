@@ -35,6 +35,7 @@
           "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
           "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)",
           "sync_key": "Klíč pro synchronizaci s Kodi (opiš do doplňku Nokturno)",
+          "sync_code": "Kód skupiny z Kodi (jen když se Kodi mimo domácí síť synchronizuje přes dashboard)",
           "stats_enabled": "Posílat anonymní statistiky (i vypnuté pošlou jen náhodné id a verzi)",
           "dav1_url": "Úložiště 1 — adresa složky (WebDAV)",
           "dav1_username": "Úložiště 1 — uživatel",
@@ -72,7 +73,8 @@
       "ws_network": "WebShare neodpověděl, zkus to za chvíli.",
       "cz_pending": "PIN ještě není potvrzený — zadej ho na cztor.com/activate a dej znovu Odeslat.",
       "cz_failed": "PIN vypršel nebo se spárování nepovedlo — ukazuje se nový PIN, zkus to znovu.",
-      "cz_network": "Server CZtor neodpověděl. Zkus to později."
+      "cz_network": "Server CZtor neodpověděl. Zkus to později.",
+      "sync_code": "Kód skupiny nemá správný tvar — opiš ho z Kodi, vzor NKT-XXXX-XXXX-XXXX-XXXX."
     },
     "abort": {
       "already_configured": "Nokturno už je nastavené.",
@@ -114,6 +116,7 @@
           "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
           "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)",
           "sync_key": "Klíč pro synchronizaci s Kodi (opiš do doplňku Nokturno)",
+          "sync_code": "Kód skupiny z Kodi (jen když se Kodi mimo domácí síť synchronizuje přes dashboard)",
           "stats_enabled": "Posílat anonymní statistiky (i vypnuté pošlou jen náhodné id a verzi)",
           "dav1_url": "Úložiště 1 — adresa složky (WebDAV)",
           "dav1_username": "Úložiště 1 — uživatel",

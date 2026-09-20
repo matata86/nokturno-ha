@@ -35,6 +35,7 @@
           "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)",
           "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
           "sync_key": "Sync key for Kodi (copy it into the Nokturno add-on)",
+          "sync_code": "Group code from Kodi (only when Kodi outside the home network syncs via the dashboard)",
           "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)",
           "dav1_url": "Storage 1 — folder address (WebDAV)",
           "dav1_username": "Storage 1 — username",
@@ -72,7 +73,8 @@
       "ws_network": "WebShare did not answer, try again later.",
       "cz_pending": "PIN not confirmed yet — enter it at cztor.com/activate and press Submit again.",
       "cz_failed": "PIN expired or pairing failed — a new PIN is shown, try again.",
-      "cz_network": "CZtor server did not respond. Try again later."
+      "cz_network": "CZtor server did not respond. Try again later.",
+      "sync_code": "The group code does not look right — copy it from Kodi, format NKT-XXXX-XXXX-XXXX-XXXX."
     },
     "abort": {
       "already_configured": "Nokturno is already set up.",
@@ -114,6 +116,7 @@
           "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)",
           "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
           "sync_key": "Sync key for Kodi (copy it into the Nokturno add-on)",
+          "sync_code": "Group code from Kodi (only when Kodi outside the home network syncs via the dashboard)",
           "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)",
           "dav1_url": "Storage 1 — folder address (WebDAV)",
           "dav1_username": "Storage 1 — username",

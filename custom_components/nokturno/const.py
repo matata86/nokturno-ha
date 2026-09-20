@@ -17,6 +17,11 @@ CONF_TRAKT_SECRET = "trakt_client_secret"
 CONF_SUB_WARN_DAYS = "sub_warn_days"   # kolik dní předem upozornit na konec předplatného WebShare
 CONF_STATS_ENABLED = "stats_enabled"
 CONF_SYNC_KEY = "sync_key"   # klíč, kterým se Kodi doplňky hlásí na /api/nokturno/sync
+# Kód skupiny na slepém relayi dashboardu (`lib/syncbox.py`). Vyplněný znamená, že
+# do skupiny chodí i samo HA — Kodi mimo domácí síť (mobil) na `/api/nokturno/sync`
+# nedosáhne, ale na dashboard ano, a HA jejich změny přebere a rozešle dál.
+CONF_SYNC_CODE = "sync_code"
+SYNC_RELAY_INTERVAL_MINUTES = 5
 
 SUB_CHECK_INTERVAL_HOURS = 12
 STATS_INTERVAL_HOURS = 6

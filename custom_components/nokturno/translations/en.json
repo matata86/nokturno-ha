@@ -650,6 +650,9 @@
       },
       "trakt": {
         "name": "To watch"
+      },
+      "sources": {
+        "name": "Source status"
       }
     }
   }

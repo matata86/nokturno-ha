@@ -61,8 +61,11 @@ CONTINUE_CACHE_KEY = "continue_cache"
 SIGNAL_DOWNLOADS = f"{DOMAIN}_downloads_updated"
 SIGNAL_WATCHLIST = f"{DOMAIN}_watchlist_updated"
 SIGNAL_TRAKT = f"{DOMAIN}_trakt_updated"
+SIGNAL_ACCOUNTS = f"{DOMAIN}_accounts_updated"
 EVENT_DOWNLOAD_DONE = f"{DOMAIN}_download_done"
 EVENT_NEW_EPISODE = f"{DOMAIN}_new_episode"
 EVENT_TRAKT_AVAILABLE = f"{DOMAIN}_trakt_available"
 WATCH_INTERVAL_HOURS = 6
+# pod `accounts.TTL` (12 h), ať v senzoru nestojí stav označený jako zastaralý
+ACCOUNTS_INTERVAL_HOURS = 6
 TRAKT_INTERVAL_HOURS = 24

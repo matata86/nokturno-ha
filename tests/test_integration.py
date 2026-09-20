@@ -328,7 +328,7 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
             self.assertEqual(set(body.get("fields", {})), pole, f"pole služby {name} vs. YAML")
         for lang in ("cs", "sk"):
             preklad = json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8"))
-            self.assertEqual(set(preklad["entity"]["sensor"]), {"downloads", "new_episodes", "trakt"})
+            self.assertEqual(set(preklad["entity"]["sensor"]), {"downloads", "new_episodes", "trakt", "sources"})
 
     def test_senzory_maji_prekladove_klice(self):
         sensor = (COMPONENT / "sensor.py").read_text(encoding="utf-8")
@@ -609,3 +609,69 @@ class TestAudit615(unittest.TestCase):
         self.assertIn("user.is_admin", usek)
         self.assertIn("raise Unauthorized", usek)
         self.assertIn("if not user_id:", usek, "volání z automatizace nemá user_id a musí projít")
+
+
+class TestSenzorStavuZdroju(unittest.TestCase):
+    """Senzor se stavem účtů (nápad 17 z auditu 2026-09-19).
+
+    Stejná data, jakými Kodi kreslí první položku menu — `lib/accounts.py`.
+    Hlídá se hlavně to, že se čte jen uložený záznam: kdyby se senzor ptal
+    zdrojů sám, dělal by to ve smyčce událostí HA.
+    """
+
+    class Engine:
+        def __init__(self, saved, sources):
+            self.store = self
+            self._saved, self._sources = saved, sources
+
+        def load(self, key, default=None):
+            return self._saved if key == "accounts" else default
+
+        def sources(self):
+            return self._sources
+
+        def refresh_accounts(self, **kw):
+            raise AssertionError("senzor se nesmí ptát po síti")
+
+    def _senzor(self, saved, sources):
+        senzor = nokturno_sensor.NokturnoSourcesSensor.__new__(
+            nokturno_sensor.NokturnoSourcesSensor)
+        senzor._engine = self.Engine(saved, sources)
+        return senzor
+
+    def test_bez_problemu_je_hodnota_nula(self):
+        import time
+        saved = {"webshare": {"level": "ok", "code": "vip", "detail": {"days": 40}, "ts": time.time()}}
+        senzor = self._senzor(saved, {"webshare": True})
+        self.assertEqual(senzor.native_value, 0)
+
+    def test_hodnota_je_pocet_zdroju_k_reseni(self):
+        import time
+        now = time.time()
+        saved = {"webshare": {"level": "fail", "code": "expired", "detail": {}, "ts": now},
+                 "hellspy": {"level": "warn", "code": "paused", "detail": {"minutes": 8}, "ts": now},
+                 "luna": {"level": "ok", "code": "ok", "detail": {}, "ts": now}}
+        senzor = self._senzor(saved, {"webshare": True, "hellspy": True, "luna": True})
+        self.assertEqual(senzor.native_value, 2)
+        self.assertEqual(senzor.extra_state_attributes["problems"], ["webshare", "hellspy"])
+
+    def test_atributy_nesou_kod_i_cisla_ne_hotovou_vetu(self):
+        """Text si skládá každá větev sama — Kodi ho potřebuje na jeden řádek."""
+        import time
+        saved = {"webshare": {"level": "warn", "code": "expires_soon",
+                              "detail": {"days": 3, "until": "2026-09-23"}, "ts": time.time()}}
+        radek = self._senzor(saved, {"webshare": True}).extra_state_attributes["sources"][0]
+        self.assertEqual(radek["code"], "expires_soon")
+        self.assertEqual(radek["detail"]["days"], 3)
+
+    def test_vypnute_zdroje_v_atributech_nejsou(self):
+        senzor = self._senzor({}, {"webshare": False, "hellspy": False})
+        self.assertEqual(senzor.extra_state_attributes["sources"], [])
+
+    def test_atributy_nejdou_do_recorderu(self):
+        """Seznam zdrojů se mění každých 6 hodin a v historii k ničemu není."""
+        self.assertIn("sources", nokturno_sensor.NokturnoSourcesSensor._unrecorded_attributes)
+
+    def test_obnova_bezi_pod_platnosti_zaznamu(self):
+        from custom_components.nokturno.lib import accounts as accounts_lib
+        self.assertLess(const.ACCOUNTS_INTERVAL_HOURS * 3600, accounts_lib.TTL)

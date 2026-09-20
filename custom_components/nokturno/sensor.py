@@ -11,7 +11,9 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
-from .const import CONTINUE_CACHE_KEY, DOMAIN, SIGNAL_DOWNLOADS, SIGNAL_TRAKT, SIGNAL_WATCHLIST
+from .const import (CONTINUE_CACHE_KEY, DOMAIN, SIGNAL_ACCOUNTS, SIGNAL_DOWNLOADS, SIGNAL_TRAKT,
+                    SIGNAL_WATCHLIST)
+from .lib import accounts as accounts_lib
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
@@ -20,6 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entitie
         NokturnoDownloadsSensor(entry, data["downloader"], data.get("owners") or {}, data["engine"]),
         NokturnoEpisodesSensor(entry, data["engine"]),
         NokturnoTraktSensor(entry, data["engine"]),
+        NokturnoSourcesSensor(entry, data["engine"]),
     ])
 
 
@@ -237,3 +240,57 @@ class NokturnoTraktSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         return {"total": len(self._items), "items": self._items[:60], "favourites": self._favourites[:60]}
+
+
+class NokturnoSourcesSensor(SensorEntity):
+    """Stav účtů napříč zdroji — kolik jich potřebuje zásah, detail v atributech.
+
+    Stejná data, jakými si Kodi kreslí první položku menu (`lib/accounts.py`):
+    vypršelé předplatné WebShare, pauza HellSpy po 429, Luna, která neběží, účet
+    bez Premium. Věta se skládá až tady — jádro dává kód příčiny a čísla, protože
+    Kodi je potřebuje krátké do jednoho řádku a tohle je chce v atributech.
+
+    Hodnota se **nikdy nepočítá po síti**: stav zjišťuje časovač v `__init__.py`
+    a tenhle senzor čte jen uložený záznam, aby čtení atributů nezdrželo smyčku
+    událostí HA.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "sources"
+    _attr_icon = "mdi:server-network"
+    _attr_should_poll = False
+    _attr_native_unit_of_measurement = "zdrojů"
+    _unrecorded_attributes = frozenset({"sources", "problems"})
+
+    def __init__(self, entry: ConfigEntry, engine):
+        self._engine = engine
+        self._attr_unique_id = f"{entry.entry_id}_sources"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            async_dispatcher_connect(self.hass, SIGNAL_ACCOUNTS, self._updated)
+        )
+
+    @callback
+    def _updated(self) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def _rows(self) -> list[dict]:
+        saved = self._engine.store.load(accounts_lib.STORE, {}) or {}
+        return accounts_lib.compose(saved, self._engine.sources())
+
+    @property
+    def native_value(self) -> int:
+        """Kolik zdrojů potřebuje zásah — 0 znamená, že je všechno v pořádku."""
+        return len(accounts_lib.problems(self._rows))
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        rows = self._rows
+        return {
+            "sources": [{k: row[k] for k in ("source", "level", "code", "detail", "stale")}
+                        for row in rows if row["code"] != "off"],
+            "problems": [row["source"] for row in accounts_lib.problems(rows)],
+        }

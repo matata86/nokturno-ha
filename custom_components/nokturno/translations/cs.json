@@ -650,6 +650,9 @@
       },
       "trakt": {
         "name": "Hlídané"
+      },
+      "sources": {
+        "name": "Stav zdrojů"
       }
     }
   }

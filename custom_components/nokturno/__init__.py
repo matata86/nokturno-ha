@@ -16,6 +16,7 @@ import re
 import secrets
 import time
 import urllib.parse
+from functools import partial
 from datetime import date, timedelta
 
 import voluptuous as vol
@@ -38,6 +39,7 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.loader import async_get_integration
 
 from .const import (
+    ACCOUNTS_INTERVAL_HOURS,
     CONF_DOWNLOAD_DIR,
     CONF_EXTERNAL_HOST,
     CONTINUE_CACHE_KEY,
@@ -84,6 +86,7 @@ from .const import (
     SERVICE_SEND_LINK,
     SERVICE_STREAMS,
     SERVICE_WATCH,
+    SIGNAL_ACCOUNTS,
     SIGNAL_DOWNLOADS,
     SIGNAL_TRAKT,
     SIGNAL_WATCHLIST,
@@ -95,6 +98,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .downloader import Downloader
+from .lib import accounts as accounts_lib
 from .lib.enrich import _capped
 from .lib.source_errors import summarize as summarize_failures
 from .lib.stats import COLLECT_URL, Stats
@@ -1498,8 +1502,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 await hass.async_add_executor_job(engine.store.save, "substate", {"last_warned": today})
         async_dispatcher_send(hass, SIGNAL_DOWNLOADS)
 
+    async def refresh_accounts(_now=None):
+        """Stav účtů napříč zdroji pro senzor — jeden dotaz na zdroj, HellSpy žádný
+        (jen si přečte svou pauzu po 429; právě opakovanými dotazy si doplněk dvakrát
+        přivodil blokaci, viz 6.0.2 a 6.0.4). Kontrola předplatného WebShare je teď
+        jedním ze sedmi zdrojů v téhle obnově, ne vlastní dotaz navíc."""
+        warn_days = int(options.get(CONF_SUB_WARN_DAYS, 5) or 0) or accounts_lib.WARN_DAYS
+        try:
+            await hass.async_add_executor_job(
+                partial(engine.refresh_accounts, warn_days=warn_days))
+        except Exception as err:  # noqa: BLE001 – obnova na pozadí nesmí shodit integraci
+            _LOGGER.debug("stav zdrojů se nepodařilo obnovit: %s", err)
+        async_dispatcher_send(hass, SIGNAL_ACCOUNTS)
+
     entry.async_on_unload(async_track_time_interval(hass, check_subscription, timedelta(hours=SUB_CHECK_INTERVAL_HOURS)))
     entry.async_on_unload(async_at_started(hass, check_subscription))
+    entry.async_on_unload(async_track_time_interval(hass, refresh_accounts,
+                                                    timedelta(hours=ACCOUNTS_INTERVAL_HOURS)))
+    entry.async_on_unload(async_at_started(hass, refresh_accounts))
     entry.async_on_unload(async_track_time_interval(hass, poll_torrents, timedelta(seconds=5)))
     entry.async_on_unload(async_track_time_interval(hass, check_series, timedelta(hours=WATCH_INTERVAL_HOURS)))
     entry.async_on_unload(async_track_time_interval(hass, check_trakt, timedelta(hours=TRAKT_INTERVAL_HOURS)))

@@ -31,7 +31,8 @@ from .lib.sosac_api import SosacError, names_match
 from .lib.sosac_api import is_sosac_id as _is_legacy_sosac_id
 from .lib.sosac_direct import SosacDirect, is_direct_id
 from .lib.store import Store
-from .lib.streams import arrange, estimate_rank, expand_groups, fold, group_streams, langs_from_name, parse_stream, stream_hdr
+from .lib.streams import (arrange, assume_origin_language, estimate_rank, expand_groups, fold, group_streams,
+                            langs_from_name, parse_stream, stream_hdr)
 from .lib.tracks import SUBTITLE_FALLBACK
 from .lib.hellspy_api import HellspyApi, HellspyError, HellspyRateLimited
 from .lib.sledujteto_api import SledujtetoApi, SledujtetoError
@@ -2654,6 +2655,8 @@ class Engine:
         with_audio = self._fill_audio(ranked, tick, on_count, on_audio_progress, background=alts) \
             if probe_audio else ranked
         timings["hlavičky"] = since(mark)
+        if probe_audio:
+            assume_origin_language(with_audio, (meta or {}).get("country"))
         ordered = self._finish(sort, with_audio, video or meta)
         if on_progress and done[0] < total:
             done[0] = total

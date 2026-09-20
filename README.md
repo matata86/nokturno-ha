@@ -9,7 +9,7 @@
 
 První tlačítko otevře repozitář rovnou v HACS tvojí instance, druhé spustí průvodce nastavením integrace.
 
-Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy**, **Sledujteto** a **FastShare** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu.
+Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy**, **Sledujteto**, **FastShare** a **CZtor** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu.
 
 > **Patří k sobě:** stejné zdroje nabízí i [**Nokturno pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování") a [**Nokturno pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Streamovací server Luna jde provozovat jako [addon HA](https://github.com/matata86/ha-addons).
 
@@ -32,6 +32,8 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy
 ## Co to umí
 
 - **Jedno hledání ve všech zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz: Luna, přímý fulltext WebShare (víc variant dotazu, aby neunikly soubory, které Lunin jeden dotaz mine) i Sosáč. Stejný soubor nalezený víc cestami se ukáže jednou. U každého streamu je zdroj, kvalita, název souboru, jazyky zvuku i titulků a velikost.
+- **CZtor jako sedmý zdroj** (od 6.0.0) — placený katalog cztor.com. Zapneš přepínačem v nastavení integrace a spáruješ ho PINem z `cztor.com/activate`; heslo integrace nevidí.
+- **Stav zdrojů** (od 6.3.2) — `sensor.nokturno_stav_zdroju` počítá zdroje, které potřebují zásah (vypršelé předplatné, nespárovaný CZtor, Luna, která neběží…); `0` = vše v pořádku.
 - **Vlastní úložiště** (od 3.1.1) — až tři WebDAV složky (NAS, Nextcloud, server) v nastavení integrace. Soubory, které k titulu patří, jsou v kartě mezi streamy první se zeleným štítkem. Kodi je přehraje rovnou s heslem v hlavičce, ostatní přehrávače, odkazy do mobilu i stahování jdou přes Home Assistant (podepsaný odkaz na `/api/nokturno/storage/…`, přetáčení funguje, heslo z HA neodejde). Podrobně ve [wiki](https://github.com/matata86/nokturno-ha/wiki/Nastaveni#vlastní-úložiště).
 - **Přehrání v Kodi přes doplněk Nokturno**, takže si Kodi vede „Pokračovat ve sledování" a pamatuje si pozici. Ostatní přehrávače (TV, Cast) dostanou přímé URL.
 - **Odeslání do mobilu** — notifikace s odkazem, klepnutím se spustí ve VLC (posílá se jako Android intent s typem videa, jinak by telefon soubor jen stáhl).
@@ -66,6 +68,8 @@ Kartu integrace naservíruje sama a sama si ji zapíše do zdrojů Lovelace (`/n
 
 Zkopíruj složku `custom_components/nokturno` do své konfigurace a restartuj HA.
 
+> **HACS neukazuje novou verzi?** Data ručně přidaných repozitářů obnovuje jen jednou za 48 hodin — vynuť to v HACS → Nokturno → tři tečky → **Update information**.
+
 > **Po aktualizaci** mobilní aplikaci úplně zavři a otevři znovu, ať si stáhne novou verzi karty.
 
 ## Nastavení integrace
@@ -80,6 +84,7 @@ Průvodce je jeden formulář: nahoře **účty** (vyplň jen zdroje, které chc
 | HellSpy — jen přepínač | nic, rozhraní je veřejné | další soubory k titulu z hellspy.to. Nabízí se původní soubor, ne překódování, takže velikost i kvalita v seznamu odpovídají tomu, co se přehraje. Rychlost bez účtu kolísá, naměřeno 37 až 400 Mb/s. |
 | Sledujteto — e-mail a heslo (od 3.0.0) | účet Sledujteto, k přehrání **Premium** | další soubory k titulu ze sledujteto.cz; rozlišení, kanály a kodek zvuku posílá přímo jejich API, soubor se nečte |
 | FastShare — uživatel a heslo (od 5.1.0) | účet FastShare, přehrání z **kreditu** nebo neomezeného tarifu | další soubory k titulu z fastshare.cz; hledá se i bez účtu, zvuk se dočte z hlavičky souboru (pár set kB z kreditu, jednou za 30 dní). Mimo Kodi jde soubor přes HA — přehrávač cookie z přihlášení neumí poslat |
+| CZtor — přepínač a PIN (od 6.0.0) | placený účet cztor.com | další soubory k titulu; po zapnutí se otevře krok s PINem z `cztor.com/activate`, tokeny se ukládají do `.storage/nokturno/`, heslo ne |
 | TMDB — API klíč | zdarma klíč z [themoviedb.org](https://www.themoviedb.org/signup) (ikona profilu → *Nastavení* → *API* → *Request an API Key* → *Developer* → zkopírovat **API Key (v3 auth)**) | vlastní databáze filmů a seriálů — jakmile je klíč vyplněný, katalog i hledání jedou přes TMDB **přednostně i před Lunou** (umí i český popis a obsazení, ne jen název); Luna zůstává zdrojem streamů. Bez klíče je primární Luna (je-li dostupná), jinak zdarma veřejný katalog Sosáče a nakonec Cinemeta (obojí bez popisu, nebo jen anglicky). |
 
 Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Katalog i hledání titulů fungují dokonce i úplně bez jediného vyplněného zdroje (viz [Vlastní databáze filmů a seriálů](#vlastní-databáze-filmů-a-seriálů) níž). HellSpy je zapnutý a vypíná se v předvolbách.
@@ -231,6 +236,7 @@ Každé tlačítko v kartě má bublinu, která říká, co udělá — od ští
 | `sensor.nokturno_stahovani` | počet běžících stahování | `downloads` (fronta), `files` (hotové soubory), `free_gb`, `directory`, `search_history`, `notify_targets` |
 | `sensor.nokturno_nove_dily` | kolik sledovaných seriálů má nový díl | `series` — u každého `latest` (odvysíláno), `available` (nejnovější se streamem), `new`, `checked` |
 | `sensor.nokturno_k_zhlednuti` | kolik titulů ze seznamu k zhlédnutí už má stream | `total`, `items` (id, název, rok, počet streamů, nejlepší stream) |
+| `sensor.nokturno_stav_zdroju` | počet zdrojů, které potřebují zásah (`0` = vše v pořádku) | `sources` (u každého `level`, `code`, `detail`), `problems` |
 
 ## Služby
 
@@ -266,6 +272,8 @@ Pošle odkaz do mobilu. `notify_service` (povinné, `notify.mobile_app_…`), d�
 Zruší stahování (`download_id`) / smaže stažený soubor i s jeho titulky (`path`, musí být ve složce pro stahování).
 
 ### `nokturno.share_file` ↩
+
+*`delete_file` i `share_file` smí od 6.1.6 spustit jen správce HA (volání z automatizace bez uživatele projde).*
 Vytvoří dočasný podepsaný odkaz na stažený soubor přes **veřejnou adresu HA** (Nabu Casa, když je k dispozici) a volitelně ho pošle do mobilu. `path` (povinné), `notify_service` (prázdné = cíl z nastavení), `hours` (platnost, výchozí 24).
 
 ### `nokturno.continue_watching` ↩

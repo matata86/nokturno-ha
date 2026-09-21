@@ -7,7 +7,7 @@
         "sections": {
           "prehravani": {
             "name": "Playback",
-            "description": "Where a title plays and how a stream is picked.",
+            "description": "Playback target and the rules for picking a stream.",
             "data": {
               "kodi_entity": "Default players (Kodi)",
               "pref_lang": "Preferred audio language",
@@ -17,12 +17,12 @@
               "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)"
             },
             "data_description": {
-              "kodi_entity": "Where a title plays when the service call does not name a player. You can pick several — it starts on all of them at once (TV and projector, say).",
-              "pref_lang": "Streams with this audio move to the top of the list. For Czech, Slovak subtitles count too, and the other way round. “—” = ignore language.",
-              "pref_surround": "5.1 and up ranks above stereo — ordering only, stereo is still offered.",
-              "hide_sd": "Streams below 720p never make the list. With older titles that can leave nothing.",
-              "sort_streams": "What decides the order when language and audio tie.",
-              "max_bitrate_mbps": "Bitrate ceiling — against stuttering on a slow line. 0 = unlimited."
+              "kodi_entity": "The player used when a service call does not name one. Several entities can be selected — playback starts on all of them.",
+              "pref_lang": "Streams with this audio language are listed first. For Czech, Slovak subtitles count as well, and the other way round. “—” = language is not taken into account.",
+              "pref_surround": "Surround 5.1 and above ranks above stereo. Affects ordering only; stereo streams stay in the list.",
+              "hide_sd": "Streams below 720p are left out of the list. With older titles this can leave the list empty.",
+              "sort_streams": "How streams are ordered when language and audio are the same.",
+              "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited."
             }
           },
           "zdroje": {
@@ -44,14 +44,14 @@
               "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
             },
             "data_description": {
-              "ws_password": "Stored as a hash, not as the password. An expired subscription is detected and reported by the source-status sensor.",
-              "streamuj_username": "A streamuj.tv account. Without it Sosáč only searches, it cannot play.",
-              "st_email": "Sledujteto.cz. Searching works on a free account, playback needs Premium.",
-              "fs_username": "FastShare.cz. Playback spends credit, or runs on an unlimited plan.",
-              "luna_url": "The Luna server address, usually your Home Assistant host and port 7126. You can paste the whole install address from the /setup page — the token is taken from it.",
-              "hs_enabled": "HellSpy is public and needs no account. If it starts refusing queries (HTTP 429), the integration skips it for ten minutes and searches without it.",
-              "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = never.",
-              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step — the integration never sees your account password."
+              "ws_password": "Stored as a hash, not as the password. The end of the subscription is detected automatically and reported by the source-status sensor.",
+              "streamuj_username": "A streamuj.tv account. Without it Sosáč finds titles but cannot play them.",
+              "st_email": "A Sledujteto.cz account. Search works without Premium, playback does not.",
+              "fs_username": "A FastShare.cz account. Playback is charged against credit or an unlimited plan.",
+              "luna_url": "The Luna server address — the Home Assistant host and port 7126. The whole install address from the /setup page can be pasted; the token is read from it.",
+              "hs_enabled": "HellSpy is public and needs no account. After it starts refusing queries (HTTP 429) it is skipped for ten minutes.",
+              "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = no warning.",
+              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step; the integration never receives the account password."
             }
           },
           "uloziste": {
@@ -72,8 +72,8 @@
               "dav3_name": "Storage 3 — name shown with streams"
             },
             "data_description": {
-              "dav1_url": "Address of the folder with films and shows on your NAS or Nextcloud. It has to be reachable from Home Assistant.",
-              "dav1_name": "The label shown next to streams from this storage."
+              "dav1_url": "Address of the folder with films and shows on a NAS or Nextcloud. It must be reachable from Home Assistant.",
+              "dav1_name": "The storage name shown next to its streams."
             }
           },
           "torrenty": {
@@ -88,7 +88,7 @@
             },
             "data_description": {
               "prowlarr_url": "Prowlarr aggregates torrent indexers. Without it torrents are not searched.",
-              "qbit_url": "The qBittorrent web UI address including the port (8080 by default)."
+              "qbit_url": "The qBittorrent web interface address including the port (8080 by default)."
             }
           },
           "stahovani": {
@@ -101,13 +101,13 @@
             },
             "data_description": {
               "download_dir": "A folder on the Home Assistant disk. It must exist and be writable.",
-              "external_host": "The address where HA is reachable from outside the home network (Tailscale, VPN, reverse proxy). Used in links sent to your phone.",
+              "external_host": "The address where Home Assistant is reachable from outside the home network (Tailscale, VPN, reverse proxy). Used in links sent to a phone.",
               "notify_target": "A notify service, e.g. notify.mobile_app_phone. Empty = notifications stay inside Home Assistant."
             }
           },
           "synchronizace": {
             "name": "Sync with Kodi",
-            "description": "Watched state, resume points, My list and search history shared with the Kodi add-on. There are two routes and both can run at once: Kodi on the home network talks to HA directly using the key, Kodi elsewhere (phone, cottage) goes through a group on the dashboard that HA joins with the code. The server cannot read the data — it is encrypted with a key derived from the group code.",
+            "description": "Sharing of watched titles, resume points, My list and search history with the Kodi add-on. There are two routes and both can be used at once: Kodi on the home network connects to Home Assistant directly using the key, Kodi outside the home network goes through a group on the dashboard that Home Assistant joins with the code. The data is encrypted with a key derived from the group code and the server cannot read it.",
             "data": {
               "sync_key": "Key for Kodi on the home network",
               "sync_code": "Group code (for Kodi outside the home network)",
@@ -116,11 +116,11 @@
               "sync_history": "Sync search history"
             },
             "data_description": {
-              "sync_key": "A generated key for Kodi on the home network. Copy it into the add-on under Settings → Synchronisation. Do not share it — it opens watched state and My list.",
-              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it (Settings → Synchronisation → Create group) and shows it on screen. Empty = HA stays out of the group and only syncs with Kodi on the home network.",
-              "sync_watched": "What is watched and where you left off. When off, it is neither sent nor received.",
-              "sync_favourites": "Titles added to My list — both on the card and in the add-on.",
-              "sync_history": "What you searched for. The smallest of the three, and the most personal."
+              "sync_key": "The key for Kodi on the home network; enter it in the add-on under Settings → Synchronisation. It grants access to watched titles and My list, so it belongs only on your own devices.",
+              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it under Settings → Synchronisation → Create group. An empty field means Home Assistant stays out of the group and syncs only with Kodi on the home network.",
+              "sync_watched": "The watched flag and the resume position in a film or episode. When off, it is neither sent nor received.",
+              "sync_favourites": "Titles added to My list in the card and in the add-on.",
+              "sync_history": "The queries entered when searching."
             }
           },
           "ostatni": {
@@ -133,9 +133,9 @@
               "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)"
             },
             "data_description": {
-              "tmdb_api_key": "Your own key from themoviedb.org. With it, titles and plots come faster and independently of Luna.",
-              "trakt_client_id": "From trakt.tv/oauth/applications. Watched titles are then reported to Trakt too.",
-              "stats_enabled": "Anonymous usage numbers — a random id, the version and what was played. No accounts, addresses or content. When off, only the id and version are sent."
+              "tmdb_api_key": "Your own key from themoviedb.org. Speeds up loading of titles and plots and removes the dependency on Luna.",
+              "trakt_client_id": "Credentials from trakt.tv/oauth/applications. Watched titles are then reported to Trakt as well.",
+              "stats_enabled": "Anonymous usage data — a random id, the version and the titles played. No accounts, addresses or content. When off, only the id and version are sent."
             }
           }
         }
@@ -150,7 +150,7 @@
       },
       "cztor": {
         "title": "CZtor — pairing",
-        "description": "On your phone or computer open **{url}**, log in and enter PIN **{pin}**. Then press Submit here. The account password is never entered into Home Assistant.",
+        "description": "On a phone or computer open **{url}**, sign in and enter the PIN **{pin}**. Then press Submit here. The account password is never entered into Home Assistant.",
         "data": {
           "pair": "Pair CZtor (uncheck to turn CZtor off)"
         }
@@ -159,7 +159,7 @@
     "error": {
       "ws_auth": "Wrong e-mail or password.",
       "ws_network": "WebShare did not answer, try again later.",
-      "cz_pending": "PIN not confirmed yet — enter it at cztor.com/activate and press Submit again.",
+      "cz_pending": "The PIN has not been confirmed yet — enter it at cztor.com/activate and press Submit again.",
       "cz_failed": "PIN expired or pairing failed — a new PIN is shown, try again.",
       "cz_network": "CZtor server did not respond. Try again later.",
       "sync_code": "The group code does not look right — copy it from Kodi, format NKT-XXXX-XXXX-XXXX-XXXX."
@@ -176,7 +176,7 @@
         "sections": {
           "prehravani": {
             "name": "Playback",
-            "description": "Where a title plays and how a stream is picked.",
+            "description": "Playback target and the rules for picking a stream.",
             "data": {
               "kodi_entity": "Default players (Kodi)",
               "pref_lang": "Preferred audio language",
@@ -186,12 +186,12 @@
               "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)"
             },
             "data_description": {
-              "kodi_entity": "Where a title plays when the service call does not name a player. You can pick several — it starts on all of them at once (TV and projector, say).",
-              "pref_lang": "Streams with this audio move to the top of the list. For Czech, Slovak subtitles count too, and the other way round. “—” = ignore language.",
-              "pref_surround": "5.1 and up ranks above stereo — ordering only, stereo is still offered.",
-              "hide_sd": "Streams below 720p never make the list. With older titles that can leave nothing.",
-              "sort_streams": "What decides the order when language and audio tie.",
-              "max_bitrate_mbps": "Bitrate ceiling — against stuttering on a slow line. 0 = unlimited."
+              "kodi_entity": "The player used when a service call does not name one. Several entities can be selected — playback starts on all of them.",
+              "pref_lang": "Streams with this audio language are listed first. For Czech, Slovak subtitles count as well, and the other way round. “—” = language is not taken into account.",
+              "pref_surround": "Surround 5.1 and above ranks above stereo. Affects ordering only; stereo streams stay in the list.",
+              "hide_sd": "Streams below 720p are left out of the list. With older titles this can leave the list empty.",
+              "sort_streams": "How streams are ordered when language and audio are the same.",
+              "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited."
             }
           },
           "zdroje": {
@@ -213,14 +213,14 @@
               "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
             },
             "data_description": {
-              "ws_password": "Stored as a hash, not as the password. An expired subscription is detected and reported by the source-status sensor.",
-              "streamuj_username": "A streamuj.tv account. Without it Sosáč only searches, it cannot play.",
-              "st_email": "Sledujteto.cz. Searching works on a free account, playback needs Premium.",
-              "fs_username": "FastShare.cz. Playback spends credit, or runs on an unlimited plan.",
-              "luna_url": "The Luna server address, usually your Home Assistant host and port 7126. You can paste the whole install address from the /setup page — the token is taken from it.",
-              "hs_enabled": "HellSpy is public and needs no account. If it starts refusing queries (HTTP 429), the integration skips it for ten minutes and searches without it.",
-              "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = never.",
-              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step — the integration never sees your account password."
+              "ws_password": "Stored as a hash, not as the password. The end of the subscription is detected automatically and reported by the source-status sensor.",
+              "streamuj_username": "A streamuj.tv account. Without it Sosáč finds titles but cannot play them.",
+              "st_email": "A Sledujteto.cz account. Search works without Premium, playback does not.",
+              "fs_username": "A FastShare.cz account. Playback is charged against credit or an unlimited plan.",
+              "luna_url": "The Luna server address — the Home Assistant host and port 7126. The whole install address from the /setup page can be pasted; the token is read from it.",
+              "hs_enabled": "HellSpy is public and needs no account. After it starts refusing queries (HTTP 429) it is skipped for ten minutes.",
+              "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = no warning.",
+              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step; the integration never receives the account password."
             }
           },
           "uloziste": {
@@ -241,8 +241,8 @@
               "dav3_name": "Storage 3 — name shown with streams"
             },
             "data_description": {
-              "dav1_url": "Address of the folder with films and shows on your NAS or Nextcloud. It has to be reachable from Home Assistant.",
-              "dav1_name": "The label shown next to streams from this storage."
+              "dav1_url": "Address of the folder with films and shows on a NAS or Nextcloud. It must be reachable from Home Assistant.",
+              "dav1_name": "The storage name shown next to its streams."
             }
           },
           "torrenty": {
@@ -257,7 +257,7 @@
             },
             "data_description": {
               "prowlarr_url": "Prowlarr aggregates torrent indexers. Without it torrents are not searched.",
-              "qbit_url": "The qBittorrent web UI address including the port (8080 by default)."
+              "qbit_url": "The qBittorrent web interface address including the port (8080 by default)."
             }
           },
           "stahovani": {
@@ -270,13 +270,13 @@
             },
             "data_description": {
               "download_dir": "A folder on the Home Assistant disk. It must exist and be writable.",
-              "external_host": "The address where HA is reachable from outside the home network (Tailscale, VPN, reverse proxy). Used in links sent to your phone.",
+              "external_host": "The address where Home Assistant is reachable from outside the home network (Tailscale, VPN, reverse proxy). Used in links sent to a phone.",
               "notify_target": "A notify service, e.g. notify.mobile_app_phone. Empty = notifications stay inside Home Assistant."
             }
           },
           "synchronizace": {
             "name": "Sync with Kodi",
-            "description": "Watched state, resume points, My list and search history shared with the Kodi add-on. There are two routes and both can run at once: Kodi on the home network talks to HA directly using the key, Kodi elsewhere (phone, cottage) goes through a group on the dashboard that HA joins with the code. The server cannot read the data — it is encrypted with a key derived from the group code.",
+            "description": "Sharing of watched titles, resume points, My list and search history with the Kodi add-on. There are two routes and both can be used at once: Kodi on the home network connects to Home Assistant directly using the key, Kodi outside the home network goes through a group on the dashboard that Home Assistant joins with the code. The data is encrypted with a key derived from the group code and the server cannot read it.",
             "data": {
               "sync_key": "Key for Kodi on the home network",
               "sync_code": "Group code (for Kodi outside the home network)",
@@ -285,11 +285,11 @@
               "sync_history": "Sync search history"
             },
             "data_description": {
-              "sync_key": "A generated key for Kodi on the home network. Copy it into the add-on under Settings → Synchronisation. Do not share it — it opens watched state and My list.",
-              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it (Settings → Synchronisation → Create group) and shows it on screen. Empty = HA stays out of the group and only syncs with Kodi on the home network.",
-              "sync_watched": "What is watched and where you left off. When off, it is neither sent nor received.",
-              "sync_favourites": "Titles added to My list — both on the card and in the add-on.",
-              "sync_history": "What you searched for. The smallest of the three, and the most personal."
+              "sync_key": "The key for Kodi on the home network; enter it in the add-on under Settings → Synchronisation. It grants access to watched titles and My list, so it belongs only on your own devices.",
+              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it under Settings → Synchronisation → Create group. An empty field means Home Assistant stays out of the group and syncs only with Kodi on the home network.",
+              "sync_watched": "The watched flag and the resume position in a film or episode. When off, it is neither sent nor received.",
+              "sync_favourites": "Titles added to My list in the card and in the add-on.",
+              "sync_history": "The queries entered when searching."
             }
           },
           "ostatni": {
@@ -302,23 +302,23 @@
               "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)"
             },
             "data_description": {
-              "tmdb_api_key": "Your own key from themoviedb.org. With it, titles and plots come faster and independently of Luna.",
-              "trakt_client_id": "From trakt.tv/oauth/applications. Watched titles are then reported to Trakt too.",
-              "stats_enabled": "Anonymous usage numbers — a random id, the version and what was played. No accounts, addresses or content. When off, only the id and version are sent."
+              "tmdb_api_key": "Your own key from themoviedb.org. Speeds up loading of titles and plots and removes the dependency on Luna.",
+              "trakt_client_id": "Credentials from trakt.tv/oauth/applications. Watched titles are then reported to Trakt as well.",
+              "stats_enabled": "Anonymous usage data — a random id, the version and the titles played. No accounts, addresses or content. When off, only the id and version are sent."
             }
           }
         }
       },
       "cztor": {
         "title": "CZtor — pairing",
-        "description": "On your phone or computer open **{url}**, log in and enter PIN **{pin}**. Then press Submit here. The account password is never entered into Home Assistant.",
+        "description": "On a phone or computer open **{url}**, sign in and enter the PIN **{pin}**. Then press Submit here. The account password is never entered into Home Assistant.",
         "data": {
           "pair": "Pair CZtor (uncheck to turn CZtor off)"
         }
       }
     },
     "error": {
-      "cz_pending": "PIN not confirmed yet — enter it at cztor.com/activate and press Submit again.",
+      "cz_pending": "The PIN has not been confirmed yet — enter it at cztor.com/activate and press Submit again.",
       "cz_failed": "PIN expired or pairing failed — a new PIN is shown, try again.",
       "cz_network": "CZtor server did not respond. Try again later."
     }

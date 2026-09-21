@@ -13,6 +13,7 @@ import os
 import re
 import time
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -299,13 +300,42 @@ def split_episode_id(item_id):
     return str(item_id), None, None
 
 
+def _server_odpovedel(err):
+    """Odpověděl server, nebo se k němu vůbec nešlo dostat?
+
+    Klienti zdrojů balí obojí do vlastní výjimky (`WebshareError`, `SledujtetoError`…),
+    takže se typ nestačí — rozhoduje příčina v `__cause__`. `HTTPError` je odpověď
+    serveru (a je podtřídou `URLError`, proto se testuje dřív), kdežto `URLError`
+    a `OSError` znamenají DNS, timeout nebo vypnutou síť.
+    """
+    vidano = set()
+    while err is not None and id(err) not in vidano:
+        vidano.add(id(err))
+        if isinstance(err, urllib.error.HTTPError):
+            return True
+        if isinstance(err, (urllib.error.URLError, OSError)):
+            return False
+        err = err.__cause__ or err.__context__
+    return True
+
+
 def _account_fail_code(err):
     """Selhání kontroly účtu → kód. Rozlišuje „účet doplněk odmítl" od „nešlo se zeptat",
-    protože první chce zásah uživatele a druhé jen počkat."""
-    if isinstance(err, (WebshareError, SledujtetoError, FastshareError, CztorError)):
+    protože první chce zásah uživatele a druhé jen počkat.
+
+    Bez rozlišení hlásil doplněk „nesedí jméno nebo heslo" pokaždé, když obnova na
+    pozadí padla na vypnutou síť — typicky na mobilu hned po startu Kodi (nahlásil
+    uživatel 2026-09-21: v menu čtyři zdroje v chybě, „Ověřit zdroje" hned nato
+    všechny v pořádku).
+    """
+    if isinstance(err, WebshareApiError):      # WebShare odpověděl a účet odmítl
+        return "bad_login"
+    if isinstance(err, SledujtetoError) and getattr(err, "status", None):
         return "bad_login"
     if isinstance(err, StorageError):
         return "unreachable"
+    if isinstance(err, (WebshareError, SledujtetoError, FastshareError, CztorError)):
+        return "bad_login" if _server_odpovedel(err) else "unreachable"
     return "error"
 
 
@@ -648,6 +678,19 @@ class Engine:
             saved["hellspy"] = {**accounts_lib.hellspy(self.store), "ts": time.time()}
         return accounts_lib.compose(saved, self._account_sources(), ttl=ttl)
 
+    def _luna_konfigurovana(self):
+        """Má se Luna ve stavu zdrojů vůbec objevit?
+
+        Vypnutý přepínač znamená ne, i když adresa v nastavení zůstala — v Kodi
+        má výchozí hodnotu, takže bez téhle podmínky hlásil stav „běží, ale chybí
+        token" každému, kdo Lunu nikdy nezapnul (nahlášeno na `6.6.0~beta11`).
+        Větev, která přepínač neposílá (HA, Stremio), se řídí jen vyplněnými údaji
+        jako dřív.
+        """
+        if not self._opt("luna_enabled", True):
+            return False
+        return bool(self._opt("luna_token").strip() or self._opt("luna_url").strip())
+
     def _account_sources(self):
         """Které zdroje se mají ve stavu vůbec objevit.
 
@@ -659,7 +702,7 @@ class Engine:
         """
         base = self.sources()
         base["cztor"] = bool(self._opt(CONF_CZ_ENABLED, False))
-        base["luna"] = bool(self._opt("luna_token").strip() or self._opt("luna_url").strip())
+        base["luna"] = self._luna_konfigurovana()
         return base
 
     def account_problems(self, ttl=accounts_lib.TTL):
@@ -680,14 +723,16 @@ class Engine:
         Klienti se zakládají tady (bez sítě), samotné dotazy dělá až `refresh_accounts`."""
         chce = (lambda name: True) if only is None else (lambda name: name in set(only))
         checks = {}
-        if chce("luna") and (self._opt("luna_token").strip() or self._opt("luna_url").strip()):
+        if chce("luna") and self._luna_konfigurovana():
             url, token = self._opt("luna_url"), self._opt("luna_token")
             checks["luna"] = lambda: accounts_lib.luna(url, token, deep=deep)
         if chce("webshare") and self._opt("ws_username").strip():
             def ws_check():
                 api = self.ws
                 if api is None:
-                    raise WebshareError(str(self.ws_error or "přihlášení se nepovedlo"))
+                    # původní výjimka, ne její text — `_account_fail_code` z ní pozná,
+                    # jestli WebShare odmítl účet, nebo jen nebyla síť
+                    raise self.ws_error or WebshareError("přihlášení se nepovedlo")
                 return accounts_lib.webshare(api, warn_days=warn_days)
             checks["webshare"] = ws_check
         if chce("cztor") and self._opt(CONF_CZ_ENABLED, False):

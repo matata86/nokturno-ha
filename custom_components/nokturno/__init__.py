@@ -941,6 +941,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.http.register_view(NokturnoFastshareView(hass))
         hass.data[f"{DOMAIN}_sync_view"] = True
     options = {**entry.data, **entry.options}
+    # hlavičky souborů ze společné cache serveru (`Engine._media_hints`) — dotaz prozradí
+    # serveru identy otvíraných souborů, proto jen s povolenými statistikami, jako v Kodi
+    options["media_hints"] = bool(options.get(CONF_STATS_ENABLED, True))
     if options.get(CONF_EXTERNAL_HOST) and await async_tailscale_running(hass) is False:
         _LOGGER.warning("addon Tailscale neběží — odkazy mimo síť se nebudou přepisovat")
         options = {**options, CONF_EXTERNAL_HOST: ""}

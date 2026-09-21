@@ -42,6 +42,7 @@ from .lib.fastshare_api import FastshareApi, FastshareError, make_ref as fastsha
 from .lib.prehrajto_api import (PrehrajtoApi, PrehrajtoError, PrehrajtoRateLimited,
                                 make_ref as prehrajto_ref)
 from .lib.cztor_api import CztorApi, CztorError
+from .lib.dash_api import DashApi
 from .lib.storage_api import StorageApi, StorageError, match_texts, parse_ref
 from .lib.wikidata_api import local_titles
 from .lib.mediainfo import describe as describe_media, fetch_sized, probe as probe_media, quality_from_size
@@ -59,7 +60,12 @@ EPISODE_ANY_RE = re.compile(r"(?<![a-z0-9])s\d{1,2}\s?e\d{1,2}(?!\d)|(?<!\d)\d{1
 AUDIO_PROBE_MAX = 24          # u kolika streamů se ještě vyplatí číst hlavičku souboru
 ENRICH_PROGRESS_ESTIMATE = 10  # počáteční odhad délky enrichu, než search() zjistí skutečný počet
 AUDIO_TTL = 30 * 24 * 3600    # obsah souboru se nemění, stačí zjistit jednou
-WS_RETRY_S = 60               # po selhání loginu WebShare zkusit znovu až za minutu
+# Hlavičky souborů, které smí do společného úložiště (`Engine.shared`): jeden ident je
+# tentýž soubor pro každého. Přehraj.to a Sledujteto ne — s Premium se hraje původní
+# soubor, bez něj překódovaný (jiné rozlišení, jiná délka), ident je přitom stejný.
+# Vlastní úložiště a torrenty ne — patří jednomu uživateli a přišly z jeho adresy.
+SHARED_MEDIA = ("ws:", "hs:", "fs:", "cz:")
+WS_RETRY_S = 60              # po selhání loginu WebShare zkusit znovu až za minutu
 ORIG_MEMO_S = 300             # original_titles() se za jeden výpis počítá jednou, ne pětkrát
 ORIG_MEMO_FAIL_S = 30         # po výpadku Wikidat jen tak dlouho, aby to pokrylo jeden výpis
 SIZE_TOLERANCE = 0.25  # GB – Luna a WebShare zaokrouhlují velikost jinak
@@ -349,7 +355,7 @@ class Engine:
     """Přístup ke třem zdrojům obsahu pod jedním rozhraním."""
 
     def __init__(self, options, storage_dir, opener=None, store=None, should_stop=None,
-                 storage_limits=None, pt_api=None):
+                 storage_limits=None, pt_api=None, shared_store=None):
         """`opener`: volitelný `urllib.request.OpenerDirector` pro vlastní úložiště —
         veřejná instance jím hlídá, kam se smí připojit (viz `StorageApi`).
         `storage_limits`: stropy průchodu cizím úložištěm pro veřejnou instanci —
@@ -357,6 +363,13 @@ class Engine:
         Bez nich se prochází, dokud je co (vlastní NAS v Kodi a HA).
         `store`: už otevřené úložiště hostitele (doplněk pro Kodi má jedno pro celý
         plugin) — jinak se otevře nové v `storage_dir`.
+        `shared_store`: úložiště společné pro víc jader (Stremio: jeden proces obsluhuje
+        stovky nastavení). Jde do něj jen to, co na účtu nezávisí — metadata z TMDB,
+        Cinemety a veřejného katalogu Sosáče, hledání na HellSpy a hlavičky souborů
+        ze zdrojů, kde jeden ident znamená vždy tentýž soubor (viz `SHARED_MEDIA`).
+        Tokeny, podepsané odkazy, sloučené streamy, vlastní úložiště a zdroje, kde
+        Premium mění samotný soubor (Přehraj.to, Sledujteto), zůstávají v `store`.
+        Bez něj je společné úložiště totéž co `store` (Kodi, HA: jeden uživatel).
         `should_stop`: zavolatelné bez parametrů → True, když má jádro přestat
         (Kodi: `xbmc.Monitor().abortRequested` — Kodi při vypnutí čeká na doběhnutí
         skriptů, viz `lib/abort.py`). Dlouhé smyčky se ho ptají a vyhodí `Aborted`;
@@ -368,6 +381,7 @@ class Engine:
         ne číst — zahřívání na pozadí)."""
         self.options = dict(options)
         self.store = store or Store(storage_dir)
+        self.shared = shared_store or self.store
         self.opener = opener
         self.storage_limits = dict(storage_limits or {})
         # sdílená `PrehrajtoApi` instance (Stremio: jeden účet instance pro všechna
@@ -392,6 +406,7 @@ class Engine:
         self._osub = None
         self._storages = None
         self._cinemeta = None
+        self._dash = None
         self._sosac_db = None
         self._tmdb = None
         self._prowlarr = self._qbit = None
@@ -441,8 +456,10 @@ class Engine:
         if self._sosac is None:
             user = self._opt("streamuj_username").strip()
             if user:
+                # katalog a rejstřík jsou pro všechny stejné; odkazy na přehrání
+                # (`get-video-links`) mají v klíči hash hesla a TTL 120 s
                 self._sosac = SosacDirect(user, self._opt("streamuj_password"),
-                                          cache=self.store, index_store=self.store.index(),
+                                          cache=self.shared, index_store=self.shared.index(),
                                           should_stop=self.should_stop)
         return self._sosac
 
@@ -511,7 +528,7 @@ class Engine:
     def hs(self):
         """HellSpy nemá účet ani token — stačí přepínač v nastavení."""
         if self._hs is None and self._opt(CONF_HS_ENABLED, False):
-            self._hs = HellspyApi(cache=self.store)
+            self._hs = HellspyApi(cache=self.shared)   # bez účtu — výsledek je pro všechny stejný
         return self._hs
 
     @property
@@ -626,7 +643,7 @@ class Engine:
         vždy, i bez Luny a Sosáče. Poslední záchrana v `search()`/`meta()`, když ani
         TMDB, ani veřejný katalog Sosáče nic nenajdou (viz `sosac_db`, `tmdb`)."""
         if self._cinemeta is None:
-            self._cinemeta = CinemetaApi(cache=self.store)
+            self._cinemeta = CinemetaApi(cache=self.shared)
         return self._cinemeta
 
     @property
@@ -635,7 +652,7 @@ class Engine:
         filmů/seriálů, funguje vždy. `self.sosac` výš zůstává jen pro přihlášené
         přehrávání; katalog samotný účet nepotřebuje."""
         if self._sosac_db is None:
-            self._sosac_db = SosacDirect(cache=self.store, index_store=self.store.index(),
+            self._sosac_db = SosacDirect(cache=self.shared, index_store=self.shared.index(),
                                          should_stop=self.should_stop)
         return self._sosac_db
 
@@ -647,8 +664,16 @@ class Engine:
         if self._tmdb is None:
             key = self._opt("tmdb_api_key").strip()
             if key:
-                self._tmdb = TmdbApi(key, cache=self.store)
+                self._tmdb = TmdbApi(key, cache=self.shared)
         return self._tmdb
+
+    @property
+    def dash(self):
+        """Klient dashboardu Nokturna (společná cache hlaviček, katalogy) — nad společným
+        úložištěm, výpadek serveru si pamatuje pět minut (`dash_api.DOWN_KEY`)."""
+        if self._dash is None:
+            self._dash = DashApi(cache=self.shared)
+        return self._dash
 
     @property
     def prowlarr(self):
@@ -1038,7 +1063,7 @@ class Engine:
             # Sosáč posílá vždy mrtvý náhled, takže by enrich bez vlastní cache běžel při
             # každém hledání znovu — proto se cachuje až výsledek PO enrichi.
             data = {"pairs": [[m, alt] for m, alt in bare["pairs"]], "mixed": bare["mixed"]}
-            enrich([m for m, _alt in data["pairs"]], self.luna, self.store, ctype, on_tick=on_tick, on_count=on_count)
+            enrich([m for m, _alt in data["pairs"]], self.luna, self.shared, ctype, on_tick=on_tick, on_count=on_count)
             return data
         full = self.store.cached_if(f"searchfull:{tail}", ttl, _fetch_full, ok=ok)
         failures.extend(errors)
@@ -1140,27 +1165,27 @@ class Engine:
         kind = "series" if ctype == "series" else "movie"
         key = f"cinemeta:{kind}:{item_id}"
         try:
-            meta = self.store.cached(key, 86400, lambda: _cinemeta(kind, item_id))
+            meta = self.shared.cached(key, 86400, lambda: _cinemeta(kind, item_id))
         except Exception as err:  # noqa: BLE001
             raise NokturnoError(f"Databáze filmů neodpověděla: {err}") from err
         # Cinemeta u čerstvých titulů popis nemá — TMDB (přes Lunu) ho většinou zná, a česky
         try:
-            meta = {**meta, **{k: v for k, v in _fetch(self.luna, self.store, kind, item_id).items() if v}}
+            meta = {**meta, **{k: v for k, v in _fetch(self.luna, self.shared, kind, item_id).items() if v}}
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("detail %s: %s", item_id, err)
         year = str(meta.get("year") or meta.get("releaseInfo") or "")[:4]
         year_num = int(year) if year.isdigit() else None
         if self.luna:  # TMDB podle IMDb id zná český název („Sunday League…“ → „Okresní přebor…“)
             try:
-                by_id = self.store.cached(f"lunameta:{kind}:{item_id}", 30 * 86400,
-                                          lambda: self.luna.meta(kind, item_id) or {})
+                by_id = self.shared.cached(f"lunameta:{kind}:{item_id}", 30 * 86400,
+                                           lambda: self.luna.meta(kind, item_id) or {})
                 if by_id.get("name"):
                     meta = {**meta, **{k: v for k, v in by_id.items() if v}}
             except Exception as err:  # noqa: BLE001 – Luna nemusí běžet
                 _LOGGER.debug("meta z Luny %s: %s", item_id, err)
         if not meta.get("description"):  # čerstvý film — zkusit TMDB ještě podle názvu a roku
             try:
-                by_name = _fetch_title(self.luna, self.store, kind, meta.get("name") or "", year_num)
+                by_name = _fetch_title(self.luna, self.shared, kind, meta.get("name") or "", year_num)
                 meta = {**meta, **{k: v for k, v in by_name.items() if v}}
             except Exception as err:  # noqa: BLE001
                 _LOGGER.debug("detail podle názvu %s: %s", item_id, err)
@@ -1201,7 +1226,7 @@ class Engine:
                 return found
             return ""
 
-        return self.store.cached(f"lname:{kind}:{_fold(name)}:{year or ''}", 30 * 86400, load)
+        return self.shared.cached(f"lname:{kind}:{_fold(name)}:{year or ''}", 30 * 86400, load)
 
     @staticmethod
     def _summary(meta):
@@ -1278,7 +1303,7 @@ class Engine:
         meta_type = "series" if season is not None else ctype
         meta = self._meta_for(meta_type, base_id)
         if is_sosac_id(base_id):
-            enrich_one(meta, self.luna, self.store, meta_type)
+            enrich_one(meta, self.luna, self.shared, meta_type)
         video = None
         if season is not None:
             video = next((v for v in meta.get("videos") or []
@@ -1468,7 +1493,7 @@ class Engine:
                     return {"name": _cinemeta(ctype, imdb).get("name") or ""}
                 except Exception:  # noqa: BLE001
                     return {"name": ""}
-            names.append((self.store.cached(f"cmname:{ctype}:{imdb}", 30 * 86400, load) or {}).get("name", ""))
+            names.append((self.shared.cached(f"cmname:{ctype}:{imdb}", 30 * 86400, load) or {}).get("name", ""))
 
             def load_local():
                 try:
@@ -1477,7 +1502,7 @@ class Engine:
                     _LOGGER.debug("Wikidata %s: %s", imdb, err)
                     return {"ok": False, "names": []}
             # výpadek Wikidat se necachuje, jinak by titul měsíc zůstal bez českého názvu
-            local = self.store.cached_if(f"wdname:{imdb}", 30 * 86400, load_local, ok=lambda d: d.get("ok"))
+            local = self.shared.cached_if(f"wdname:{imdb}", 30 * 86400, load_local, ok=lambda d: d.get("ok"))
             wd_ok = bool((local or {}).get("ok"))
             names += (local or {}).get("names") or []
         out, seen = [], {_fold(title)}
@@ -1639,8 +1664,29 @@ class Engine:
                 return {}
         # `probe()` při selhání vrací slovník s nulami — ten se nesmí pamatovat 30 dní,
         # jinak stream po jednom timeoutu měsíc nemá zvuk ani rozlišení
-        return self.store.cached_if(f"media:{url}", AUDIO_TTL, load,
-                                    ok=lambda d: bool(d.get("audio") or d.get("height") or d.get("size"))) or {}
+        store = self.shared if url.startswith(SHARED_MEDIA) else self.store
+        return store.cached_if(f"media:{url}", AUDIO_TTL, load,
+                               ok=lambda d: bool(d.get("audio") or d.get("height") or d.get("size"))) or {}
+
+    def _media_hints(self, urls):
+        """Hlavičky souborů ze společné cache serveru (`DashApi.media`) do vlastní cache
+        pod týmž klíčem `media:<url>`, pod kterým by ležely přečtené — `_media_from_file`
+        je pak najde a soubor nečte. Jen se zapnutou volbou `media_hints` (Kodi a HA ji
+        vážou na povolené statistiky: dotaz prozradí serveru identy souborů, které
+        uživatel zrovna otvírá), jen pro `SHARED_MEDIA` (jeden ident = tentýž soubor
+        pro každého) a jen pro to, co v cache ještě není. Stremio volbu nemá — společnou
+        cache má přímo na disku, viz `shared_store`."""
+        if not self._opt("media_hints", False):
+            return
+        want = [u for u in dict.fromkeys(urls)
+                if u and u.startswith(SHARED_MEDIA) and self.shared.peek_cached(f"media:{u}", AUDIO_TTL) is None]
+        if not want:
+            return
+        t0 = time.time()
+        hits = self.dash.media(want)
+        for url, info in hits.items():
+            self.shared.cached_if(f"media:{url}", AUDIO_TTL, lambda info=info: info, fresh=True)
+        self.last_timings["hlavičky ze serveru"] = f"{len(hits)}/{len(want)} za {time.time() - t0:.1f}s"
 
     def _fastshare_unlimited(self):
         """Má účet FastShare neomezené stahování? Přihlášení se pamatuje (`FastshareApi.account`),
@@ -1700,6 +1746,8 @@ class Engine:
         # pak mají ověřené všechno, bez čekání
         rest = [self._probe_url(s) for s in ordered[limit:]] + [
             s["url"] for s in background if not s.get("_tracks") and str(s.get("url") or "").startswith(schemes)]
+        # hlavičky, které už někdo přečetl, ze serveru — jeden dotaz místo desítek čtení
+        self._media_hints([self._probe_url(s) for s in todo] + rest)
         # skutečný počet čtených hlaviček bývá výrazně nižší než limit —
         # ukazatel průběhu si podle něj dopočítá reálné 100 %, ne odhad
         if on_count:

@@ -152,6 +152,10 @@ def _zploskuj(user_input: dict) -> dict:
     return plocho
 
 
+# Jméno jazyka v něm samém — v selectu se ukazuje místo holé zkratky.
+LANG_LABELS = {"": "—", "CZ": "Čeština", "SK": "Slovenčina", "EN": "English", "HU": "Magyar"}
+
+
 def _seznam(hodnota) -> list[str]:
     """Entity přehrávače vždy jako seznam. Do 6.6.0 se ukládal jeden řetězec a
     `EntitySelector(multiple=True)` by na něm spadl."""
@@ -180,11 +184,13 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_KODI_ENTITY, default=_seznam(data.get(CONF_KODI_ENTITY))):
             selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="media_player", multiple=True)),
-        # `translation_key` je jediná cesta, jak se u hodnot selectu dostat k překladu —
-        # bez něj HA vypíše holou uloženou hodnotu („quality", „size_desc").
+        # Jazyky nesou popisek přímo (endonym), ne překlad: `translation_key` skládá
+        # klíč z uložené hodnoty a hassfest povoluje jen `[a-z0-9-_]+`, kam „CZ"
+        # ani „—" nepatří. Endonym je navíc srozumitelný v každém jazyce rozhraní.
         vol.Optional(CONF_PREF_LANG, default=data.get(CONF_PREF_LANG, "CZ")):
             selector.SelectSelector(selector.SelectSelectorConfig(
-                options=[l or "—" for l in LANGS], translation_key="pref_lang")),
+                options=[{"value": l or "—", "label": LANG_LABELS.get(l, l or "—")}
+                         for l in LANGS])),
         vol.Optional(CONF_PREF_SURROUND, default=data.get(CONF_PREF_SURROUND, False)): bool,
         vol.Optional(CONF_HIDE_SD, default=data.get(CONF_HIDE_SD, False)): bool,
         vol.Optional(CONF_MAX_BITRATE, default=data.get(CONF_MAX_BITRATE, 0)):

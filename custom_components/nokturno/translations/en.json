@@ -843,15 +843,6 @@
         "size_desc": "Largest file first",
         "size_asc": "Smallest file first"
       }
-    },
-    "pref_lang": {
-      "options": {
-        "—": "No preference",
-        "CZ": "Czech",
-        "SK": "Slovak",
-        "EN": "English",
-        "HU": "Hungarian"
-      }
     }
   }
 }

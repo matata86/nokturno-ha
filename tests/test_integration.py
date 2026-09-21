@@ -220,7 +220,8 @@ class TestNastaveni(unittest.TestCase):
         for marker in schema.schema:
             if marker.schema == const.CONF_PREF_LANG:
                 validator = schema.schema[marker]
-                self.assertIn("HU", validator.args[0].kwargs["options"])
+                volby = validator.args[0].kwargs["options"]
+                self.assertIn("HU", [v["value"] for v in volby])
                 break
         else:
             self.fail("pref_lang není ve schématu")
@@ -802,9 +803,22 @@ class TestPreklyadHodnotSelectu(unittest.TestCase):
                 return validator.args[0].kwargs.get("translation_key")
         self.fail(f"{pole} není ve schématu")
 
-    def test_selecty_maji_translation_key(self):
+    def test_razeni_ma_translation_key(self):
         self.assertEqual(self._klic(const.CONF_SORT), "sort_streams")
-        self.assertEqual(self._klic(const.CONF_PREF_LANG), "pref_lang")
+
+    def test_jazyky_nesou_popisek_primo(self):
+        """`translation_key` na ně nejde: hassfest povoluje v klíči jen `[a-z0-9-_]+`,
+        a hodnoty jsou „CZ" a „—". Popisek je endonym přímo ve schématu."""
+        schema = config_flow.preferences_schema({})
+        for marker, validator in schema.schema.items():
+            if marker.schema == const.CONF_PREF_LANG:
+                volby = validator.args[0].kwargs["options"]
+                self.assertEqual([v["value"] for v in volby], [l or "—" for l in const.LANGS])
+                self.assertEqual(volby[1]["label"], "Čeština")
+                self.assertIsNone(validator.args[0].kwargs.get("translation_key"))
+                break
+        else:
+            self.fail("pref_lang není ve schématu")
 
     def test_kazda_hodnota_ma_preklad(self):
         for soubor in ("strings.json", "translations/cs.json", "translations/sk.json",
@@ -813,6 +827,4 @@ class TestPreklyadHodnotSelectu(unittest.TestCase):
             selektory = d.get("selector") or {}
             self.assertEqual(set(selektory.get("sort_streams", {}).get("options", {})),
                              set(const.SORT_ORDERS), soubor)
-            ocekavane = {l or "—" for l in const.LANGS}
-            self.assertEqual(set(selektory.get("pref_lang", {}).get("options", {})),
-                             ocekavane, soubor)
+            self.assertNotIn("pref_lang", selektory, soubor)

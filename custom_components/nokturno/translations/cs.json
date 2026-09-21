@@ -843,15 +843,6 @@
         "size_desc": "Od největšího souboru",
         "size_asc": "Od nejmenšího souboru"
       }
-    },
-    "pref_lang": {
-      "options": {
-        "—": "Nerozhoduje",
-        "CZ": "Čeština",
-        "SK": "Slovenština",
-        "EN": "Angličtina",
-        "HU": "Maďarština"
-      }
     }
   }
 }

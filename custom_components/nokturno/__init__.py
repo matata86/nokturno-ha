@@ -2002,6 +2002,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # „Pokračovat ve sledování“ čte senzor z event loopu při každém přepsání stavu —
     # bez předčtení dělal první výpočet po restartu `open()` + `json.load` přímo v něm
     await hass.async_add_executor_job(engine.store.load, CONTINUE_CACHE_KEY, [])
+    # totéž pro stav zdrojů — senzor `NokturnoSourcesSensor` ho čte při `add_entities`
+    await hass.async_add_executor_job(engine.store.load, accounts_lib.STORE, {})
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True

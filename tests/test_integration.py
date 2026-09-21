@@ -627,6 +627,10 @@ class TestAudit615(unittest.TestCase):
     def test_continue_cache_se_predcita_pri_startu(self):
         self.assertIn("engine.store.load, CONTINUE_CACHE_KEY", self.src)
 
+    # accounts.json: open() v event loopu při add_entities senzoru stavu zdrojů
+    def test_accounts_se_predcitaji_pri_startu(self):
+        self.assertIn("engine.store.load, accounts_lib.STORE", self.src)
+
     # 22. přehrání podle indexu do znovu spočítaného seznamu
     def test_prehrani_bere_stream_podle_adresy(self):
         self.assertIn("posledni_streamy[url] = (ctype, item_id, series, alt, stream)", self.src)

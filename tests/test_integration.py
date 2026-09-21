@@ -755,3 +755,37 @@ class TestSynchronizaceVNastaveni(unittest.TestCase):
         preklady = json.loads((ROOT / "custom_components/nokturno/translations/cs.json").read_text("utf-8"))
         sekce = preklady["options"]["step"]["init"]["sections"]["synchronizace"]
         self.assertEqual(set(sekce["data"]), set(sekce["data_description"]))
+
+
+class TestPrekladyProHassfest(unittest.TestCase):
+    """Co hlídá `hassfest` v CI — ať to nespadne až po vydání (stalo se u 6.6.0b3)."""
+
+    SOUBORY = ("strings.json", "translations/cs.json", "translations/sk.json", "translations/en.json")
+
+    def test_zadna_napoveda_neobsahuje_adresu(self):
+        """hassfest: „the string should not contain URLs". Píše se slovní popis místo adresy."""
+        adresa = re.compile(r"https?://")
+        for soubor in self.SOUBORY:
+            d = json.loads((ROOT / "custom_components/nokturno" / soubor).read_text("utf-8"))
+            for blok, krok in (("config", "user"), ("options", "init")):
+                for jmeno, sekce in (d[blok]["step"][krok].get("sections") or {}).items():
+                    for klic, text in (sekce.get("data_description") or {}).items():
+                        self.assertIsNone(adresa.search(text),
+                                          f"{soubor}: adresa v nápovědě {jmeno}.{klic}")
+
+    def test_vsechny_jazyky_maji_stejnou_strukturu(self):
+        """Rozejít se smí text, ne klíče — jinak část formuláře ztratí popisky."""
+        vzor = None
+        for soubor in self.SOUBORY:
+            d = json.loads((ROOT / "custom_components/nokturno" / soubor).read_text("utf-8"))
+            tvar = {
+                f"{blok}.{sekce}.{druh}.{klic}"
+                for blok, krok in (("config", "user"), ("options", "init"))
+                for sekce, obsah in (d[blok]["step"][krok].get("sections") or {}).items()
+                for druh in ("data", "data_description")
+                for klic in (obsah.get(druh) or {})
+            }
+            if vzor is None:
+                vzor, prvni = tvar, soubor
+            else:
+                self.assertEqual(tvar, vzor, f"{soubor} se liší od {prvni}")

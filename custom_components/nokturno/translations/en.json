@@ -48,7 +48,7 @@
               "streamuj_username": "A streamuj.tv account. Without it Sosáč only searches, it cannot play.",
               "st_email": "Sledujteto.cz. Searching works on a free account, playback needs Premium.",
               "fs_username": "FastShare.cz. Playback spends credit, or runs on an unlimited plan.",
-              "luna_url": "Luna server address, usually http://homeassistant.local:7126. You can paste the whole install URL from /setup — the token is taken from it.",
+              "luna_url": "The Luna server address, usually your Home Assistant host and port 7126. You can paste the whole install address from the /setup page — the token is taken from it.",
               "hs_enabled": "HellSpy is public and needs no account. If it starts refusing queries (HTTP 429), the integration skips it for ten minutes and searches without it.",
               "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = never.",
               "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step — the integration never sees your account password."
@@ -72,7 +72,7 @@
               "dav3_name": "Storage 3 — name shown with streams"
             },
             "data_description": {
-              "dav1_url": "Address of the folder with films and shows, e.g. https://nas.home/dav/films/. It has to be reachable from Home Assistant.",
+              "dav1_url": "Address of the folder with films and shows on your NAS or Nextcloud. It has to be reachable from Home Assistant.",
               "dav1_name": "The label shown next to streams from this storage."
             }
           },
@@ -88,7 +88,7 @@
             },
             "data_description": {
               "prowlarr_url": "Prowlarr aggregates torrent indexers. Without it torrents are not searched.",
-              "qbit_url": "The qBittorrent web UI address, e.g. http://192.168.1.10:8080."
+              "qbit_url": "The qBittorrent web UI address including the port (8080 by default)."
             }
           },
           "stahovani": {
@@ -217,7 +217,7 @@
               "streamuj_username": "A streamuj.tv account. Without it Sosáč only searches, it cannot play.",
               "st_email": "Sledujteto.cz. Searching works on a free account, playback needs Premium.",
               "fs_username": "FastShare.cz. Playback spends credit, or runs on an unlimited plan.",
-              "luna_url": "Luna server address, usually http://homeassistant.local:7126. You can paste the whole install URL from /setup — the token is taken from it.",
+              "luna_url": "The Luna server address, usually your Home Assistant host and port 7126. You can paste the whole install address from the /setup page — the token is taken from it.",
               "hs_enabled": "HellSpy is public and needs no account. If it starts refusing queries (HTTP 429), the integration skips it for ten minutes and searches without it.",
               "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = never.",
               "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step — the integration never sees your account password."
@@ -241,7 +241,7 @@
               "dav3_name": "Storage 3 — name shown with streams"
             },
             "data_description": {
-              "dav1_url": "Address of the folder with films and shows, e.g. https://nas.home/dav/films/. It has to be reachable from Home Assistant.",
+              "dav1_url": "Address of the folder with films and shows on your NAS or Nextcloud. It has to be reachable from Home Assistant.",
               "dav1_name": "The label shown next to streams from this storage."
             }
           },
@@ -257,7 +257,7 @@
             },
             "data_description": {
               "prowlarr_url": "Prowlarr aggregates torrent indexers. Without it torrents are not searched.",
-              "qbit_url": "The qBittorrent web UI address, e.g. http://192.168.1.10:8080."
+              "qbit_url": "The qBittorrent web UI address including the port (8080 by default)."
             }
           },
           "stahovani": {

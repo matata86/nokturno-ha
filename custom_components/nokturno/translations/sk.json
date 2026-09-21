@@ -48,7 +48,7 @@
               "streamuj_username": "Účet streamuj.tv. Bez neho Sosáč len hľadá, ale neprehrá.",
               "st_email": "Sledujteto.cz. Hľadanie zvládne aj zadarmo, prehrávanie chce Premium.",
               "fs_username": "FastShare.cz. Prehranie uberá z kreditu, alebo ide z neobmedzeného tarifu.",
-              "luna_url": "Adresa servera Luny, obvykle http://homeassistant.local:7126. Dá sa vložiť aj celá inštalačná adresa zo /setup — token sa z nej vytiahne sám.",
+              "luna_url": "Adresa servera Luny, obvykle meno Home Assistantu a port 7126. Dá sa vložiť aj celá inštalačná adresa zo stránky /setup — token sa z nej vytiahne sám.",
               "hs_enabled": "HellSpy je verejný a účet nepotrebuje. Keď odmietne dotazy (HTTP 429), integrácia ho na desať minút vynechá a hľadá ďalej bez neho.",
               "sub_warn_days": "Koľko dní pred koncom predplatného WebShare príde upozornenie. 0 = nehlásiť.",
               "cz_enabled": "Platený katalóg cztor.com. Zapnutie otvorí krok s PINom — heslo k účtu integrácia nikdy nevidí."
@@ -72,7 +72,7 @@
               "dav3_name": "Úložisko 3 — názov pri streamoch"
             },
             "data_description": {
-              "dav1_url": "Adresa priečinka s filmami a seriálmi, napríklad https://nas.doma/dav/filmy/. Musí byť dosiahnuteľná z Home Assistantu.",
+              "dav1_url": "Adresa priečinka s filmami a seriálmi na NAS alebo v Nextcloude. Musí byť dosiahnuteľná z Home Assistantu.",
               "dav1_name": "Ako sa úložisko pomenuje pri streamoch — nech spoznáš, čo je z domu."
             }
           },
@@ -88,7 +88,7 @@
             },
             "data_description": {
               "prowlarr_url": "Prowlarr združuje torrentové indexery. Bez neho sa torrenty nehľadajú.",
-              "qbit_url": "Adresa web UI qBittorrentu, napríklad http://192.168.1.10:8080."
+              "qbit_url": "Adresa web UI qBittorrentu aj s portom (predvolený 8080)."
             }
           },
           "stahovani": {
@@ -217,7 +217,7 @@
               "streamuj_username": "Účet streamuj.tv. Bez neho Sosáč len hľadá, ale neprehrá.",
               "st_email": "Sledujteto.cz. Hľadanie zvládne aj zadarmo, prehrávanie chce Premium.",
               "fs_username": "FastShare.cz. Prehranie uberá z kreditu, alebo ide z neobmedzeného tarifu.",
-              "luna_url": "Adresa servera Luny, obvykle http://homeassistant.local:7126. Dá sa vložiť aj celá inštalačná adresa zo /setup — token sa z nej vytiahne sám.",
+              "luna_url": "Adresa servera Luny, obvykle meno Home Assistantu a port 7126. Dá sa vložiť aj celá inštalačná adresa zo stránky /setup — token sa z nej vytiahne sám.",
               "hs_enabled": "HellSpy je verejný a účet nepotrebuje. Keď odmietne dotazy (HTTP 429), integrácia ho na desať minút vynechá a hľadá ďalej bez neho.",
               "sub_warn_days": "Koľko dní pred koncom predplatného WebShare príde upozornenie. 0 = nehlásiť.",
               "cz_enabled": "Platený katalóg cztor.com. Zapnutie otvorí krok s PINom — heslo k účtu integrácia nikdy nevidí."
@@ -241,7 +241,7 @@
               "dav3_name": "Úložisko 3 — názov pri streamoch"
             },
             "data_description": {
-              "dav1_url": "Adresa priečinka s filmami a seriálmi, napríklad https://nas.doma/dav/filmy/. Musí byť dosiahnuteľná z Home Assistantu.",
+              "dav1_url": "Adresa priečinka s filmami a seriálmi na NAS alebo v Nextcloude. Musí byť dosiahnuteľná z Home Assistantu.",
               "dav1_name": "Ako sa úložisko pomenuje pri streamoch — nech spoznáš, čo je z domu."
             }
           },
@@ -257,7 +257,7 @@
             },
             "data_description": {
               "prowlarr_url": "Prowlarr združuje torrentové indexery. Bez neho sa torrenty nehľadajú.",
-              "qbit_url": "Adresa web UI qBittorrentu, napríklad http://192.168.1.10:8080."
+              "qbit_url": "Adresa web UI qBittorrentu aj s portom (predvolený 8080)."
             }
           },
           "stahovani": {

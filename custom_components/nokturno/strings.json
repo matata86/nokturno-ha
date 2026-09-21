@@ -834,5 +834,24 @@
         "name": "Source status"
       }
     }
+  },
+  "selector": {
+    "sort_streams": {
+      "options": {
+        "source": "As the source returns them",
+        "quality": "Best quality first",
+        "size_desc": "Largest file first",
+        "size_asc": "Smallest file first"
+      }
+    },
+    "pref_lang": {
+      "options": {
+        "—": "No preference",
+        "CZ": "Czech",
+        "SK": "Slovak",
+        "EN": "English",
+        "HU": "Hungarian"
+      }
+    }
   }
 }

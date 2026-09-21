@@ -180,14 +180,18 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_KODI_ENTITY, default=_seznam(data.get(CONF_KODI_ENTITY))):
             selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="media_player", multiple=True)),
+        # `translation_key` je jediná cesta, jak se u hodnot selectu dostat k překladu —
+        # bez něj HA vypíše holou uloženou hodnotu („quality", „size_desc").
         vol.Optional(CONF_PREF_LANG, default=data.get(CONF_PREF_LANG, "CZ")):
-            selector.SelectSelector(selector.SelectSelectorConfig(options=[l or "—" for l in LANGS])),
+            selector.SelectSelector(selector.SelectSelectorConfig(
+                options=[l or "—" for l in LANGS], translation_key="pref_lang")),
         vol.Optional(CONF_PREF_SURROUND, default=data.get(CONF_PREF_SURROUND, False)): bool,
         vol.Optional(CONF_HIDE_SD, default=data.get(CONF_HIDE_SD, False)): bool,
         vol.Optional(CONF_MAX_BITRATE, default=data.get(CONF_MAX_BITRATE, 0)):
             vol.All(vol.Coerce(float), vol.Range(min=0, max=2000)),
         vol.Optional(CONF_SORT, default=data.get(CONF_SORT, DEFAULT_SORT)):
-            selector.SelectSelector(selector.SelectSelectorConfig(options=SORT_ORDERS)),
+            selector.SelectSelector(selector.SelectSelectorConfig(
+                options=SORT_ORDERS, translation_key="sort_streams")),
         vol.Optional(CONF_DOWNLOAD_DIR, default=data.get(CONF_DOWNLOAD_DIR, DEFAULT_DOWNLOAD_DIR)): str,
         vol.Optional(CONF_EXTERNAL_HOST, default=data.get(CONF_EXTERNAL_HOST, "")): str,
         vol.Optional(CONF_NOTIFY_TARGET, default=data.get(CONF_NOTIFY_TARGET, "")): str,

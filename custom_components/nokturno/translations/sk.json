@@ -834,5 +834,24 @@
         "name": "Stav zdrojov"
       }
     }
+  },
+  "selector": {
+    "sort_streams": {
+      "options": {
+        "source": "Poradie od zdroja",
+        "quality": "Najlepšia kvalita napred",
+        "size_desc": "Od najväčšieho súboru",
+        "size_asc": "Od najmenšieho súboru"
+      }
+    },
+    "pref_lang": {
+      "options": {
+        "—": "Nerozhoduje",
+        "CZ": "Čeština",
+        "SK": "Slovenčina",
+        "EN": "Angličtina",
+        "HU": "Maďarčina"
+      }
+    }
   }
 }

@@ -789,3 +789,30 @@ class TestPrekladyProHassfest(unittest.TestCase):
                 vzor, prvni = tvar, soubor
             else:
                 self.assertEqual(tvar, vzor, f"{soubor} se liší od {prvni}")
+
+
+class TestPreklyadHodnotSelectu(unittest.TestCase):
+    """Hodnoty selectu se přeloží jen přes `translation_key` — jinak HA vypíše
+    uloženou hodnotu tak, jak je („quality", „size_desc")."""
+
+    def _klic(self, pole):
+        schema = config_flow.preferences_schema({})
+        for marker, validator in schema.schema.items():
+            if marker.schema == pole:
+                return validator.args[0].kwargs.get("translation_key")
+        self.fail(f"{pole} není ve schématu")
+
+    def test_selecty_maji_translation_key(self):
+        self.assertEqual(self._klic(const.CONF_SORT), "sort_streams")
+        self.assertEqual(self._klic(const.CONF_PREF_LANG), "pref_lang")
+
+    def test_kazda_hodnota_ma_preklad(self):
+        for soubor in ("strings.json", "translations/cs.json", "translations/sk.json",
+                       "translations/en.json"):
+            d = json.loads((ROOT / "custom_components/nokturno" / soubor).read_text("utf-8"))
+            selektory = d.get("selector") or {}
+            self.assertEqual(set(selektory.get("sort_streams", {}).get("options", {})),
+                             set(const.SORT_ORDERS), soubor)
+            ocekavane = {l or "—" for l in const.LANGS}
+            self.assertEqual(set(selektory.get("pref_lang", {}).get("options", {})),
+                             ocekavane, soubor)

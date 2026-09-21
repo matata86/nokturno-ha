@@ -7,19 +7,27 @@
         "sections": {
           "prehravani": {
             "name": "Prehrávanie",
-            "description": "Kde sa hrá a ako sa vyberá stream.",
+            "description": "Kam sa titul pustí a ako sa z ponuky vyberá stream.",
             "data": {
-              "kodi_entity": "Predvolený prehrávač (Kodi)",
+              "kodi_entity": "Predvolené prehrávače (Kodi)",
               "pref_lang": "Preferovaný jazyk zvuku",
               "pref_surround": "Preferovať priestorový zvuk (5.1 a viac)",
               "hide_sd": "Skryť SD streamy",
               "sort_streams": "Radenie streamov",
               "max_bitrate_mbps": "Max. dátový tok (Mb/s, 0 = bez obmedzenia)"
+            },
+            "data_description": {
+              "kodi_entity": "Kam sa pustí titul, keď sa pri službe neurčí prehrávač. Vybrať sa ich dá viac — pustia sa na všetkých naraz (napríklad televízor a projektor).",
+              "pref_lang": "Streamy s týmto zvukom idú v ponuke hore. Pri slovenčine sa počítajú aj české titulky a naopak. „—“ = neriešiť jazyk.",
+              "pref_surround": "5.1 a viac má prednosť pred stereom — len poradie v ponuke, stereo nezmizne.",
+              "hide_sd": "Streamy pod 720p sa do ponuky vôbec nedostanú. Pri starších tituloch sa tým môže stať, že nezostane nič.",
+              "sort_streams": "Čo rozhoduje o poradí, keď jazyk aj zvuk vyjdú narovnako.",
+              "max_bitrate_mbps": "Strop dátového toku — proti sekaniu na pomalej linke. 0 = bez obmedzenia."
             }
           },
           "zdroje": {
             "name": "Zdroje a účty",
-            "description": "Prihlásenie k jednotlivým zdrojom. Prázdne = zdroj je vypnutý.",
+            "description": "Prihlásenie k jednotlivým zdrojom. Prázdne pole = zdroj sa nepoužíva. Heslá sa ukladajú do HA a von idú len tomu zdroju, ktorému patria.",
             "data": {
               "ws_username": "WebShare — e-mail",
               "ws_password": "WebShare — heslo (alebo uložený hash)",
@@ -34,11 +42,21 @@
               "hs_enabled": "Hľadať aj na HellSpy",
               "sub_warn_days": "Upozorniť N dní pred koncom predplatného WebShare (0 = vypnuté)",
               "cz_enabled": "CZtor (predplatné na cztor.com) — spáruje sa PIN kódom v ďalšom kroku"
+            },
+            "data_description": {
+              "ws_password": "Ukladá sa ako hash, nie ako heslo. Vypršané predplatné integrácia spozná sama a povie to v senzore stavu zdrojov.",
+              "streamuj_username": "Účet streamuj.tv. Bez neho Sosáč len hľadá, ale neprehrá.",
+              "st_email": "Sledujteto.cz. Hľadanie zvládne aj zadarmo, prehrávanie chce Premium.",
+              "fs_username": "FastShare.cz. Prehranie uberá z kreditu, alebo ide z neobmedzeného tarifu.",
+              "luna_url": "Adresa servera Luny, obvykle http://homeassistant.local:7126. Dá sa vložiť aj celá inštalačná adresa zo /setup — token sa z nej vytiahne sám.",
+              "hs_enabled": "HellSpy je verejný a účet nepotrebuje. Keď odmietne dotazy (HTTP 429), integrácia ho na desať minút vynechá a hľadá ďalej bez neho.",
+              "sub_warn_days": "Koľko dní pred koncom predplatného WebShare príde upozornenie. 0 = nehlásiť.",
+              "cz_enabled": "Platený katalóg cztor.com. Zapnutie otvorí krok s PINom — heslo k účtu integrácia nikdy nevidí."
             }
           },
           "uloziste": {
             "name": "Vlastné úložisko (WebDAV)",
-            "description": "Až tri vlastné priečinky, prehľadávajú sa spolu so zdrojmi.",
+            "description": "Až tri vlastné priečinky cez WebDAV (NAS, Nextcloud). Prehľadávajú sa spolu so zdrojmi a nájdené súbory sa ponúknu ako ďalšie streamy.",
             "data": {
               "dav1_url": "Úložisko 1 — adresa priečinka (WebDAV)",
               "dav1_username": "Úložisko 1 — používateľ",
@@ -52,34 +70,57 @@
               "dav3_username": "Úložisko 3 — používateľ",
               "dav3_password": "Úložisko 3 — heslo",
               "dav3_name": "Úložisko 3 — názov pri streamoch"
+            },
+            "data_description": {
+              "dav1_url": "Adresa priečinka s filmami a seriálmi, napríklad https://nas.doma/dav/filmy/. Musí byť dosiahnuteľná z Home Assistantu.",
+              "dav1_name": "Ako sa úložisko pomenuje pri streamoch — nech spoznáš, čo je z domu."
             }
           },
           "torrenty": {
             "name": "Torrenty",
-            "description": "Nepovinné — hľadanie cez Prowlarr, sťahovanie cez qBittorrent.",
+            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent — bez nich torrenty jednoducho nie sú.",
             "data": {
               "prowlarr_url": "Prowlarr — adresa (hľadanie torrentov)",
               "prowlarr_key": "Prowlarr — API kľúč",
               "qbit_url": "qBittorrent — adresa",
               "qbit_username": "qBittorrent — meno (len keď web UI vyžaduje prihlásenie)",
               "qbit_password": "qBittorrent — heslo"
+            },
+            "data_description": {
+              "prowlarr_url": "Prowlarr združuje torrentové indexery. Bez neho sa torrenty nehľadajú.",
+              "qbit_url": "Adresa web UI qBittorrentu, napríklad http://192.168.1.10:8080."
             }
           },
           "stahovani": {
             "name": "Sťahovanie a odkazy",
-            "description": "Kam sa súbory ukladajú a kadiaľ chodia oznámenia a odkazy do mobilu.",
+            "description": "Kam sa stiahnuté súbory ukladajú a kadiaľ chodia oznámenia a odkazy do mobilu.",
             "data": {
               "download_dir": "Priečinok na sťahovanie",
               "external_host": "Adresa mimo domácej siete (Tailscale/VPN) — pre odkazy do mobilu",
               "notify_target": "Upozornenia na stiahnutie a nové diely (napr. notify.mobile_app_telefon; prázdne = upozornenie v HA)"
+            },
+            "data_description": {
+              "download_dir": "Priečinok na disku Home Assistantu. Musí existovať a byť zapisovateľný.",
+              "external_host": "Adresa, na ktorej je HA vidieť aj mimo domácej siete (Tailscale, VPN, reverzná proxy). Používa sa v odkazoch, ktoré idú do mobilu.",
+              "notify_target": "Služba oznámení, napríklad notify.mobile_app_telefon. Prázdne = oznámenia zostanú len v Home Assistantovi."
             }
           },
           "synchronizace": {
             "name": "Synchronizácia s Kodi",
-            "description": "Zhliadnuté, Môj zoznam a história hľadania zdieľané s doplnkom pre Kodi.",
+            "description": "Videné, rozpozeranosť, Môj zoznam a história hľadania zdieľané s doplnkom pre Kodi. Vedú k tomu dve cesty a dajú sa zapnúť obe naraz: Kodi v domácej sieti chodí priamo na HA pomocou kľúča, Kodi mimo nej (mobil, chata) cez skupinu na dashboarde, do ktorej sa HA prihlási kódom. Server do dát nevidí — sú zašifrované kľúčom odvodeným z kódu skupiny.",
             "data": {
-              "sync_key": "Kľúč na synchronizáciu s Kodi (opíš do doplnku Nokturno)",
-              "sync_code": "Kód skupiny z Kodi (len keď sa Kodi mimo domácej siete synchronizuje cez dashboard)"
+              "sync_key": "Kľúč pre Kodi v domácej sieti",
+              "sync_code": "Kód skupiny (pre Kodi mimo domácej siete)",
+              "sync_watched": "Synchronizovať videné a rozpozeranosť",
+              "sync_favourites": "Synchronizovať Môj zoznam",
+              "sync_history": "Synchronizovať históriu hľadania"
+            },
+            "data_description": {
+              "sync_key": "Vygenerovaný kľúč pre Kodi v domácej sieti. Opíš ho v doplnku do Nastavenia → Synchronizácia. Neposielaj ho nikomu cudziemu — otvára videné a Môj zoznam.",
+              "sync_code": "Kód skupiny v tvare NKT-XXXX-XXXX-XXXX-XXXX. Založí ho prvé Kodi (Nastavenia → Synchronizácia → Založiť skupinu) a ukáže ho na obrazovke. Prázdne = HA do skupiny nechodí a synchronizuje sa len s Kodi v domácej sieti.",
+              "sync_watched": "Čo je videné a kde si to nechal. Vypnuté sa neposiela ani neprijíma.",
+              "sync_favourites": "Tituly pridané do Môjho zoznamu — na karte aj v doplnku.",
+              "sync_history": "Čo si hľadal. Najmenší z okruhov, ale zároveň ten najosobnejší."
             }
           },
           "ostatni": {
@@ -90,6 +131,11 @@
               "trakt_client_id": "Trakt.tv — Client ID (z trakt.tv/oauth/applications)",
               "trakt_client_secret": "Trakt.tv — Client Secret",
               "stats_enabled": "Posielať anonymné štatistiky (aj vypnuté pošlú len náhodné id a verziu)"
+            },
+            "data_description": {
+              "tmdb_api_key": "Vlastný kľúč z themoviedb.org. S ním chodia slovenské a české názvy a popisy rýchlejšie a nezávisle od Luny.",
+              "trakt_client_id": "Z trakt.tv/oauth/applications. Videné sa potom hlási aj na Trakt.",
+              "stats_enabled": "Anonymné čísla o používaní — náhodné id, verzia a čo sa hralo. Žiadne účty, adresy ani obsah. Vypnuté pošle len id a verziu."
             }
           }
         }
@@ -130,19 +176,27 @@
         "sections": {
           "prehravani": {
             "name": "Prehrávanie",
-            "description": "Kde sa hrá a ako sa vyberá stream.",
+            "description": "Kam sa titul pustí a ako sa z ponuky vyberá stream.",
             "data": {
-              "kodi_entity": "Predvolený prehrávač (Kodi)",
+              "kodi_entity": "Predvolené prehrávače (Kodi)",
               "pref_lang": "Preferovaný jazyk zvuku",
               "pref_surround": "Preferovať priestorový zvuk (5.1 a viac)",
               "hide_sd": "Skryť SD streamy",
               "sort_streams": "Radenie streamov",
               "max_bitrate_mbps": "Max. dátový tok (Mb/s, 0 = bez obmedzenia)"
+            },
+            "data_description": {
+              "kodi_entity": "Kam sa pustí titul, keď sa pri službe neurčí prehrávač. Vybrať sa ich dá viac — pustia sa na všetkých naraz (napríklad televízor a projektor).",
+              "pref_lang": "Streamy s týmto zvukom idú v ponuke hore. Pri slovenčine sa počítajú aj české titulky a naopak. „—“ = neriešiť jazyk.",
+              "pref_surround": "5.1 a viac má prednosť pred stereom — len poradie v ponuke, stereo nezmizne.",
+              "hide_sd": "Streamy pod 720p sa do ponuky vôbec nedostanú. Pri starších tituloch sa tým môže stať, že nezostane nič.",
+              "sort_streams": "Čo rozhoduje o poradí, keď jazyk aj zvuk vyjdú narovnako.",
+              "max_bitrate_mbps": "Strop dátového toku — proti sekaniu na pomalej linke. 0 = bez obmedzenia."
             }
           },
           "zdroje": {
             "name": "Zdroje a účty",
-            "description": "Prihlásenie k jednotlivým zdrojom. Prázdne = zdroj je vypnutý.",
+            "description": "Prihlásenie k jednotlivým zdrojom. Prázdne pole = zdroj sa nepoužíva. Heslá sa ukladajú do HA a von idú len tomu zdroju, ktorému patria.",
             "data": {
               "ws_username": "WebShare — e-mail",
               "ws_password": "WebShare — heslo (alebo uložený hash)",
@@ -157,11 +211,21 @@
               "hs_enabled": "Hľadať aj na HellSpy",
               "sub_warn_days": "Upozorniť N dní pred koncom predplatného WebShare (0 = vypnuté)",
               "cz_enabled": "CZtor (predplatné na cztor.com) — spáruje sa PIN kódom v ďalšom kroku"
+            },
+            "data_description": {
+              "ws_password": "Ukladá sa ako hash, nie ako heslo. Vypršané predplatné integrácia spozná sama a povie to v senzore stavu zdrojov.",
+              "streamuj_username": "Účet streamuj.tv. Bez neho Sosáč len hľadá, ale neprehrá.",
+              "st_email": "Sledujteto.cz. Hľadanie zvládne aj zadarmo, prehrávanie chce Premium.",
+              "fs_username": "FastShare.cz. Prehranie uberá z kreditu, alebo ide z neobmedzeného tarifu.",
+              "luna_url": "Adresa servera Luny, obvykle http://homeassistant.local:7126. Dá sa vložiť aj celá inštalačná adresa zo /setup — token sa z nej vytiahne sám.",
+              "hs_enabled": "HellSpy je verejný a účet nepotrebuje. Keď odmietne dotazy (HTTP 429), integrácia ho na desať minút vynechá a hľadá ďalej bez neho.",
+              "sub_warn_days": "Koľko dní pred koncom predplatného WebShare príde upozornenie. 0 = nehlásiť.",
+              "cz_enabled": "Platený katalóg cztor.com. Zapnutie otvorí krok s PINom — heslo k účtu integrácia nikdy nevidí."
             }
           },
           "uloziste": {
             "name": "Vlastné úložisko (WebDAV)",
-            "description": "Až tri vlastné priečinky, prehľadávajú sa spolu so zdrojmi.",
+            "description": "Až tri vlastné priečinky cez WebDAV (NAS, Nextcloud). Prehľadávajú sa spolu so zdrojmi a nájdené súbory sa ponúknu ako ďalšie streamy.",
             "data": {
               "dav1_url": "Úložisko 1 — adresa priečinka (WebDAV)",
               "dav1_username": "Úložisko 1 — používateľ",
@@ -175,34 +239,57 @@
               "dav3_username": "Úložisko 3 — používateľ",
               "dav3_password": "Úložisko 3 — heslo",
               "dav3_name": "Úložisko 3 — názov pri streamoch"
+            },
+            "data_description": {
+              "dav1_url": "Adresa priečinka s filmami a seriálmi, napríklad https://nas.doma/dav/filmy/. Musí byť dosiahnuteľná z Home Assistantu.",
+              "dav1_name": "Ako sa úložisko pomenuje pri streamoch — nech spoznáš, čo je z domu."
             }
           },
           "torrenty": {
             "name": "Torrenty",
-            "description": "Nepovinné — hľadanie cez Prowlarr, sťahovanie cez qBittorrent.",
+            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent — bez nich torrenty jednoducho nie sú.",
             "data": {
               "prowlarr_url": "Prowlarr — adresa (hľadanie torrentov)",
               "prowlarr_key": "Prowlarr — API kľúč",
               "qbit_url": "qBittorrent — adresa",
               "qbit_username": "qBittorrent — meno (len keď web UI vyžaduje prihlásenie)",
               "qbit_password": "qBittorrent — heslo"
+            },
+            "data_description": {
+              "prowlarr_url": "Prowlarr združuje torrentové indexery. Bez neho sa torrenty nehľadajú.",
+              "qbit_url": "Adresa web UI qBittorrentu, napríklad http://192.168.1.10:8080."
             }
           },
           "stahovani": {
             "name": "Sťahovanie a odkazy",
-            "description": "Kam sa súbory ukladajú a kadiaľ chodia oznámenia a odkazy do mobilu.",
+            "description": "Kam sa stiahnuté súbory ukladajú a kadiaľ chodia oznámenia a odkazy do mobilu.",
             "data": {
               "download_dir": "Priečinok na sťahovanie",
               "external_host": "Adresa mimo domácej siete (Tailscale/VPN) — pre odkazy do mobilu",
               "notify_target": "Upozornenia na stiahnutie a nové diely (napr. notify.mobile_app_telefon; prázdne = upozornenie v HA)"
+            },
+            "data_description": {
+              "download_dir": "Priečinok na disku Home Assistantu. Musí existovať a byť zapisovateľný.",
+              "external_host": "Adresa, na ktorej je HA vidieť aj mimo domácej siete (Tailscale, VPN, reverzná proxy). Používa sa v odkazoch, ktoré idú do mobilu.",
+              "notify_target": "Služba oznámení, napríklad notify.mobile_app_telefon. Prázdne = oznámenia zostanú len v Home Assistantovi."
             }
           },
           "synchronizace": {
             "name": "Synchronizácia s Kodi",
-            "description": "Zhliadnuté, Môj zoznam a história hľadania zdieľané s doplnkom pre Kodi.",
+            "description": "Videné, rozpozeranosť, Môj zoznam a história hľadania zdieľané s doplnkom pre Kodi. Vedú k tomu dve cesty a dajú sa zapnúť obe naraz: Kodi v domácej sieti chodí priamo na HA pomocou kľúča, Kodi mimo nej (mobil, chata) cez skupinu na dashboarde, do ktorej sa HA prihlási kódom. Server do dát nevidí — sú zašifrované kľúčom odvodeným z kódu skupiny.",
             "data": {
-              "sync_key": "Kľúč na synchronizáciu s Kodi (opíš do doplnku Nokturno)",
-              "sync_code": "Kód skupiny z Kodi (len keď sa Kodi mimo domácej siete synchronizuje cez dashboard)"
+              "sync_key": "Kľúč pre Kodi v domácej sieti",
+              "sync_code": "Kód skupiny (pre Kodi mimo domácej siete)",
+              "sync_watched": "Synchronizovať videné a rozpozeranosť",
+              "sync_favourites": "Synchronizovať Môj zoznam",
+              "sync_history": "Synchronizovať históriu hľadania"
+            },
+            "data_description": {
+              "sync_key": "Vygenerovaný kľúč pre Kodi v domácej sieti. Opíš ho v doplnku do Nastavenia → Synchronizácia. Neposielaj ho nikomu cudziemu — otvára videné a Môj zoznam.",
+              "sync_code": "Kód skupiny v tvare NKT-XXXX-XXXX-XXXX-XXXX. Založí ho prvé Kodi (Nastavenia → Synchronizácia → Založiť skupinu) a ukáže ho na obrazovke. Prázdne = HA do skupiny nechodí a synchronizuje sa len s Kodi v domácej sieti.",
+              "sync_watched": "Čo je videné a kde si to nechal. Vypnuté sa neposiela ani neprijíma.",
+              "sync_favourites": "Tituly pridané do Môjho zoznamu — na karte aj v doplnku.",
+              "sync_history": "Čo si hľadal. Najmenší z okruhov, ale zároveň ten najosobnejší."
             }
           },
           "ostatni": {
@@ -213,6 +300,11 @@
               "trakt_client_id": "Trakt.tv — Client ID (z trakt.tv/oauth/applications)",
               "trakt_client_secret": "Trakt.tv — Client Secret",
               "stats_enabled": "Posielať anonymné štatistiky (aj vypnuté pošlú len náhodné id a verziu)"
+            },
+            "data_description": {
+              "tmdb_api_key": "Vlastný kľúč z themoviedb.org. S ním chodia slovenské a české názvy a popisy rýchlejšie a nezávisle od Luny.",
+              "trakt_client_id": "Z trakt.tv/oauth/applications. Videné sa potom hlási aj na Trakt.",
+              "stats_enabled": "Anonymné čísla o používaní — náhodné id, verzia a čo sa hralo. Žiadne účty, adresy ani obsah. Vypnuté pošle len id a verziu."
             }
           }
         }

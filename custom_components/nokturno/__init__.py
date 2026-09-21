@@ -49,6 +49,7 @@ from .const import (
     CONF_SYNC_KEY,
     STATS_INTERVAL_HOURS,
     SUB_CHECK_INTERVAL_HOURS,
+    SYNC_CIRCLE_OPTIONS,
     SYNC_RELAY_INTERVAL_MINUTES,
     CONF_KODI_ENTITY,
     CONF_NOTIFY_TARGET,
@@ -105,7 +106,7 @@ from .lib.enrich import _capped
 from .lib.source_errors import summarize as summarize_failures
 from .lib.stats import COLLECT_URL, Stats
 from .lib.webshare_api import WebshareApiError
-from .lib.sync import DEFAULT_CIRCLES, apply_changes, collect_changes
+from .lib.sync import apply_changes, collect_changes, filter_circles
 from .lib import syncbox
 from .engine import Engine, NokturnoError, _fold, split_episode_id
 
@@ -247,6 +248,20 @@ def _entry_data(hass: HomeAssistant) -> dict:
     if not data:
         raise HomeAssistantError("Integrace Nokturno není nastavená.")
     return next(iter(data.values()))
+
+
+def sync_circles(entry) -> tuple[str, ...]:
+    """Okruhy zapnuté v nastavení integrace (výchozí: všechny tři).
+
+    Platí pro obě cesty naráz — pro Kodi v místní síti i pro skupinu na relayi —
+    a v obou směrech: vypnutý okruh se nepošle **ani nepřijme**. Kdyby se jen
+    neposílal, přišel by zpátky od protějšku a zapsal by se, takže by vypnutí
+    nic neznamenalo. `settings`/`accounts` přes HA nechodí nikdy: nastavení
+    doplňku pro Kodi HA nemá a obě Kodi si je vymění přes relay napřímo.
+    """
+    volby = {**entry.data, **entry.options}
+    zapnute = tuple(okruh for okruh, klic in SYNC_CIRCLE_OPTIONS if volby.get(klic, True))
+    return zapnute or ()
 
 
 def aired_episodes(episodes: list[dict], today: str) -> list[dict]:
@@ -718,10 +733,13 @@ class NokturnoSyncView(HomeAssistantView):
         store = data["engine"].store
         since = int(body.get("since") or 0)
 
+        okruhy = sync_circles(data["entry"])
+
         def work():
             now = int(time.time())   # před výměnou: cokoli dorazí za běhu, má `rts` >= now a příště se pošle
-            applied = apply_changes(store, body.get("changes"), stamp=True)
-            return {"now": now, "applied": applied, "changes": collect_changes(store, since)}
+            applied = apply_changes(store, filter_circles(body.get("changes") or {}, okruhy), stamp=True)
+            return {"now": now, "applied": applied,
+                    "changes": filter_circles(collect_changes(store, since), okruhy)}
 
         result = await self.hass.async_add_executor_job(work)
         # obnovit senzor (a tím kartu) — přišlo zhlédnuto/Můj seznam/historie z jiného Kodi
@@ -1529,14 +1547,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         `stamp=True`: přijatým záznamům se vyrazí čas příjmu (`rts`), jinak by je
         filtr `since` v HA kole přeskočil, kdyby vznikly před poslední výměnou.
-        Okruhy `settings`/`accounts` sem nepatří — HA nastavení Kodi doplňku nemá
+        Okruhy bere z nastavení integrace (`sync_circles`), stejné pro obě cesty.
+        `settings`/`accounts` mezi nimi nejsou — HA nastavení Kodi doplňku nemá
         a obě Kodi si je vymění přes relay napřímo.
         """
         kod = (entry.data.get(CONF_SYNC_CODE) or "").strip()
         if not kod:
             return
         ok, poslano, prijato, proc = await hass.async_add_executor_job(
-            partial(syncbox.sync_once, engine.store, kod, circles=DEFAULT_CIRCLES,
+            partial(syncbox.sync_once, engine.store, kod, circles=sync_circles(entry),
                     name="Home Assistant", stamp=True))
         if not ok:
             _LOGGER.debug("relay synchronizace selhala: %s", proc)

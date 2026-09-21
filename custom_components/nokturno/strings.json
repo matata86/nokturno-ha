@@ -7,19 +7,27 @@
         "sections": {
           "prehravani": {
             "name": "Playback",
-            "description": "Where to play and how to pick a stream.",
+            "description": "Where a title plays and how a stream is picked.",
             "data": {
-              "kodi_entity": "Default player (Kodi)",
+              "kodi_entity": "Default players (Kodi)",
               "pref_lang": "Preferred audio language",
               "pref_surround": "Prefer surround sound (5.1 and up)",
               "hide_sd": "Hide SD streams",
               "sort_streams": "Stream order",
               "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)"
+            },
+            "data_description": {
+              "kodi_entity": "Where a title plays when the service call does not name a player. You can pick several — it starts on all of them at once (TV and projector, say).",
+              "pref_lang": "Streams with this audio move to the top of the list. For Czech, Slovak subtitles count too, and the other way round. “—” = ignore language.",
+              "pref_surround": "5.1 and up ranks above stereo — ordering only, stereo is still offered.",
+              "hide_sd": "Streams below 720p never make the list. With older titles that can leave nothing.",
+              "sort_streams": "What decides the order when language and audio tie.",
+              "max_bitrate_mbps": "Bitrate ceiling — against stuttering on a slow line. 0 = unlimited."
             }
           },
           "zdroje": {
             "name": "Sources and accounts",
-            "description": "Sign-in for the individual sources. Empty = source is off.",
+            "description": "Sign-in for the individual sources. An empty field means the source is off. Passwords are stored in HA and only ever sent to the source they belong to.",
             "data": {
               "ws_username": "WebShare — e-mail",
               "ws_password": "WebShare — password (or stored hash)",
@@ -34,11 +42,21 @@
               "hs_enabled": "Search HellSpy too",
               "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
               "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+            },
+            "data_description": {
+              "ws_password": "Stored as a hash, not as the password. An expired subscription is detected and reported by the source-status sensor.",
+              "streamuj_username": "A streamuj.tv account. Without it Sosáč only searches, it cannot play.",
+              "st_email": "Sledujteto.cz. Searching works on a free account, playback needs Premium.",
+              "fs_username": "FastShare.cz. Playback spends credit, or runs on an unlimited plan.",
+              "luna_url": "Luna server address, usually http://homeassistant.local:7126. You can paste the whole install URL from /setup — the token is taken from it.",
+              "hs_enabled": "HellSpy is public and needs no account. If it starts refusing queries (HTTP 429), the integration skips it for ten minutes and searches without it.",
+              "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = never.",
+              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step — the integration never sees your account password."
             }
           },
           "uloziste": {
             "name": "Own storage (WebDAV)",
-            "description": "Up to three folders of your own, searched alongside the sources.",
+            "description": "Up to three own folders over WebDAV (NAS, Nextcloud). They are searched together with the sources and matching files show up as extra streams.",
             "data": {
               "dav1_url": "Storage 1 — folder address (WebDAV)",
               "dav1_username": "Storage 1 — username",
@@ -52,34 +70,57 @@
               "dav3_username": "Storage 3 — username",
               "dav3_password": "Storage 3 — password",
               "dav3_name": "Storage 3 — name shown with streams"
+            },
+            "data_description": {
+              "dav1_url": "Address of the folder with films and shows, e.g. https://nas.home/dav/films/. It has to be reachable from Home Assistant.",
+              "dav1_name": "The label shown next to streams from this storage."
             }
           },
           "torrenty": {
             "name": "Torrents",
-            "description": "Optional — search via Prowlarr, downloading via qBittorrent.",
+            "description": "Optional. Prowlarr does the searching, qBittorrent the downloading — without them torrents simply are not offered.",
             "data": {
               "prowlarr_url": "Prowlarr — address (torrent search)",
               "prowlarr_key": "Prowlarr — API key",
               "qbit_url": "qBittorrent — address",
               "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
               "qbit_password": "qBittorrent — password"
+            },
+            "data_description": {
+              "prowlarr_url": "Prowlarr aggregates torrent indexers. Without it torrents are not searched.",
+              "qbit_url": "The qBittorrent web UI address, e.g. http://192.168.1.10:8080."
             }
           },
           "stahovani": {
             "name": "Downloads and links",
-            "description": "Where files land and how notifications and phone links are sent.",
+            "description": "Where downloads land and how notifications and links to your phone are sent.",
             "data": {
               "download_dir": "Download folder",
               "external_host": "Address outside the home network (Tailscale/VPN) — for phone links",
               "notify_target": "Notifications about downloads and new episodes (e.g. notify.mobile_app_phone; empty = HA notification)"
+            },
+            "data_description": {
+              "download_dir": "A folder on the Home Assistant disk. It must exist and be writable.",
+              "external_host": "The address where HA is reachable from outside the home network (Tailscale, VPN, reverse proxy). Used in links sent to your phone.",
+              "notify_target": "A notify service, e.g. notify.mobile_app_phone. Empty = notifications stay inside Home Assistant."
             }
           },
           "synchronizace": {
             "name": "Sync with Kodi",
-            "description": "Watched state, My list and search history shared with the Kodi add-on.",
+            "description": "Watched state, resume points, My list and search history shared with the Kodi add-on. There are two routes and both can run at once: Kodi on the home network talks to HA directly using the key, Kodi elsewhere (phone, cottage) goes through a group on the dashboard that HA joins with the code. The server cannot read the data — it is encrypted with a key derived from the group code.",
             "data": {
-              "sync_key": "Sync key for Kodi (copy it into the Nokturno add-on)",
-              "sync_code": "Group code from Kodi (only when Kodi outside the home network syncs via the dashboard)"
+              "sync_key": "Key for Kodi on the home network",
+              "sync_code": "Group code (for Kodi outside the home network)",
+              "sync_watched": "Sync watched state and resume points",
+              "sync_favourites": "Sync My list",
+              "sync_history": "Sync search history"
+            },
+            "data_description": {
+              "sync_key": "A generated key for Kodi on the home network. Copy it into the add-on under Settings → Synchronisation. Do not share it — it opens watched state and My list.",
+              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it (Settings → Synchronisation → Create group) and shows it on screen. Empty = HA stays out of the group and only syncs with Kodi on the home network.",
+              "sync_watched": "What is watched and where you left off. When off, it is neither sent nor received.",
+              "sync_favourites": "Titles added to My list — both on the card and in the add-on.",
+              "sync_history": "What you searched for. The smallest of the three, and the most personal."
             }
           },
           "ostatni": {
@@ -90,6 +131,11 @@
               "trakt_client_id": "Trakt.tv — Client ID (from trakt.tv/oauth/applications)",
               "trakt_client_secret": "Trakt.tv — Client Secret",
               "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)"
+            },
+            "data_description": {
+              "tmdb_api_key": "Your own key from themoviedb.org. With it, titles and plots come faster and independently of Luna.",
+              "trakt_client_id": "From trakt.tv/oauth/applications. Watched titles are then reported to Trakt too.",
+              "stats_enabled": "Anonymous usage numbers — a random id, the version and what was played. No accounts, addresses or content. When off, only the id and version are sent."
             }
           }
         }
@@ -130,19 +176,27 @@
         "sections": {
           "prehravani": {
             "name": "Playback",
-            "description": "Where to play and how to pick a stream.",
+            "description": "Where a title plays and how a stream is picked.",
             "data": {
-              "kodi_entity": "Default player (Kodi)",
+              "kodi_entity": "Default players (Kodi)",
               "pref_lang": "Preferred audio language",
               "pref_surround": "Prefer surround sound (5.1 and up)",
               "hide_sd": "Hide SD streams",
               "sort_streams": "Stream order",
               "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)"
+            },
+            "data_description": {
+              "kodi_entity": "Where a title plays when the service call does not name a player. You can pick several — it starts on all of them at once (TV and projector, say).",
+              "pref_lang": "Streams with this audio move to the top of the list. For Czech, Slovak subtitles count too, and the other way round. “—” = ignore language.",
+              "pref_surround": "5.1 and up ranks above stereo — ordering only, stereo is still offered.",
+              "hide_sd": "Streams below 720p never make the list. With older titles that can leave nothing.",
+              "sort_streams": "What decides the order when language and audio tie.",
+              "max_bitrate_mbps": "Bitrate ceiling — against stuttering on a slow line. 0 = unlimited."
             }
           },
           "zdroje": {
             "name": "Sources and accounts",
-            "description": "Sign-in for the individual sources. Empty = source is off.",
+            "description": "Sign-in for the individual sources. An empty field means the source is off. Passwords are stored in HA and only ever sent to the source they belong to.",
             "data": {
               "ws_username": "WebShare — e-mail",
               "ws_password": "WebShare — password (or stored hash)",
@@ -157,11 +211,21 @@
               "hs_enabled": "Search HellSpy too",
               "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
               "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+            },
+            "data_description": {
+              "ws_password": "Stored as a hash, not as the password. An expired subscription is detected and reported by the source-status sensor.",
+              "streamuj_username": "A streamuj.tv account. Without it Sosáč only searches, it cannot play.",
+              "st_email": "Sledujteto.cz. Searching works on a free account, playback needs Premium.",
+              "fs_username": "FastShare.cz. Playback spends credit, or runs on an unlimited plan.",
+              "luna_url": "Luna server address, usually http://homeassistant.local:7126. You can paste the whole install URL from /setup — the token is taken from it.",
+              "hs_enabled": "HellSpy is public and needs no account. If it starts refusing queries (HTTP 429), the integration skips it for ten minutes and searches without it.",
+              "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = never.",
+              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step — the integration never sees your account password."
             }
           },
           "uloziste": {
             "name": "Own storage (WebDAV)",
-            "description": "Up to three folders of your own, searched alongside the sources.",
+            "description": "Up to three own folders over WebDAV (NAS, Nextcloud). They are searched together with the sources and matching files show up as extra streams.",
             "data": {
               "dav1_url": "Storage 1 — folder address (WebDAV)",
               "dav1_username": "Storage 1 — username",
@@ -175,34 +239,57 @@
               "dav3_username": "Storage 3 — username",
               "dav3_password": "Storage 3 — password",
               "dav3_name": "Storage 3 — name shown with streams"
+            },
+            "data_description": {
+              "dav1_url": "Address of the folder with films and shows, e.g. https://nas.home/dav/films/. It has to be reachable from Home Assistant.",
+              "dav1_name": "The label shown next to streams from this storage."
             }
           },
           "torrenty": {
             "name": "Torrents",
-            "description": "Optional — search via Prowlarr, downloading via qBittorrent.",
+            "description": "Optional. Prowlarr does the searching, qBittorrent the downloading — without them torrents simply are not offered.",
             "data": {
               "prowlarr_url": "Prowlarr — address (torrent search)",
               "prowlarr_key": "Prowlarr — API key",
               "qbit_url": "qBittorrent — address",
               "qbit_username": "qBittorrent — username (only if the web UI asks for login)",
               "qbit_password": "qBittorrent — password"
+            },
+            "data_description": {
+              "prowlarr_url": "Prowlarr aggregates torrent indexers. Without it torrents are not searched.",
+              "qbit_url": "The qBittorrent web UI address, e.g. http://192.168.1.10:8080."
             }
           },
           "stahovani": {
             "name": "Downloads and links",
-            "description": "Where files land and how notifications and phone links are sent.",
+            "description": "Where downloads land and how notifications and links to your phone are sent.",
             "data": {
               "download_dir": "Download folder",
               "external_host": "Address outside the home network (Tailscale/VPN) — for phone links",
               "notify_target": "Notifications about downloads and new episodes (e.g. notify.mobile_app_phone; empty = HA notification)"
+            },
+            "data_description": {
+              "download_dir": "A folder on the Home Assistant disk. It must exist and be writable.",
+              "external_host": "The address where HA is reachable from outside the home network (Tailscale, VPN, reverse proxy). Used in links sent to your phone.",
+              "notify_target": "A notify service, e.g. notify.mobile_app_phone. Empty = notifications stay inside Home Assistant."
             }
           },
           "synchronizace": {
             "name": "Sync with Kodi",
-            "description": "Watched state, My list and search history shared with the Kodi add-on.",
+            "description": "Watched state, resume points, My list and search history shared with the Kodi add-on. There are two routes and both can run at once: Kodi on the home network talks to HA directly using the key, Kodi elsewhere (phone, cottage) goes through a group on the dashboard that HA joins with the code. The server cannot read the data — it is encrypted with a key derived from the group code.",
             "data": {
-              "sync_key": "Sync key for Kodi (copy it into the Nokturno add-on)",
-              "sync_code": "Group code from Kodi (only when Kodi outside the home network syncs via the dashboard)"
+              "sync_key": "Key for Kodi on the home network",
+              "sync_code": "Group code (for Kodi outside the home network)",
+              "sync_watched": "Sync watched state and resume points",
+              "sync_favourites": "Sync My list",
+              "sync_history": "Sync search history"
+            },
+            "data_description": {
+              "sync_key": "A generated key for Kodi on the home network. Copy it into the add-on under Settings → Synchronisation. Do not share it — it opens watched state and My list.",
+              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it (Settings → Synchronisation → Create group) and shows it on screen. Empty = HA stays out of the group and only syncs with Kodi on the home network.",
+              "sync_watched": "What is watched and where you left off. When off, it is neither sent nor received.",
+              "sync_favourites": "Titles added to My list — both on the card and in the add-on.",
+              "sync_history": "What you searched for. The smallest of the three, and the most personal."
             }
           },
           "ostatni": {
@@ -213,6 +300,11 @@
               "trakt_client_id": "Trakt.tv — Client ID (from trakt.tv/oauth/applications)",
               "trakt_client_secret": "Trakt.tv — Client Secret",
               "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)"
+            },
+            "data_description": {
+              "tmdb_api_key": "Your own key from themoviedb.org. With it, titles and plots come faster and independently of Luna.",
+              "trakt_client_id": "From trakt.tv/oauth/applications. Watched titles are then reported to Trakt too.",
+              "stats_enabled": "Anonymous usage numbers — a random id, the version and what was played. No accounts, addresses or content. When off, only the id and version are sent."
             }
           }
         }

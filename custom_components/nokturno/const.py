@@ -23,6 +23,19 @@ CONF_SYNC_KEY = "sync_key"   # klíč, kterým se Kodi doplňky hlásí na /api/
 CONF_SYNC_CODE = "sync_code"
 SYNC_RELAY_INTERVAL_MINUTES = 5
 
+# Co se synchronizuje. Stejné tři okruhy jako v doplňku pro Kodi (`lib/sync.py`),
+# a platí pro obě cesty naráz: pro Kodi v místní síti (`/api/nokturno/sync`)
+# i pro skupinu na relayi. Vypnutý okruh se nepošle ani nepřijme — kdyby se jen
+# neposílal, dorazil by zpátky od protějšku a zapsal by se.
+CONF_SYNC_WATCHED = "sync_watched"
+CONF_SYNC_FAVOURITES = "sync_favourites"
+CONF_SYNC_HISTORY = "sync_history"
+SYNC_CIRCLE_OPTIONS = (
+    ("watched", CONF_SYNC_WATCHED),
+    ("favourites", CONF_SYNC_FAVOURITES),
+    ("history", CONF_SYNC_HISTORY),
+)
+
 SUB_CHECK_INTERVAL_HOURS = 12
 STATS_INTERVAL_HOURS = 6
 

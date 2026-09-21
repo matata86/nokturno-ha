@@ -22,7 +22,10 @@ from .const import (
     CONF_QBIT_PASS,
     CONF_STATS_ENABLED,
     CONF_SYNC_CODE,
+    CONF_SYNC_FAVOURITES,
+    CONF_SYNC_HISTORY,
     CONF_SYNC_KEY,
+    CONF_SYNC_WATCHED,
     DEFAULT_PROWLARR_URL,
     DEFAULT_QBIT_URL,
     CONF_EXTERNAL_HOST,
@@ -109,7 +112,8 @@ SEKCE = [
     ("torrenty", [CONF_PROWLARR_URL, CONF_PROWLARR_KEY, CONF_QBIT_URL,
                   CONF_QBIT_USER, CONF_QBIT_PASS], True),
     ("stahovani", [CONF_DOWNLOAD_DIR, CONF_EXTERNAL_HOST, CONF_NOTIFY_TARGET], True),
-    ("synchronizace", [CONF_SYNC_KEY, CONF_SYNC_CODE], True),
+    ("synchronizace", [CONF_SYNC_KEY, CONF_SYNC_CODE, CONF_SYNC_WATCHED,
+                       CONF_SYNC_FAVOURITES, CONF_SYNC_HISTORY], True),
     ("ostatni", [CONF_TMDB_KEY, CONF_TRAKT_ID, CONF_TRAKT_SECRET, CONF_STATS_ENABLED], True),
 ]
 
@@ -148,6 +152,14 @@ def _zploskuj(user_input: dict) -> dict:
     return plocho
 
 
+def _seznam(hodnota) -> list[str]:
+    """Entity přehrávače vždy jako seznam. Do 6.6.0 se ukládal jeden řetězec a
+    `EntitySelector(multiple=True)` by na něm spadl."""
+    if not hodnota:
+        return []
+    return list(hodnota) if isinstance(hodnota, (list, tuple)) else [hodnota]
+
+
 def _heslo():
     return selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD))
 
@@ -163,8 +175,11 @@ def accounts_schema(current: dict) -> dict:
 def preferences_schema(data: dict) -> vol.Schema:
     """Předvolby přehrávání — stejné jako v Kodi doplňku."""
     return vol.Schema({
-        vol.Optional(CONF_KODI_ENTITY, default=data.get(CONF_KODI_ENTITY, "")):
-            selector.EntitySelector(selector.EntitySelectorConfig(domain="media_player")),
+        # Víc přehrávačů naráz: služba `play` bez `entity_id` pustí titul na všech
+        # vybraných. Uložená hodnota z dřívějška je jeden řetězec, proto `_seznam`.
+        vol.Optional(CONF_KODI_ENTITY, default=_seznam(data.get(CONF_KODI_ENTITY))):
+            selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="media_player", multiple=True)),
         vol.Optional(CONF_PREF_LANG, default=data.get(CONF_PREF_LANG, "CZ")):
             selector.SelectSelector(selector.SelectSelectorConfig(options=[l or "—" for l in LANGS])),
         vol.Optional(CONF_PREF_SURROUND, default=data.get(CONF_PREF_SURROUND, False)): bool,
@@ -185,6 +200,10 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_SUB_WARN_DAYS, default=data.get(CONF_SUB_WARN_DAYS, 5)):
             vol.All(vol.Coerce(int), vol.Range(min=0, max=14)),
         vol.Optional(CONF_STATS_ENABLED, default=data.get(CONF_STATS_ENABLED, True)): bool,
+        # co se synchronizuje — platí pro Kodi v místní síti i pro skupinu na relayi
+        vol.Optional(CONF_SYNC_WATCHED, default=data.get(CONF_SYNC_WATCHED, True)): bool,
+        vol.Optional(CONF_SYNC_FAVOURITES, default=data.get(CONF_SYNC_FAVOURITES, True)): bool,
+        vol.Optional(CONF_SYNC_HISTORY, default=data.get(CONF_SYNC_HISTORY, True)): bool,
     })
 
 

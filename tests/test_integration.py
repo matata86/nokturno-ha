@@ -27,7 +27,7 @@ ha_stubs.install()
 from custom_components.nokturno import (                 # noqa: E402
     KODI_PLUGIN, SYNC_KEY_MIN_HEX, _continue_key, _encode_signed, _removed_by_user, _stats_title,
     _varovat_kratky_klic, aired_episodes, android_play_intent, episode_target, kodi_image, kodi_url,
-    skip_gap_candidates,
+    skip_gap_candidates, sync_circles,
 )
 from custom_components.nokturno import sensor as nokturno_sensor  # noqa: E402
 from custom_components.nokturno import config_flow, const  # noqa: E402
@@ -696,3 +696,62 @@ class TestSenzorStavuZdroju(unittest.TestCase):
     def test_obnova_bezi_pod_platnosti_zaznamu(self):
         from custom_components.nokturno.lib import accounts as accounts_lib
         self.assertLess(const.ACCOUNTS_INTERVAL_HOURS * 3600, accounts_lib.TTL)
+
+
+class TestSynchronizaceVNastaveni(unittest.TestCase):
+    """Okruhy a víc přehrávačů — obojí z formuláře, obojí se čte i jinde než ve formuláři."""
+
+    class _Entry:
+        def __init__(self, data=None, options=None):
+            self.data, self.options = data or {}, options or {}
+
+    def test_okruhy_jsou_ve_formulari(self):
+        predvolby = {m.schema for m in config_flow.preferences_schema({}).schema}
+        for key in (const.CONF_SYNC_WATCHED, const.CONF_SYNC_FAVOURITES, const.CONF_SYNC_HISTORY):
+            self.assertIn(key, predvolby)
+
+    def test_okruhy_jsou_v_sekci_synchronizace(self):
+        sekce = dict((jmeno, klice) for jmeno, klice, _ in config_flow.SEKCE)
+        self.assertIn(const.CONF_SYNC_WATCHED, sekce["synchronizace"])
+        self.assertIn(const.CONF_SYNC_CODE, sekce["synchronizace"])
+
+    def test_vychozi_stav_je_vse_zapnute(self):
+        self.assertEqual(sync_circles(self._Entry()), ("watched", "favourites", "history"))
+
+    def test_vypnuty_okruh_vypadne(self):
+        entry = self._Entry(options={const.CONF_SYNC_HISTORY: False})
+        self.assertEqual(sync_circles(entry), ("watched", "favourites"))
+
+    def test_vypnute_vse_neposila_nic(self):
+        """Prázdná sada znamená „nic", ne „vše" — `filter_circles(None)` by bylo „vše"."""
+        entry = self._Entry(options={const.CONF_SYNC_WATCHED: False,
+                                     const.CONF_SYNC_FAVOURITES: False,
+                                     const.CONF_SYNC_HISTORY: False})
+        self.assertEqual(sync_circles(entry), ())
+        from custom_components.nokturno.lib.sync import filter_circles
+        self.assertEqual(filter_circles({"watched": {"x": {}}}, sync_circles(entry)), {})
+
+    def test_vic_prehravacu_naraz(self):
+        """Služba `play` bez `entity_id` pustí titul na všech vybraných."""
+        schema = config_flow.preferences_schema({})
+        for marker, validator in schema.schema.items():
+            if marker.schema == const.CONF_KODI_ENTITY:
+                self.assertTrue(validator.args[0].kwargs["multiple"])
+                self.assertEqual(marker.default, [])
+                break
+        else:
+            self.fail("kodi_entity není ve schématu")
+
+    def test_ulozena_jedna_entita_se_prevede_na_seznam(self):
+        """Do 6.6.0 se ukládal jeden řetězec; `EntitySelector(multiple=True)` chce seznam."""
+        schema = config_flow.preferences_schema({const.CONF_KODI_ENTITY: "media_player.kodi"})
+        for marker in schema.schema:
+            if marker.schema == const.CONF_KODI_ENTITY:
+                self.assertEqual(marker.default, ["media_player.kodi"])
+                break
+
+    def test_kazde_pole_synchronizace_ma_napovedu(self):
+        """Sekce je nejméně samozřejmá z celého formuláře — nápověda tam patří ke všemu."""
+        preklady = json.loads((ROOT / "custom_components/nokturno/translations/cs.json").read_text("utf-8"))
+        sekce = preklady["options"]["step"]["init"]["sections"]["synchronizace"]
+        self.assertEqual(set(sekce["data"]), set(sekce["data_description"]))

@@ -31,6 +31,17 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy
 
 ## Co to umí
 
+- **Jedno hledání v sedmi zdrojích** (WebShare, Sosáč, Luna, HellSpy, Sledujteto, FastShare, CZtor) plus vlastní úložiště; stejný titul i soubor se sloučí do jednoho řádku
+- **Karta na dashboard** — hledání, výběr streamu, detail titulu, Můj seznam, Hlídané seriály, stažené soubory
+- **Přehrání v Kodi** přes doplněk Nokturno (Kodi si drží „Pokračovat ve sledování"), stažení do HA nebo odkaz do mobilu
+- **Hlídání seriálů** — nový díl se ohlásí, až když se dá pustit; seznam k zhlédnutí hlídá i chystané filmy
+- **Střed synchronizace** zhlédnutého a Mého seznamu mezi všemi Kodi
+- **Stav zdrojů** jako senzor (`sensor.nokturno_stav_zdroju`) — vhodný pro automatizace
+- **Česky, slovensky i anglicky**, hlasové ovládání jedním krokem
+
+<details>
+<summary><b>Všechny funkce podrobně</b></summary>
+
 - **Jedno hledání ve všech zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz: Luna, přímý fulltext WebShare (víc variant dotazu, aby neunikly soubory, které Lunin jeden dotaz mine) i Sosáč. Stejný soubor nalezený víc cestami se ukáže jednou. U každého streamu je zdroj, kvalita, název souboru, jazyky zvuku i titulků a velikost.
 - **CZtor jako sedmý zdroj** (od 6.0.0) — placený katalog cztor.com. Zapneš přepínačem v nastavení integrace a spáruješ ho PINem z `cztor.com/activate`; heslo integrace nevidí.
 - **Stav zdrojů** (od 6.3.2) — `sensor.nokturno_stav_zdroju` počítá zdroje, které potřebují zásah (vypršelé předplatné, nespárovaný CZtor, Luna, která neběží…); `0` = vše v pořádku.
@@ -52,6 +63,8 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy
 - **Česky, slovensky i anglicky** — formulář nastavení, popisy všech služeb (*Vývojářské nástroje → Akce*) i názvy senzorů podle jazyka Home Assistantu. Instalace z doby před 4.0 si ponechají původní `entity_id` senzorů (`sensor.nokturno_stahovani`…); karta si senzor stahování najde i pod jiným jménem.
 - **Oprava přihlášení k WebShare** — když WebShare odmítne heslo, integrace se přepne do stavu *vyžaduje opravu* a nabídne zadání údajů znovu (heslo se před uložením ověří). Výpadek sítě tohle nespouští.
 - **Diagnostika bez tajemství** — *Stáhnout diagnostiku* u integrace vynechá hesla, účty i klíče; hesla se ve formuláři zadávají skrytě.
+
+</details>
 
 ## Instalace
 

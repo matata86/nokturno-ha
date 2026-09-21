@@ -78,7 +78,7 @@
           },
           "torrenty": {
             "name": "Torrents",
-            "description": "Optional. Prowlarr does the searching, qBittorrent the downloading — without them torrents simply are not offered.",
+            "description": "Optional. Prowlarr does the searching, qBittorrent the downloading — without them torrents are not offered.",
             "data": {
               "prowlarr_url": "Prowlarr — address (torrent search)",
               "prowlarr_key": "Prowlarr — API key",
@@ -247,7 +247,7 @@
           },
           "torrenty": {
             "name": "Torrents",
-            "description": "Optional. Prowlarr does the searching, qBittorrent the downloading — without them torrents simply are not offered.",
+            "description": "Optional. Prowlarr does the searching, qBittorrent the downloading — without them torrents are not offered.",
             "data": {
               "prowlarr_url": "Prowlarr — address (torrent search)",
               "prowlarr_key": "Prowlarr — API key",

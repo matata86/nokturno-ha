@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Nokturno",
-        "description": "Vyplň len zdroje a voľby, ktoré chceš používať — pokojne nič. Aj bez jediného vyplneného poľa integrácia ponúkne katalóg a vyhľadávanie (cez verejnú databázu Sosáč/Cinemeta, s kľúčom TMDB aj po česky). Údaje sú rovnaké ako v doplnku Nokturno pre Kodi. Čokoľvek sa dá kedykoľvek neskôr zmeniť v Nastaveniach integrácie.",
+        "description": "Vyplň len zdroje a voľby, ktoré chceš používať; vyplniť nemusíš nič. Aj bez jediného vyplneného poľa integrácia ponúkne katalóg a vyhľadávanie (cez verejnú databázu Sosáč/Cinemeta, s kľúčom TMDB aj po česky). Údaje sú rovnaké ako v doplnku Nokturno pre Kodi. Čokoľvek sa dá kedykoľvek neskôr zmeniť v Nastaveniach integrácie.",
         "sections": {
           "prehravani": {
             "name": "Prehrávanie",
@@ -78,7 +78,7 @@
           },
           "torrenty": {
             "name": "Torrenty",
-            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent — bez nich torrenty jednoducho nie sú.",
+            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent — bez nich sa torrenty neponúkajú.",
             "data": {
               "prowlarr_url": "Prowlarr — adresa (hľadanie torrentov)",
               "prowlarr_key": "Prowlarr — API kľúč",
@@ -247,7 +247,7 @@
           },
           "torrenty": {
             "name": "Torrenty",
-            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent — bez nich torrenty jednoducho nie sú.",
+            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent — bez nich sa torrenty neponúkajú.",
             "data": {
               "prowlarr_url": "Prowlarr — adresa (hľadanie torrentov)",
               "prowlarr_key": "Prowlarr — API kľúč",

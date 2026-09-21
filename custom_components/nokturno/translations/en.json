@@ -41,7 +41,10 @@
               "luna_token": "Luna — token (or the whole install URL)",
               "hs_enabled": "Search HellSpy too",
               "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
-              "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+              "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step",
+              "pt_enabled": "Search Přehraj.to too (works without an account)",
+              "pt_email": "Přehraj.to — e-mail (optional)",
+              "pt_password": "Přehraj.to — password (optional)"
             },
             "data_description": {
               "ws_password": "Stored as a hash, not as the password. The end of the subscription is detected automatically and reported by the source-status sensor.",
@@ -51,7 +54,9 @@
               "luna_url": "The Luna server address — the Home Assistant host and port 7126. The whole install address from the /setup page can be pasted; the token is read from it.",
               "hs_enabled": "HellSpy is public and needs no account. After it starts refusing queries (HTTP 429) it is skipped for ten minutes.",
               "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = no warning.",
-              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step; the integration never receives the account password."
+              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step; the integration never receives the account password.",
+              "pt_enabled": "Přehraj.to works without an account: the first page of results and a transcoded 1080p file. A Premium account adds paging and the original file.",
+              "pt_email": "Optional. With a Přehraj.to Premium account you get paging and the original file. Přehraj.to counts every sign-in as a device, so Nokturno signs in only once every few hours."
             }
           },
           "uloziste": {
@@ -210,7 +215,10 @@
               "luna_token": "Luna — token (or the whole install URL)",
               "hs_enabled": "Search HellSpy too",
               "sub_warn_days": "Warn N days before WebShare subscription expires (0 = off)",
-              "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step"
+              "cz_enabled": "CZtor (subscription at cztor.com) — pair with a PIN in the next step",
+              "pt_enabled": "Search Přehraj.to too (works without an account)",
+              "pt_email": "Přehraj.to — e-mail (optional)",
+              "pt_password": "Přehraj.to — password (optional)"
             },
             "data_description": {
               "ws_password": "Stored as a hash, not as the password. The end of the subscription is detected automatically and reported by the source-status sensor.",
@@ -220,7 +228,9 @@
               "luna_url": "The Luna server address — the Home Assistant host and port 7126. The whole install address from the /setup page can be pasted; the token is read from it.",
               "hs_enabled": "HellSpy is public and needs no account. After it starts refusing queries (HTTP 429) it is skipped for ten minutes.",
               "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = no warning.",
-              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step; the integration never receives the account password."
+              "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step; the integration never receives the account password.",
+              "pt_enabled": "Přehraj.to works without an account: the first page of results and a transcoded 1080p file. A Premium account adds paging and the original file.",
+              "pt_email": "Optional. With a Přehraj.to Premium account you get paging and the original file. Přehraj.to counts every sign-in as a device, so Nokturno signs in only once every few hours."
             }
           },
           "uloziste": {

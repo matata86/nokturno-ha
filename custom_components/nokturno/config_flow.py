@@ -45,6 +45,9 @@ from .const import (
     CONF_ST_PASS,
     CONF_FS_USER,
     CONF_FS_PASS,
+    CONF_PT_ENABLED,
+    CONF_PT_EMAIL,
+    CONF_PT_PASS,
     CONF_STREAMUJ_USER,
     CONF_TMDB_KEY,
     CONF_WS_PASS,
@@ -63,11 +66,11 @@ from .const import (
 STORAGE_KEYS = [key for slot in STORAGE_OPTIONS for key in slot]
 # účty a klíče patří do `entry.data`, ne do options — od 2026-09-14 i Trakt, Prowlarr a qBittorrent
 ACCOUNT_KEYS = [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS, CONF_ST_EMAIL, CONF_ST_PASS,
-                CONF_FS_USER, CONF_FS_PASS, CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_SYNC_CODE, CONF_TMDB_KEY,
+                CONF_FS_USER, CONF_FS_PASS, CONF_PT_EMAIL, CONF_PT_PASS, CONF_LUNA_URL, CONF_LUNA_TOKEN, CONF_SYNC_KEY, CONF_SYNC_CODE, CONF_TMDB_KEY,
                 CONF_TRAKT_ID, CONF_TRAKT_SECRET, CONF_PROWLARR_URL, CONF_PROWLARR_KEY,
                 CONF_QBIT_URL, CONF_QBIT_USER, CONF_QBIT_PASS, *STORAGE_KEYS]
 # ve formuláři skrytě — každé otevření Nastavení dřív ukázalo všech dvanáct hesel čitelně
-SECRET_KEYS = frozenset({CONF_WS_PASS, CONF_STREAMUJ_PASS, CONF_ST_PASS, CONF_FS_PASS, CONF_LUNA_TOKEN, CONF_TMDB_KEY, CONF_SYNC_KEY,
+SECRET_KEYS = frozenset({CONF_WS_PASS, CONF_STREAMUJ_PASS, CONF_ST_PASS, CONF_FS_PASS, CONF_PT_PASS, CONF_LUNA_TOKEN, CONF_TMDB_KEY, CONF_SYNC_KEY,
                          CONF_TRAKT_SECRET, CONF_PROWLARR_KEY, CONF_QBIT_PASS,
                          *(key for slot in STORAGE_OPTIONS for key in slot if key.endswith("_password"))})
 ACCOUNT_DEFAULTS = {CONF_LUNA_URL: DEFAULT_LUNA_URL, CONF_PROWLARR_URL: DEFAULT_PROWLARR_URL,
@@ -106,7 +109,8 @@ SEKCE = [
                     CONF_MAX_BITRATE, CONF_SORT], False),
     ("zdroje", [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS,
                 CONF_ST_EMAIL, CONF_ST_PASS, CONF_FS_USER, CONF_FS_PASS,
-                CONF_HS_ENABLED, CONF_CZ_ENABLED, CONF_LUNA_URL, CONF_LUNA_TOKEN,
+                CONF_HS_ENABLED, CONF_PT_ENABLED, CONF_PT_EMAIL, CONF_PT_PASS,
+                CONF_CZ_ENABLED, CONF_LUNA_URL, CONF_LUNA_TOKEN,
                 CONF_SUB_WARN_DAYS], True),
     ("uloziste", STORAGE_KEYS, True),
     ("torrenty", [CONF_PROWLARR_URL, CONF_PROWLARR_KEY, CONF_QBIT_URL,
@@ -204,6 +208,10 @@ def preferences_schema(data: dict) -> vol.Schema:
         # Trakt, Prowlarr a qBittorrent jsou účty → ACCOUNT_KEYS (entry.data), ne tady
         # HellSpy je veřejný, účet nepotřebuje — proto jen přepínač mezi předvolbami
         vol.Optional(CONF_HS_ENABLED, default=data.get(CONF_HS_ENABLED, True)): bool,
+        # Přehraj.to funguje i bez účtu (první strana + překódovaný soubor), účet
+        # je nepovinný a přidá stránkování i původní soubor — proto zapnuté ve výchozím
+        # stavu jako HellSpy; e-mail a heslo jsou v ACCOUNT_KEYS (entry.data)
+        vol.Optional(CONF_PT_ENABLED, default=data.get(CONF_PT_ENABLED, True)): bool,
         # CZtor účet do formuláře nepatří — zařízení se spáruje PINem v dalším kroku (`CztorPairing`)
         vol.Optional(CONF_CZ_ENABLED, default=data.get(CONF_CZ_ENABLED, False)): bool,
         # 0 = upozornění na konec předplatného WebShare vypnuté

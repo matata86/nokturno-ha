@@ -41,7 +41,10 @@
               "luna_token": "Luna — token (nebo celá instalační URL)",
               "hs_enabled": "Hledat i na HellSpy",
               "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)",
-              "cz_enabled": "CZtor (předplatné na cztor.com) — spáruje se PINem v dalším kroku"
+              "cz_enabled": "CZtor (předplatné na cztor.com) — spáruje se PINem v dalším kroku",
+              "pt_enabled": "Hledat i na Přehraj.to (funguje i bez účtu)",
+              "pt_email": "Přehraj.to — e-mail (nepovinné)",
+              "pt_password": "Přehraj.to — heslo (nepovinné)"
             },
             "data_description": {
               "ws_password": "Ukládá se jako hash, ne jako heslo. Konec předplatného integrace rozpozná sama a hlásí ho v senzoru stavu zdrojů.",
@@ -51,7 +54,9 @@
               "luna_url": "Adresa serveru Luny — jméno Home Assistantu a port 7126. Vložit lze i celou instalační adresu ze stránky /setup, token se z ní načte.",
               "hs_enabled": "HellSpy je veřejný a účet nevyžaduje. Po odmítnutí dotazů (HTTP 429) ho integrace na deset minut vynechá a hledá bez něj.",
               "sub_warn_days": "Počet dní před koncem předplatného WebShare, kdy přijde upozornění. 0 = neupozorňovat.",
-              "cz_enabled": "Placený katalog cztor.com. Zapnutí otevře krok s PINem; heslo k účtu integrace nezískává."
+              "cz_enabled": "Placený katalog cztor.com. Zapnutí otevře krok s PINem; heslo k účtu integrace nezískává.",
+              "pt_enabled": "Přehraj.to funguje i bez účtu: první strana výsledků a překódovaný soubor v 1080p. S Premium účtem přibude stránkování a původní soubor.",
+              "pt_email": "Nepovinné. S Premium účtem Přehraj.to přibude stránkování a původní soubor. Přehraj.to počítá každé přihlášení jako zařízení, proto se Nokturno přihlašuje jen jednou za pár hodin."
             }
           },
           "uloziste": {
@@ -210,7 +215,10 @@
               "luna_token": "Luna — token (nebo celá instalační URL)",
               "hs_enabled": "Hledat i na HellSpy",
               "sub_warn_days": "Upozornit N dní před koncem předplatného WebShare (0 = vypnuto)",
-              "cz_enabled": "CZtor (předplatné na cztor.com) — spáruje se PINem v dalším kroku"
+              "cz_enabled": "CZtor (předplatné na cztor.com) — spáruje se PINem v dalším kroku",
+              "pt_enabled": "Hledat i na Přehraj.to (funguje i bez účtu)",
+              "pt_email": "Přehraj.to — e-mail (nepovinné)",
+              "pt_password": "Přehraj.to — heslo (nepovinné)"
             },
             "data_description": {
               "ws_password": "Ukládá se jako hash, ne jako heslo. Konec předplatného integrace rozpozná sama a hlásí ho v senzoru stavu zdrojů.",
@@ -220,7 +228,9 @@
               "luna_url": "Adresa serveru Luny — jméno Home Assistantu a port 7126. Vložit lze i celou instalační adresu ze stránky /setup, token se z ní načte.",
               "hs_enabled": "HellSpy je veřejný a účet nevyžaduje. Po odmítnutí dotazů (HTTP 429) ho integrace na deset minut vynechá a hledá bez něj.",
               "sub_warn_days": "Počet dní před koncem předplatného WebShare, kdy přijde upozornění. 0 = neupozorňovat.",
-              "cz_enabled": "Placený katalog cztor.com. Zapnutí otevře krok s PINem; heslo k účtu integrace nezískává."
+              "cz_enabled": "Placený katalog cztor.com. Zapnutí otevře krok s PINem; heslo k účtu integrace nezískává.",
+              "pt_enabled": "Přehraj.to funguje i bez účtu: první strana výsledků a překódovaný soubor v 1080p. S Premium účtem přibude stránkování a původní soubor.",
+              "pt_email": "Nepovinné. S Premium účtem Přehraj.to přibude stránkování a původní soubor. Přehraj.to počítá každé přihlášení jako zařízení, proto se Nokturno přihlašuje jen jednou za pár hodin."
             }
           },
           "uloziste": {

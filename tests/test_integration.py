@@ -316,7 +316,7 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
         en = json.loads((COMPONENT / "translations" / "en.json").read_text(encoding="utf-8"))
         self.assertEqual(strings, en, "en.json musí být kopie strings.json")
-        texty = json.dumps(strings, ensure_ascii=False).replace("Sosáč", "")   # vlastní jméno zdroje
+        texty = json.dumps(strings, ensure_ascii=False).replace("Sosáč", "").replace("Přehraj.to", "")   # vlastní jména zdrojů
         self.assertNotRegex(texty, r"[ěščřžýáíéůúďťň]", "strings.json obsahuje češtinu")
         yaml = (COMPONENT / "services.yaml").read_text(encoding="utf-8")
         sluzby = set(re.findall(r"^([a-z_]+):", yaml, re.M))
@@ -431,6 +431,30 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         # karta se servíruje s `?v=<verze integrace>`; kdyby se bral jiný zdroj, prohlížeč drží starou
         src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
         self.assertRegex(src, r"CARD_URL\}\?v=\{[^}]*version")
+
+
+class TestPrehrajto(unittest.TestCase):
+    """Přehraj.to je v HA jako v Kodi — přepínač zapnutý ve výchozím stavu (funguje
+    i bez účtu), účet nepovinný. E-mail a heslo jsou účty (entry.data), heslo skryté."""
+
+    def test_pole_ve_formulari(self):
+        prefs = {m.schema for m in config_flow.preferences_schema({}).schema}
+        self.assertIn(const.CONF_PT_ENABLED, prefs)
+        self.assertIn(const.CONF_PT_EMAIL, config_flow.ACCOUNT_KEYS)
+        self.assertIn(const.CONF_PT_PASS, config_flow.ACCOUNT_KEYS)
+        self.assertIn(const.CONF_PT_PASS, config_flow.SECRET_KEYS)
+        self.assertNotIn(const.CONF_PT_EMAIL, config_flow.SECRET_KEYS)
+
+    def test_zapnute_ve_vychozim_stavu(self):
+        vychozi = {m.schema: m.default for m in config_flow.preferences_schema({}).schema}
+        self.assertIs(vychozi[const.CONF_PT_ENABLED], True)
+        # uložený vypnutý stav se respektuje
+        u = {m.schema: m.default for m in config_flow.preferences_schema({const.CONF_PT_ENABLED: False}).schema}
+        self.assertIs(u[const.CONF_PT_ENABLED], False)
+
+    def test_karta_zna_barvu_prehrajto(self):
+        card = (COMPONENT / "www" / "nokturno-card.js").read_text(encoding="utf-8")
+        self.assertIn('"Přehraj.to":', card)
 
 
 if __name__ == "__main__":

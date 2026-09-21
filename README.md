@@ -9,7 +9,7 @@
 
 První tlačítko otevře repozitář rovnou v HACS tvojí instance, druhé spustí průvodce nastavením integrace.
 
-Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy**, **Sledujteto**, **FastShare** a **CZtor** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu.
+Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy**, **Sledujteto**, **FastShare**, **CZtor** a **Přehraj.to** přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu.
 
 > **Patří k sobě:** stejné zdroje nabízí i [**Nokturno pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování") a [**Nokturno pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Streamovací server Luna jde provozovat jako [addon HA](https://github.com/matata86/ha-addons).
 
@@ -31,7 +31,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy
 
 ## Co to umí
 
-- **Jedno hledání v sedmi zdrojích** (WebShare, Sosáč, Luna, HellSpy, Sledujteto, FastShare, CZtor) plus vlastní úložiště; stejný titul i soubor se sloučí do jednoho řádku
+- **Jedno hledání v osmi zdrojích** (WebShare, Sosáč, Luna, HellSpy, Sledujteto, FastShare, CZtor, Přehraj.to) plus vlastní úložiště; stejný titul i soubor se sloučí do jednoho řádku
 - **Karta na dashboard** — hledání, výběr streamu, detail titulu, Můj seznam, Hlídané seriály, stažené soubory
 - **Přehrání v Kodi** přes doplněk Nokturno (Kodi si drží „Pokračovat ve sledování"), stažení do HA nebo odkaz do mobilu
 - **Hlídání seriálů** — nový díl se ohlásí, až když se dá pustit; seznam k zhlédnutí hlídá i chystané filmy
@@ -44,6 +44,7 @@ Hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy
 
 - **Jedno hledání ve všech zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz: Luna, přímý fulltext WebShare (víc variant dotazu, aby neunikly soubory, které Lunin jeden dotaz mine) i Sosáč. Stejný soubor nalezený víc cestami se ukáže jednou. U každého streamu je zdroj, kvalita, název souboru, jazyky zvuku i titulků a velikost.
 - **CZtor jako sedmý zdroj** (od 6.0.0) — placený katalog cztor.com. Zapneš přepínačem v nastavení integrace a spáruješ ho PINem z `cztor.com/activate`; heslo integrace nevidí.
+- **Přehraj.to jako osmý zdroj** (od 7.1.0) — zapnuté ve výchozím stavu, **funguje i bez účtu** (první strana výsledků a překódovaný soubor v 1080p). Nepovinný Premium účet (pole v nastavení integrace) přidá stránkování a původní soubor včetně 4K.
 - **Stav zdrojů** (od 6.3.2) — `sensor.nokturno_stav_zdroju` počítá zdroje, které potřebují zásah (vypršelé předplatné, nespárovaný CZtor, Luna, která neběží…); `0` = vše v pořádku.
 - **Vlastní úložiště** (od 3.1.1) — až tři WebDAV složky (NAS, Nextcloud, server) v nastavení integrace. Soubory, které k titulu patří, jsou v kartě mezi streamy první se zeleným štítkem. Kodi je přehraje rovnou s heslem v hlavičce, ostatní přehrávače, odkazy do mobilu i stahování jdou přes Home Assistant (podepsaný odkaz na `/api/nokturno/storage/…`, přetáčení funguje, heslo z HA neodejde). Podrobně ve [wiki](https://github.com/matata86/nokturno-ha/wiki/Nastaveni#vlastní-úložiště).
 - **Přehrání v Kodi přes doplněk Nokturno**, takže si Kodi vede „Pokračovat ve sledování" a pamatuje si pozici. Ostatní přehrávače (TV, Cast) dostanou přímé URL.

@@ -404,6 +404,21 @@ actions:
 | [ha-addons](https://github.com/matata86/ha-addons) | addony pro HA: server Luna a proxy Sosáče pro Nuvio |
 | [fns-ha-tweaks](https://github.com/matata86/fns-ha-tweaks) | sdílený vzhled a karty pro Home Assistant |
 
+## Právní upozornění
+
+Nokturno je především přehrávač a správce **vlastního úložiště** — obsah, který
+si sami nahrajete a zpřístupníte (např. přes WebDAV), přehrává napřímo. Jako
+doplňkovou službu si můžete volitelně napojit i některé veřejně dostupné
+vyhledávače třetích stran (WebShare, Sosáč, HellSpy, Sledujteto, FastShare,
+Přehraj.to, CZtor, Luna, OpenSubtitles) — v tom případě je Nokturno jen
+technické rozhraní, samo žádný obsah nehostuje, neukládá ani neposkytuje.
+
+Integraci smíte používat jen k obsahu, ke kterému máte zákonné oprávnění,
+licenci nebo jiný právní titul. Při přidávání integrace je právní upozornění
+první krok, bez odsouhlasení se instalace nedokončí — existující instalace se
+na nic neptají. Plný text i kam nahlásit nelegální obsah u jednotlivých zdrojů
+je i na <https://nokturno.tailf0014.ts.net/terms>.
+
 ## Licence
 
 MIT

@@ -46,7 +46,7 @@
               "hide_sd": "Streamy s rozlíšením pod 720p sa do ponuky nezaradia. Pri starších tituloch tým ponuka môže zostať prázdna.",
               "sort_streams": "Kritérium poradia streamov vo chvíli, keď je jazyk aj zvuk zhodný.",
               "max_bitrate_mbps": "Horná hranica dátového toku streamu. 0 = bez obmedzenia.",
-              "multi_play": "Platí len v karte a len keď je nastavený viac než jeden prehrávač. „Spýtať sa“ ukáže po klepnutí na Prehrať výber, „prvý v zozname“ spustí rovno a výber vyvolá dlhé stlačenie."
+              "multi_play": "Funguje len keď je nastavený viac než jeden prehrávač. „Spýtať sa“ ukáže po klepnutí na Prehrať modálne okno s výberom prehrávača, „prvý v zozname“ spustí rovno na prvom prehrávači a výber prehrávača vyvolá dlhé stlačenie tlačidla."
             }
           },
           "zdroje": {
@@ -208,7 +208,7 @@
               "hide_sd": "Streamy s rozlíšením pod 720p sa do ponuky nezaradia. Pri starších tituloch tým ponuka môže zostať prázdna.",
               "sort_streams": "Kritérium poradia streamov vo chvíli, keď je jazyk aj zvuk zhodný.",
               "max_bitrate_mbps": "Horná hranica dátového toku streamu. 0 = bez obmedzenia.",
-              "multi_play": "Platí len v karte a len keď je nastavený viac než jeden prehrávač. „Spýtať sa“ ukáže po klepnutí na Prehrať výber, „prvý v zozname“ spustí rovno a výber vyvolá dlhé stlačenie."
+              "multi_play": "Funguje len keď je nastavený viac než jeden prehrávač. „Spýtať sa“ ukáže po klepnutí na Prehrať modálne okno s výberom prehrávača, „prvý v zozname“ spustí rovno na prvom prehrávači a výber prehrávača vyvolá dlhé stlačenie tlačidla."
             }
           },
           "zdroje": {

@@ -37,7 +37,7 @@
               "hide_sd": "Skrýt SD streamy",
               "sort_streams": "Řazení streamů",
               "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
-              "multi_play": "Play s víc přehrávači"
+              "multi_play": "Play s více přehrávači"
             },
             "data_description": {
               "kodi_entity": "Přehrávače, ze kterých karta nabízí výběr. Volání služby bez zadané entity spustí přehrávání na všech.",
@@ -46,7 +46,7 @@
               "hide_sd": "Streamy s rozlišením pod 720p se do nabídky nezařadí. U starších titulů tím nabídka může zůstat prázdná.",
               "sort_streams": "Kritérium pořadí streamů ve chvíli, kdy je jazyk i zvuk shodný.",
               "max_bitrate_mbps": "Horní mez datového toku streamu. 0 = bez omezení.",
-              "multi_play": "Platí jen v kartě a jen když je nastavený víc než jeden přehrávač. „Zeptat se“ ukáže po klepnutí na Přehrát výběr, „první v seznamu“ spustí rovnou a výběr vyvolá dlouhý stisk."
+              "multi_play": "Funguje jen když je nastavený víc než jeden přehrávač. „Zeptat se“ ukáže po klepnutí na Přehrát modal okno s výběrem přehrávače, „první v seznamu“ spustí rovnou na prvním playeru a výběr přehrávače vyvolá na dlouhý stisk tlačítka."
             }
           },
           "zdroje": {
@@ -199,7 +199,7 @@
               "hide_sd": "Skrýt SD streamy",
               "sort_streams": "Řazení streamů",
               "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
-              "multi_play": "Play s víc přehrávači"
+              "multi_play": "Play s více přehrávači"
             },
             "data_description": {
               "kodi_entity": "Přehrávače, ze kterých karta nabízí výběr. Volání služby bez zadané entity spustí přehrávání na všech.",
@@ -208,7 +208,7 @@
               "hide_sd": "Streamy s rozlišením pod 720p se do nabídky nezařadí. U starších titulů tím nabídka může zůstat prázdná.",
               "sort_streams": "Kritérium pořadí streamů ve chvíli, kdy je jazyk i zvuk shodný.",
               "max_bitrate_mbps": "Horní mez datového toku streamu. 0 = bez omezení.",
-              "multi_play": "Platí jen v kartě a jen když je nastavený víc než jeden přehrávač. „Zeptat se“ ukáže po klepnutí na Přehrát výběr, „první v seznamu“ spustí rovnou a výběr vyvolá dlouhý stisk."
+              "multi_play": "Funguje jen když je nastavený víc než jeden přehrávač. „Zeptat se“ ukáže po klepnutí na Přehrát modal okno s výběrem přehrávače, „první v seznamu“ spustí rovnou na prvním playeru a výběr přehrávače vyvolá na dlouhý stisk tlačítka."
             }
           },
           "zdroje": {

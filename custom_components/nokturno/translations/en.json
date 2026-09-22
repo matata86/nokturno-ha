@@ -46,7 +46,7 @@
               "hide_sd": "Streams below 720p are left out of the list. With older titles this can leave the list empty.",
               "sort_streams": "How streams are ordered when language and audio are the same.",
               "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited.",
-              "multi_play": "Applies to the card only, and only with more than one player set. \"Ask\" opens the picker on tap; \"first one listed\" starts right away and a long press opens the picker."
+              "multi_play": "Works only with more than one player set. “Ask” opens a dialog with the player list when Play is tapped; “first one listed” starts right away on the first player and a long press on the button opens the list."
             }
           },
           "zdroje": {
@@ -208,7 +208,7 @@
               "hide_sd": "Streams below 720p are left out of the list. With older titles this can leave the list empty.",
               "sort_streams": "How streams are ordered when language and audio are the same.",
               "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited.",
-              "multi_play": "Applies to the card only, and only with more than one player set. \"Ask\" opens the picker on tap; \"first one listed\" starts right away and a long press opens the picker."
+              "multi_play": "Works only with more than one player set. “Ask” opens a dialog with the player list when Play is tapped; “first one listed” starts right away on the first player and a long press on the button opens the list."
             }
           },
           "zdroje": {

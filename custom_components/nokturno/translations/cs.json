@@ -36,15 +36,17 @@
               "pref_surround": "Preferovat prostorový zvuk (5.1 a víc)",
               "hide_sd": "Skrýt SD streamy",
               "sort_streams": "Řazení streamů",
-              "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)"
+              "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
+              "multi_play": "Play s víc přehrávači"
             },
             "data_description": {
-              "kodi_entity": "Přehrávač, na kterém se titul pustí, pokud ho volání služby neurčí. Vybrat lze víc entit — přehrávání se spustí na všech.",
+              "kodi_entity": "Přehrávače, ze kterých karta nabízí výběr. Volání služby bez zadané entity spustí přehrávání na všech.",
               "pref_lang": "Streamy s tímto jazykem zvuku se v nabídce řadí první. U češtiny se počítají i slovenské titulky a naopak. „—“ = jazyk se nezohledňuje.",
               "pref_surround": "Prostorový zvuk 5.1 a vyšší se řadí před stereo. Ovlivňuje pouze pořadí, stereo streamy z nabídky nemizí.",
               "hide_sd": "Streamy s rozlišením pod 720p se do nabídky nezařadí. U starších titulů tím nabídka může zůstat prázdná.",
               "sort_streams": "Kritérium pořadí streamů ve chvíli, kdy je jazyk i zvuk shodný.",
-              "max_bitrate_mbps": "Horní mez datového toku streamu. 0 = bez omezení."
+              "max_bitrate_mbps": "Horní mez datového toku streamu. 0 = bez omezení.",
+              "multi_play": "Platí jen v kartě a jen když je nastavený víc než jeden přehrávač. „Zeptat se“ ukáže po klepnutí na Přehrát výběr, „první v seznamu“ spustí rovnou a výběr vyvolá dlouhý stisk."
             }
           },
           "zdroje": {
@@ -196,15 +198,17 @@
               "pref_surround": "Preferovat prostorový zvuk (5.1 a víc)",
               "hide_sd": "Skrýt SD streamy",
               "sort_streams": "Řazení streamů",
-              "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)"
+              "max_bitrate_mbps": "Max. datový tok (Mb/s, 0 = bez omezení)",
+              "multi_play": "Play s víc přehrávači"
             },
             "data_description": {
-              "kodi_entity": "Přehrávač, na kterém se titul pustí, pokud ho volání služby neurčí. Vybrat lze víc entit — přehrávání se spustí na všech.",
+              "kodi_entity": "Přehrávače, ze kterých karta nabízí výběr. Volání služby bez zadané entity spustí přehrávání na všech.",
               "pref_lang": "Streamy s tímto jazykem zvuku se v nabídce řadí první. U češtiny se počítají i slovenské titulky a naopak. „—“ = jazyk se nezohledňuje.",
               "pref_surround": "Prostorový zvuk 5.1 a vyšší se řadí před stereo. Ovlivňuje pouze pořadí, stereo streamy z nabídky nemizí.",
               "hide_sd": "Streamy s rozlišením pod 720p se do nabídky nezařadí. U starších titulů tím nabídka může zůstat prázdná.",
               "sort_streams": "Kritérium pořadí streamů ve chvíli, kdy je jazyk i zvuk shodný.",
-              "max_bitrate_mbps": "Horní mez datového toku streamu. 0 = bez omezení."
+              "max_bitrate_mbps": "Horní mez datového toku streamu. 0 = bez omezení.",
+              "multi_play": "Platí jen v kartě a jen když je nastavený víc než jeden přehrávač. „Zeptat se“ ukáže po klepnutí na Přehrát výběr, „první v seznamu“ spustí rovnou a výběr vyvolá dlouhý stisk."
             }
           },
           "zdroje": {
@@ -868,6 +872,12 @@
         "quality": "Nejlepší kvalita napřed",
         "size_desc": "Od největšího souboru",
         "size_asc": "Od nejmenšího souboru"
+      }
+    },
+    "multi_play": {
+      "options": {
+        "ask": "Zeptat se, kde přehrát",
+        "first": "Přehrát na prvním v seznamu"
       }
     }
   }

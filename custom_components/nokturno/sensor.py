@@ -11,8 +11,8 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
-from .const import (CONTINUE_CACHE_KEY, DOMAIN, SIGNAL_ACCOUNTS, SIGNAL_DOWNLOADS, SIGNAL_TRAKT,
-                    SIGNAL_WATCHLIST)
+from .const import (CONF_KODI_ENTITY, CONF_MULTI_PLAY, CONTINUE_CACHE_KEY, DOMAIN, MULTI_PLAY_ASK,
+                    SIGNAL_ACCOUNTS, SIGNAL_DOWNLOADS, SIGNAL_TRAKT, SIGNAL_WATCHLIST)
 from .lib import accounts as accounts_lib
 
 
@@ -38,9 +38,11 @@ class NokturnoDownloadsSensor(SensorEntity):
     # do 6.1.4 z toho recorder zapisoval ~1800 řádků `states` za hodinu stahování
     _unrecorded_attributes = frozenset({"downloads", "files", "search_history", "sources", "notify_targets",
                                         "subscription", "stream_progress", "search_progress", "directory",
-                                        "continue_cache", "current", "percent", "speed", "eta", "free_gb"})
+                                        "continue_cache", "current", "percent", "speed", "eta", "free_gb",
+                                        "players", "multi_play"})
 
     def __init__(self, entry: ConfigEntry, downloader, owners, engine):
+        self._entry = entry
         self._downloader = downloader
         self._owners = owners
         self._engine = engine
@@ -73,6 +75,17 @@ class NokturnoDownloadsSensor(SensorEntity):
         self.async_on_remove(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _started))
 
         self.async_on_remove(self.hass.bus.async_listen(EVENT_SERVICE_REGISTERED, _service_added))
+
+    def _volby(self) -> dict:
+        """Nastavení integrace naplocho — options přebíjejí data, jako všude jinde."""
+        return {**self._entry.data, **self._entry.options}
+
+    def _players(self) -> list[str]:
+        """Výchozí přehrávače vždy jako seznam (do 6.6.0 se ukládal jeden řetězec)."""
+        hodnota = self._volby().get(CONF_KODI_ENTITY)
+        if not hodnota:
+            return []
+        return list(hodnota) if isinstance(hodnota, (list, tuple)) else [hodnota]
 
     @property
     def notify_targets(self) -> list[dict]:
@@ -125,6 +138,11 @@ class NokturnoDownloadsSensor(SensorEntity):
             "sources": self._engine.sources(),
             # karta z toho plní výběr mobilu (u koho který telefon je)
             "notify_targets": self.notify_targets,
+            # výchozí přehrávače z nastavení integrace — karta z nich plní výběr
+            # „Kde přehrát?"; bez toho by nabízela všechny media_player entity v HA
+            "players": self._players(),
+            # co dělá Přehrát v kartě, když je přehrávačů víc
+            "multi_play": self._volby().get(CONF_MULTI_PLAY, MULTI_PLAY_ASK),
             # dny do vypršení předplatného WebShare — plní `check_subscription` v __init__.py
             "subscription": self._engine.sub_status,
             # postup načítání streamů právě otevřeného titulu — {} když nic neběží

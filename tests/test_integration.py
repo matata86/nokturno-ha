@@ -928,6 +928,9 @@ class TestPreklyadHodnotSelectu(unittest.TestCase):
         else:
             self.fail("pref_lang není ve schématu")
 
+    def test_vicero_prehravacu_ma_translation_key(self):
+        self.assertEqual(self._klic(const.CONF_MULTI_PLAY), "multi_play")
+
     def test_kazda_hodnota_ma_preklad(self):
         for soubor in ("strings.json", "translations/cs.json", "translations/sk.json",
                        "translations/en.json"):
@@ -935,4 +938,31 @@ class TestPreklyadHodnotSelectu(unittest.TestCase):
             selektory = d.get("selector") or {}
             self.assertEqual(set(selektory.get("sort_streams", {}).get("options", {})),
                              set(const.SORT_ORDERS), soubor)
+            self.assertEqual(set(selektory.get("multi_play", {}).get("options", {})),
+                             set(const.MULTI_PLAY_OPTIONS), soubor)
             self.assertNotIn("pref_lang", selektory, soubor)
+
+
+class TestVyberPrehravace(unittest.TestCase):
+    """Volba „co dělá Přehrát s víc přehrávači" jde z nastavení přes atribut
+    senzoru do karty. Kontroluje se, že se ta tři místa nerozejdou."""
+
+    KARTA = (ROOT / "custom_components/nokturno/www/nokturno-card.js").read_text("utf-8")
+
+    def test_volba_je_v_sekci_prehravani(self):
+        klice = next(k for jmeno, k, _ in config_flow.SEKCE if jmeno == "prehravani")
+        self.assertIn(const.CONF_MULTI_PLAY, klice)
+
+    def test_senzor_vystavuje_prehravace_i_rezim(self):
+        zdroj = (ROOT / "custom_components/nokturno/sensor.py").read_text("utf-8")
+        self.assertIn('"players"', zdroj)
+        self.assertIn(f'"{const.CONF_MULTI_PLAY}"', zdroj)
+
+    def test_karta_cte_stejna_jmena(self):
+        self.assertIn("attributes.players", self.KARTA)
+        self.assertIn("attributes.multi_play", self.KARTA)
+        self.assertIn(f'=== "{const.MULTI_PLAY_FIRST}"', self.KARTA)
+
+    def test_karta_ma_dlouhy_stisk(self):
+        self.assertIn("pointerdown", self.KARTA)
+        self.assertIn("_longPress", self.KARTA)

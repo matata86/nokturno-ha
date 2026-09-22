@@ -36,15 +36,17 @@
               "pref_surround": "Prefer surround sound (5.1 and up)",
               "hide_sd": "Hide SD streams",
               "sort_streams": "Stream order",
-              "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)"
+              "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)",
+              "multi_play": "Play with several players"
             },
             "data_description": {
-              "kodi_entity": "The player used when a service call does not name one. Several entities can be selected — playback starts on all of them.",
+              "kodi_entity": "The players the card offers to choose from. A service call that names no entity starts playback on all of them.",
               "pref_lang": "Streams with this audio language are listed first. For Czech, Slovak subtitles count as well, and the other way round. “—” = language is not taken into account.",
               "pref_surround": "Surround 5.1 and above ranks above stereo. Affects ordering only; stereo streams stay in the list.",
               "hide_sd": "Streams below 720p are left out of the list. With older titles this can leave the list empty.",
               "sort_streams": "How streams are ordered when language and audio are the same.",
-              "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited."
+              "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited.",
+              "multi_play": "Applies to the card only, and only with more than one player set. \"Ask\" opens the picker on tap; \"first one listed\" starts right away and a long press opens the picker."
             }
           },
           "zdroje": {
@@ -196,15 +198,17 @@
               "pref_surround": "Prefer surround sound (5.1 and up)",
               "hide_sd": "Hide SD streams",
               "sort_streams": "Stream order",
-              "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)"
+              "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)",
+              "multi_play": "Play with several players"
             },
             "data_description": {
-              "kodi_entity": "The player used when a service call does not name one. Several entities can be selected — playback starts on all of them.",
+              "kodi_entity": "The players the card offers to choose from. A service call that names no entity starts playback on all of them.",
               "pref_lang": "Streams with this audio language are listed first. For Czech, Slovak subtitles count as well, and the other way round. “—” = language is not taken into account.",
               "pref_surround": "Surround 5.1 and above ranks above stereo. Affects ordering only; stereo streams stay in the list.",
               "hide_sd": "Streams below 720p are left out of the list. With older titles this can leave the list empty.",
               "sort_streams": "How streams are ordered when language and audio are the same.",
-              "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited."
+              "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited.",
+              "multi_play": "Applies to the card only, and only with more than one player set. \"Ask\" opens the picker on tap; \"first one listed\" starts right away and a long press opens the picker."
             }
           },
           "zdroje": {
@@ -868,6 +872,12 @@
         "quality": "Best quality first",
         "size_desc": "Largest file first",
         "size_asc": "Smallest file first"
+      }
+    },
+    "multi_play": {
+      "options": {
+        "ask": "Ask where to play",
+        "first": "Play on the first one listed"
       }
     }
   }

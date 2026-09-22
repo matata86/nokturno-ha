@@ -11,6 +11,12 @@ DOMAIN = "nokturno"
 
 # --- vlastní Home Assistantu ---------------------------------------------
 CONF_KODI_ENTITY = "kodi_entity"
+# Co dělá tlačítko Přehrát v kartě, když je nastavený víc než jeden přehrávač.
+# S jediným přehrávačem se karta neptá nikdy.
+CONF_MULTI_PLAY = "multi_play"
+MULTI_PLAY_ASK = "ask"       # klik = modal s výběrem
+MULTI_PLAY_FIRST = "first"   # klik = první v seznamu, dlouhý stisk = modal
+MULTI_PLAY_OPTIONS = (MULTI_PLAY_ASK, MULTI_PLAY_FIRST)
 CONF_NOTIFY_TARGET = "notify_target"
 CONF_TRAKT_ID = "trakt_client_id"
 CONF_TRAKT_SECRET = "trakt_client_secret"

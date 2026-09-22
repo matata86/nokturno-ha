@@ -40,6 +40,9 @@ from .const import (
     CONF_LUNA_TOKEN,
     CONF_LUNA_URL,
     CONF_MAX_BITRATE,
+    CONF_MULTI_PLAY,
+    MULTI_PLAY_ASK,
+    MULTI_PLAY_OPTIONS,
     CONF_PREF_LANG,
     CONF_PREF_SURROUND,
     CONF_SORT,
@@ -108,8 +111,8 @@ def _kod_skupiny(accounts: dict) -> str | None:
 # se před uložením zase zploští (`_zploskuj`). Uloženo zůstává naplocho, jak to
 # bylo: `entry.data` i `entry.options` si nesmí kvůli vzhledu formuláře měnit tvar.
 SEKCE = [
-    ("prehravani", [CONF_KODI_ENTITY, CONF_PREF_LANG, CONF_PREF_SURROUND, CONF_HIDE_SD,
-                    CONF_MAX_BITRATE, CONF_SORT], False),
+    ("prehravani", [CONF_KODI_ENTITY, CONF_MULTI_PLAY, CONF_PREF_LANG, CONF_PREF_SURROUND,
+                    CONF_HIDE_SD, CONF_MAX_BITRATE, CONF_SORT], False),
     ("zdroje", [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS,
                 CONF_ST_EMAIL, CONF_ST_PASS, CONF_FS_USER, CONF_FS_PASS,
                 CONF_HS_ENABLED, CONF_PT_ENABLED, CONF_PT_EMAIL, CONF_PT_PASS,
@@ -191,6 +194,11 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_KODI_ENTITY, default=_seznam(data.get(CONF_KODI_ENTITY))):
             selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="media_player", multiple=True)),
+        # Co dělá Přehrát v kartě s víc nastavenými přehrávači. Dvě volby → HA je
+        # vykreslí jako radio přepínače, stejně jako jazyk o kus níž.
+        vol.Optional(CONF_MULTI_PLAY, default=data.get(CONF_MULTI_PLAY, MULTI_PLAY_ASK)):
+            selector.SelectSelector(selector.SelectSelectorConfig(
+                options=list(MULTI_PLAY_OPTIONS), translation_key="multi_play")),
         # Jazyky nesou popisek přímo (endonym), ne překlad: `translation_key` skládá
         # klíč z uložené hodnoty a hassfest povoluje jen `[a-z0-9-_]+`, kam „CZ"
         # ani „—" nepatří. Endonym je navíc srozumitelný v každém jazyce rozhraní.

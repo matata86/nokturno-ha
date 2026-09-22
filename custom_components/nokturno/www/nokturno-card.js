@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "7.6.0";
+const CARD_VERSION = "7.8.0";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -458,8 +458,8 @@ class NokturnoCard extends HTMLElement {
     return target;
   }
 
-  async _play(stream) {
-    const entityId = await this._choose("player");
+  async _play(stream, force = false) {
+    const entityId = await this._choose("player", force);
     if (!entityId) { if (!this._players().length) this._toast(this._t("Není nastavený žádný přehrávač.")); return; }
     this._state.player = entityId;
     await this._guard(async () => {
@@ -468,9 +468,6 @@ class NokturnoCard extends HTMLElement {
     });
   }
 
-  /** Vybere přehrávač nebo mobil. S jedinou možností se neptá, jinak ukáže
-      malý výběr — dva rozbalovací seznamy natrvalo v kartě zabíraly víc místa,
-      než kolik se jich reálně používá. */
   /** Společný modal karty. `body` je obsah panelu, `wire` navěsí obsluhu
       a dostane funkci, kterou modal zavře i s výsledkem. */
   _modal(body, wire) {
@@ -547,12 +544,15 @@ class NokturnoCard extends HTMLElement {
 
   /** Vybere přehrávač nebo mobil. S jedinou možností se neptá, jinak ukáže
       malý výběr — dva rozbalovací seznamy natrvalo v kartě zabíraly víc místa,
-      než kolik se jich reálně používá. */
-  _choose(kind) {
+      než kolik se jich reálně používá. Přehrávač v režimu „první v seznamu"
+      vrátí rovnou první, dokud `force` (dlouhý stisk) modal nevynutí. */
+  _choose(kind, force = false) {
     const list = kind === "phone" ? this._phones() : this._players();
     const name = (v) => (kind === "phone" ? this._phoneName(v) : this._friendly(v));
     if (!list.length) return Promise.resolve(null);
     if (list.length === 1) return Promise.resolve(list[0]);
+    // režim „první v seznamu" — modal jen na vynucení (dlouhý stisk)
+    if (kind === "player" && !force && this._multiPlay() === "first") return Promise.resolve(list[0]);
     return this._modal(`<div class="panel">
       <div class="phead">
         <span class="ptitle">${kind === "phone" ? this._t("Do kterého mobilu?") : this._t("Kde přehrát?")}</span>
@@ -746,8 +746,17 @@ class NokturnoCard extends HTMLElement {
 
   _players() {
     if (this._config.players.length) return this._config.players;
+    const sensor = this._hass && this._hass.states[this._config.downloads];
+    const zIntegrace = (sensor && sensor.attributes.players) || [];
+    if (zIntegrace.length) return zIntegrace;
     return Object.keys((this._hass && this._hass.states) || {})
       .filter((id) => id.startsWith("media_player."));
+  }
+
+  /** Co má Přehrát dělat s víc přehrávači — z nastavení integrace. */
+  _multiPlay() {
+    const sensor = this._hass && this._hass.states[this._config.downloads];
+    return (sensor && sensor.attributes.multi_play) || "ask";
   }
 
   /** Telefony i s vlastníkem — seznam hlásí integrace v atributu senzoru. */
@@ -966,6 +975,12 @@ class NokturnoCard extends HTMLElement {
     this._root.querySelector("#go").addEventListener("click", () => this._search());
     this._root.querySelector("#clearcache").addEventListener("click", () => this._clearCache());
     this._root.querySelector("#body").addEventListener("click", (e) => this._onClick(e));
+    this._root.querySelector("#body").addEventListener("pointerdown", () => {
+      // dlouhý stisk (≥ 500 ms) vyvolá výběr přehrávače i v režimu „první v seznamu"
+      clearTimeout(this._pressTimer);
+      this._longPress = false;
+      this._pressTimer = setTimeout(() => { this._longPress = true; }, 500);
+    });
     const kind = this._root.querySelector("#type");
     kind.options = KINDS;
     kind.value = this._state.type;
@@ -1728,6 +1743,9 @@ class NokturnoCard extends HTMLElement {
   /** Jeden posluchač na celý obsah — přežije překreslení a funguje i uvnitř ha-icon-button. */
   _onClick(event) {
     const st = this._state;
+    const long = this._longPress;
+    this._longPress = false;
+    clearTimeout(this._pressTimer);
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
                   "contremove", "watch", "wopen", "wremove", "wseen", "trakt", "traktflag", "traktflagdetail",
                   "want", "catalog", "research", "torrent", "findtorrents", "findfulltext", "removeprogress",
@@ -1848,7 +1866,7 @@ class NokturnoCard extends HTMLElement {
       st.descOpen = false;
       return this._loadStreams({ id: ep.id, type: "series", series: st.item.id, alt: st.item.alt });
     }
-    if (data.play !== undefined) return this._play(st.streams[+data.play]);
+    if (data.play !== undefined) return this._play(st.streams[+data.play], long);
     if (data.phone !== undefined) return this._toPhone(st.streams[+data.phone]);
     if (data.dl !== undefined) return this._download(st.streams[+data.dl]);
     if (data.link !== undefined) return this._openLink(st.streams[+data.link]);

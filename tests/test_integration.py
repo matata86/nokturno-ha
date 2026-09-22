@@ -426,6 +426,49 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         self.assertTrue(created[-1]["data"]["terms_accepted"])
         self.assertEqual(created[-1]["data"]["terms_version"], config_flow.TERMS_VERSION)
 
+    def test_terms_update_gatuje_options_flow(self):
+        """Vyšší TERMS_VERSION (věcná změna textu) donutí existující instalaci
+        souhlas potvrdit znovu v Options flow, dřív než se dostane k formuláři
+        s předvolbami — na rozdíl od Kodi tu není revokovatelný přepínač, tohle
+        je jediná cesta, jak se souhlas dostane z verze 1 na verzi 2 a výš."""
+        import asyncio
+
+        class Entry:
+            data = {"terms_version": config_flow.TERMS_VERSION - 1}
+            options = {}
+
+        entry = Entry()
+        flow = config_flow.NokturnoOptionsFlow()
+        flow.config_entry = entry
+        updated = []
+
+        def zapsat(entry_, data):
+            updated.append(data)
+            entry_.data = data   # skutečné HA po async_update_entry entry.data přepíše
+
+        flow.hass = type("H", (), {"config_entries": type("CE", (), {
+            "async_update_entry": staticmethod(zapsat),
+        })()})()
+        shown = []
+        flow.async_show_form = lambda **kw: shown.append(kw) or ("form", kw["step_id"])
+
+        result = asyncio.run(flow.async_step_init())
+        self.assertEqual(result, ("form", "terms_update"))
+
+        result = asyncio.run(flow.async_step_init({"terms_accepted": False}))
+        self.assertEqual(result, ("form", "terms_update"))
+        self.assertEqual(shown[-1]["errors"], {"base": "terms_required"})
+
+        # se souhlasem se zapíše nová verze a jde se rovnou dál na běžný formulář init
+        result = asyncio.run(flow.async_step_init({"terms_accepted": True}))
+        self.assertEqual(updated[-1]["terms_version"], config_flow.TERMS_VERSION)
+        self.assertTrue(updated[-1]["terms_accepted"])
+        self.assertEqual(result, ("form", "init"))
+
+        strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
+        self.assertIn("terms_update", strings["options"]["step"])
+        self.assertIn("terms_required", strings["options"]["error"])
+
     def test_kazdy_klic_nastaveni_ma_popisek(self):
         # Formulář je rozdělený do sbalitelných sekcí, takže popisky polí leží
         # v `sections.<sekce>.data`, ne rovnou v `step.data`.

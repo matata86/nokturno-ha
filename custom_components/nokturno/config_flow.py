@@ -361,6 +361,11 @@ class NokturnoOptionsFlow(CztorPairing, OptionsFlow):
     """Změna účtů i předvoleb po instalaci (účty patří do `data`, zbytek do `options`)."""
 
     async def async_step_init(self, user_input=None):
+        # věcná změna právního upozornění (vyšší TERMS_VERSION) — na rozdíl od Kodi tu
+        # není revokovatelný přepínač, tak se souhlas znovu vyžádá aspoň při příštím
+        # otevření Nastavení integrace, ne až samo od sebe
+        if self.config_entry.data.get(CONF_TERMS_VERSION) != TERMS_VERSION:
+            return await self.async_step_terms_update(user_input if user_input and CONF_TERMS_ACCEPTED in user_input else None)
         if user_input is not None:
             user_input = _zploskuj(user_input)
             if user_input.get(CONF_PREF_LANG) == "—":
@@ -379,6 +384,22 @@ class NokturnoOptionsFlow(CztorPairing, OptionsFlow):
             return await self._cztor_finish()
         current = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(step_id="init", data_schema=formular(current))
+
+    async def async_step_terms_update(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            if user_input.get(CONF_TERMS_ACCEPTED):
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={**self.config_entry.data, CONF_TERMS_ACCEPTED: True, CONF_TERMS_VERSION: TERMS_VERSION},
+                )
+                return await self.async_step_init()
+            errors["base"] = "terms_required"
+        return self.async_show_form(
+            step_id="terms_update",
+            data_schema=vol.Schema({vol.Required(CONF_TERMS_ACCEPTED, default=False): bool}),
+            errors=errors,
+        )
 
     async def _cztor_finish(self):
         return self.async_create_entry(title="", data=self._cz_pending)

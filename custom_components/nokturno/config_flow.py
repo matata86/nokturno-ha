@@ -14,6 +14,9 @@ from homeassistant.helpers import selector
 from .engine import STORAGE_OPTIONS
 from .const import (
     CONF_CZ_ENABLED,
+    CONF_TERMS_ACCEPTED,
+    CONF_TERMS_VERSION,
+    TERMS_VERSION,
     CONF_DOWNLOAD_DIR,
     CONF_PROWLARR_URL,
     CONF_PROWLARR_KEY,
@@ -280,8 +283,21 @@ class NokturnoConfigFlow(CztorPairing, ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
+        """Právní upozornění — první krok, bez potvrzení se instalace nedokončí."""
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
+        errors = {}
+        if user_input is not None:
+            if user_input.get(CONF_TERMS_ACCEPTED):
+                return await self.async_step_account()
+            errors["base"] = "terms_required"
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema({vol.Required(CONF_TERMS_ACCEPTED, default=False): bool}),
+            errors=errors,
+        )
+
+    async def async_step_account(self, user_input=None):
         if user_input is not None:
             user_input = _zploskuj(user_input)
             if user_input.get(CONF_PREF_LANG) == "—":
@@ -292,8 +308,12 @@ class NokturnoConfigFlow(CztorPairing, ConfigFlow, domain=DOMAIN):
                 accounts[CONF_SYNC_KEY] = secrets.token_hex(16)
             chyba = _kod_skupiny(accounts)
             if chyba:
-                return self.async_show_form(step_id="user", errors={CONF_SYNC_CODE: chyba},
+                return self.async_show_form(step_id="account", errors={CONF_SYNC_CODE: chyba},
                                             data_schema=formular({**accounts, **user_input}))
+            # potvrzení právního upozornění z prvního kroku patří do entry.data, ať se
+            # při reconfiguraci/aktualizaci nemusí ptát znovu na stejnou verzi textu
+            accounts[CONF_TERMS_ACCEPTED] = True
+            accounts[CONF_TERMS_VERSION] = TERMS_VERSION
             self._cz_pending, self._cz_accounts = user_input, accounts
             if await self._cztor_needs_pairing(user_input):
                 return await self.async_step_cztor()
@@ -301,7 +321,7 @@ class NokturnoConfigFlow(CztorPairing, ConfigFlow, domain=DOMAIN):
         # sync_key ukázat rovnou vyplněný — ať ho jde zkopírovat do Kodi hned napoprvé,
         # ne až po dodatečném otevření Nastavení integrace. 128 bitů: klíč chrání
         # neautentizované endpointy /sync a /files (dřív 48 bitů).
-        return self.async_show_form(step_id="user",
+        return self.async_show_form(step_id="account",
                                     data_schema=formular({CONF_SYNC_KEY: secrets.token_hex(16)}))
 
     async def async_step_reauth(self, entry_data):

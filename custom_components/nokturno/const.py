@@ -23,6 +23,11 @@ CONF_SYNC_KEY = "sync_key"   # klíč, kterým se Kodi doplňky hlásí na /api/
 CONF_SYNC_CODE = "sync_code"
 SYNC_RELAY_INTERVAL_MINUTES = 5
 
+# Právní upozornění — první krok config flow, bez potvrzení se instalace nedokončí.
+CONF_TERMS_ACCEPTED = "terms_accepted"
+CONF_TERMS_VERSION = "terms_version"
+TERMS_VERSION = 1
+
 # Co se synchronizuje. Stejné tři okruhy jako v doplňku pro Kodi (`lib/sync.py`),
 # a platí pro obě cesty naráz: pro Kodi v místní síti (`/api/nokturno/sync`)
 # i pro skupinu na relayi. Vypnutý okruh se nepošle ani nepřijme — kdyby se jen

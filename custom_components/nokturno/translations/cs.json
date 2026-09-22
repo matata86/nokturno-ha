@@ -2,6 +2,28 @@
   "config": {
     "step": {
       "user": {
+        "title": "Právní upozornění",
+        "description": "Nokturno je pouze technické rozhraní k obsahu, obsah sám nehostuje, neukládá ani neposkytuje. Zpřístupňuje odkazy z veřejně dostupných služeb třetích stran (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) a z úložiště, které si sami nastavíte.\n\nDoplněk smíte používat jen k obsahu, ke kterému máte zákonné oprávnění, licenci nebo jiný právní titul. Vyhledávání, zpřístupňování nebo přehrávání autorsky chráněného obsahu bez souhlasu nositelů práv je zakázáno.\n\nDoplněk je poskytován „tak, jak je“, bez záruky funkčnosti, dostupnosti ani legálnosti zdrojů třetích stran. Za způsob použití nese odpovědnost výhradně uživatel. Provozovatel si vyhrazuje právo kdykoli omezit nebo ukončit přístup.",
+        "data": {
+          "terms_accepted": "Potvrzuji, že budu doplněk používat pouze k obsahu, ke kterému mám právo přístupu, a souhlasím s podmínkami použití."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Přihlášení k WebShare",
+        "description": "WebShare odmítl přihlášení — zkontroluj e-mail a heslo.",
+        "data": {
+          "ws_username": "WebShare — e-mail",
+          "ws_password": "WebShare — heslo (nebo uložený hash)"
+        }
+      },
+      "cztor": {
+        "title": "CZtor — spárování",
+        "description": "Na telefonu nebo počítači otevřete **{url}**, přihlaste se a zadejte PIN **{pin}**. Potom zde stiskněte Odeslat. Heslo k účtu se do Home Assistantu nezadává.",
+        "data": {
+          "pair": "Spárovat CZtor (odškrtnutím CZtor vypneš)"
+        }
+      },
+      "account": {
         "title": "Nokturno",
         "description": "Vyplň jen zdroje a volby, které chceš používat; vyplnit nemusíš nic. Bez jediného vyplněného pole integrace i tak nabídne katalog a hledání (přes veřejnou databázi Sosáč/Cinemeta, s TMDB klíčem i česky). Údaje jsou stejné jako v Kodi doplňku Nokturno. Cokoli jde kdykoli změnit později přes Nastavení integrace.",
         "sections": {
@@ -144,21 +166,6 @@
             }
           }
         }
-      },
-      "reauth_confirm": {
-        "title": "Přihlášení k WebShare",
-        "description": "WebShare odmítl přihlášení — zkontroluj e-mail a heslo.",
-        "data": {
-          "ws_username": "WebShare — e-mail",
-          "ws_password": "WebShare — heslo (nebo uložený hash)"
-        }
-      },
-      "cztor": {
-        "title": "CZtor — spárování",
-        "description": "Na telefonu nebo počítači otevřete **{url}**, přihlaste se a zadejte PIN **{pin}**. Potom zde stiskněte Odeslat. Heslo k účtu se do Home Assistantu nezadává.",
-        "data": {
-          "pair": "Spárovat CZtor (odškrtnutím CZtor vypneš)"
-        }
       }
     },
     "error": {
@@ -167,7 +174,8 @@
       "cz_pending": "PIN zatím není potvrzený — zadejte ho na cztor.com/activate a stiskněte Odeslat znovu.",
       "cz_failed": "PIN vypršel nebo se spárování nepovedlo — ukazuje se nový PIN, zkus to znovu.",
       "cz_network": "Server CZtor neodpověděl. Zkus to později.",
-      "sync_code": "Kód skupiny nemá správný tvar — opiš ho z Kodi, vzor NKT-XXXX-XXXX-XXXX-XXXX."
+      "sync_code": "Kód skupiny nemá správný tvar — opiš ho z Kodi, vzor NKT-XXXX-XXXX-XXXX-XXXX.",
+      "terms_required": "Bez potvrzení nelze instalaci dokončit."
     },
     "abort": {
       "already_configured": "Nokturno už je nastavené.",

@@ -344,7 +344,8 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
         self.assertIn("reauth_confirm", strings["config"]["step"])
         self.assertIn("reauth_successful", strings["config"]["abort"])
-        self.assertEqual(set(strings["config"]["error"]), {"ws_auth", "ws_network", "cz_pending", "cz_failed", "cz_network", "sync_code"})
+        self.assertEqual(set(strings["config"]["error"]),
+                         {"ws_auth", "ws_network", "cz_pending", "cz_failed", "cz_network", "sync_code", "terms_required"})
         self.assertTrue(hasattr(config_flow.NokturnoConfigFlow, "async_step_reauth"))
         self.assertTrue(hasattr(config_flow.NokturnoConfigFlow, "async_step_reauth_confirm"))
         init = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
@@ -389,12 +390,48 @@ class TestSouboryProHomeAssistant(unittest.TestCase):
         self.assertEqual(asyncio.run(flow2.async_step_cztor({"pair": False})), "entry")
         self.assertFalse(created[-1]["data"]["cz_enabled"])
 
+    def test_terms_step_gatuje_instalaci(self):
+        """Bez zaškrtnutého souhlasu se konfigurace nedokončí; se souhlasem jde dál
+        na formulář s účty a souhlas se uloží do entry.data (verze textu s ním)."""
+        import asyncio
+
+        flow = config_flow.NokturnoConfigFlow()
+
+        async def noop():
+            return None
+
+        flow.async_set_unique_id = lambda *a, **kw: noop()
+        flow._abort_if_unique_id_configured = lambda: None
+        shown = []
+        flow.async_show_form = lambda **kw: shown.append(kw) or ("form", kw["step_id"])
+
+        result = asyncio.run(flow.async_step_user())
+        self.assertEqual(result, ("form", "user"))
+
+        result = asyncio.run(flow.async_step_user({"terms_accepted": False}))
+        self.assertEqual(result, ("form", "user"))
+        self.assertEqual(shown[-1]["errors"], {"base": "terms_required"})
+
+        result = asyncio.run(flow.async_step_user({"terms_accepted": True}))
+        self.assertEqual(result, ("form", "account"))
+
+        created = []
+        flow.async_create_entry = lambda **kw: created.append(kw) or "entry"
+
+        async def bez_parovani(user_input):
+            return False
+
+        flow._cztor_needs_pairing = bez_parovani
+        self.assertEqual(asyncio.run(flow.async_step_account({})), "entry")
+        self.assertTrue(created[-1]["data"]["terms_accepted"])
+        self.assertEqual(created[-1]["data"]["terms_version"], config_flow.TERMS_VERSION)
+
     def test_kazdy_klic_nastaveni_ma_popisek(self):
         # Formulář je rozdělený do sbalitelných sekcí, takže popisky polí leží
         # v `sections.<sekce>.data`, ne rovnou v `step.data`.
         strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
         klice = set(config_flow.ACCOUNT_KEYS) | {m.schema for m in config_flow.preferences_schema({}).schema}
-        for blok, krok in (("config", "user"), ("options", "init")):
+        for blok, krok in (("config", "account"), ("options", "init")):
             sekce = strings[blok]["step"][krok]["sections"]
             popisky = {k for s in sekce.values() for k in s["data"]}
             self.assertEqual(klice - popisky, set(),
@@ -796,7 +833,7 @@ class TestPrekladyProHassfest(unittest.TestCase):
         adresa = re.compile(r"https?://")
         for soubor in self.SOUBORY:
             d = json.loads((ROOT / "custom_components/nokturno" / soubor).read_text("utf-8"))
-            for blok, krok in (("config", "user"), ("options", "init")):
+            for blok, krok in (("config", "account"), ("options", "init")):
                 for jmeno, sekce in (d[blok]["step"][krok].get("sections") or {}).items():
                     for klic, text in (sekce.get("data_description") or {}).items():
                         self.assertIsNone(adresa.search(text),
@@ -809,7 +846,7 @@ class TestPrekladyProHassfest(unittest.TestCase):
             d = json.loads((ROOT / "custom_components/nokturno" / soubor).read_text("utf-8"))
             tvar = {
                 f"{blok}.{sekce}.{druh}.{klic}"
-                for blok, krok in (("config", "user"), ("options", "init"))
+                for blok, krok in (("config", "account"), ("options", "init"))
                 for sekce, obsah in (d[blok]["step"][krok].get("sections") or {}).items()
                 for druh in ("data", "data_description")
                 for klic in (obsah.get(druh) or {})

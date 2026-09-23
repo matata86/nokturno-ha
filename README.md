@@ -418,7 +418,7 @@ Integraci smíte používat jen k obsahu, ke kterému máte zákonné oprávněn
 licenci nebo jiný právní titul. Při přidávání integrace je právní upozornění
 první krok, bez odsouhlasení se instalace nedokončí — existující instalace se
 na nic neptají. Plný text i kam nahlásit nelegální obsah u jednotlivých zdrojů
-je i na <https://nokturno.tailf0014.ts.net/terms>.
+je i na <https://nokturno.stream/terms>.
 
 ## Licence
 

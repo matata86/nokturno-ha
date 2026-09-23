@@ -14,6 +14,7 @@ Tři veřejné endpointy, které server skládá sám z TMDB (klient nic nedohle
 * `GET /similar?kind=&id=` — podobné tituly pro uživatele bez vlastního TMDB klíče.
 * `GET /tv-program?date=&kind=&channel=` — filmy a seriály v české a slovenské TV,
   jen ty, které server spároval s TMDB (mají `tt…` id).
+* `GET /concerts/recent?sources=` — nově přidané (schválené) koncerty, nejnovější napřed
 * `GET /concerts?sources=` + `GET /concerts/{id}?sources=` — katalog koncertů: interpreti a pod nimi
   koncerty se soubory jako hotové vnitřní odkazy (`ws:`/`hs:`/`fs:`). Koncert nemá IMDb id,
   proto jde mimo běžné katalogy; klient pošle zapnuté zdroje a dostane jen to, co umí přehrát.
@@ -50,6 +51,13 @@ STALE_TTL = 14 * 86400   # jak staré záložní data ještě ukázat při výpa
 DOWN_TTL = 300
 DOWN_KEY = "nokturno:dash:down"
 
+
+def since_midnight(now=None):
+    """Sekundy od poslední místní půlnoci. Menu se nesmí držet přes půlnoc: sezónní
+    katalogy (Vánoce, Film pro dnešní den) platí po dnech a musí se objevit hned."""
+    t = time.localtime(now)
+    return t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec
+
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 IMDB_RE = re.compile(r"^tt\d{5,10}$")
 DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -62,6 +70,7 @@ KINDS = ("movie", "series")
 PLACEMENTS = ("root", "browse")
 CONCERTS_TTL = 6 * 3600
 CONCERT_SOURCES = ("webshare", "hellspy", "fastshare")
+MAX_GENRE = 24
 CONCERT_REF_RE = re.compile(r"^(ws|hs|fs):[A-Za-z0-9:_./=-]{1,160}$")
 # ikony, které klient umí přeložit na obrázek — neznámá se zahodí na výchozí
 ICONS = ("", "movies", "series", "star", "top", "new", "family", "christmas", "halloween", "calendar", "trophy",
@@ -78,6 +87,13 @@ class DashApiError(Exception):
 
 def _text(value, limit):
     return _CONTROL_RE.sub("", str(value or "")).strip()[:limit]
+
+
+def _img(value):
+    """Náhled ze zdroje. Jen http(s) adresa — Kodi bere v `setArt` i `special://` a cesty
+    k souborům, takže cizí řetězec se sem pouštět nesmí."""
+    url = _text(value, 300)
+    return url if url.startswith("http://") or url.startswith("https://") else ""
 
 
 def _clean_entry(raw, depth=1):
@@ -112,16 +128,17 @@ def _clean_items(items, ctype):
 
 
 class DashApi:
-    def __init__(self, cache=None, base=BASE):
+    def __init__(self, cache=None, base=BASE, headers=None):
         self.cache = cache
         self.base = base
+        self.headers = headers or {}   # Stremio: token pro koncerty ze zkušebního provozu
 
     # --- síť a cache -----------------------------------------------------------------
 
     def _get(self, path, timeout=TIMEOUT, **params):
         query = urllib.parse.urlencode({k: v for k, v in params.items() if v})
         url = f"{self.base}{path}" + (f"?{query}" if query else "")
-        req = urllib.request.Request(url, headers={"User-Agent": "Nokturno"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Nokturno", **self.headers})
         try:
             with open_url(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
@@ -134,7 +151,14 @@ class DashApi:
 
     def _load(self, key, ttl, fetch):
         """Čerstvá cache → síť → při chybě poslední známá data (až `STALE_TTL`).
-        `fetch` vrací data k uložení, nebo None (nic neukládat, nic není)."""
+        `fetch` vrací data k uložení, nebo None (nic neukládat, nic není).
+
+        Značka výpadku (`DOWN_KEY`) šetří čekání na timeout, ale **jen tam, kde je co
+        ukázat místo toho**. Bez starých dat by kvůli ní uživatel dostal prázdno za
+        chybu, která mohla dávno minout: Kodi na Androidu po startu chvíli nemá síť,
+        zahřívání na pozadí tam narazí a značka pak pět minut umlčí i výpisy, které
+        uživatel otevře rukou. Tahle podmínka to stála jednou celý rozcestník koncertů
+        (2026-09-23, Office). Ruční výpis proto zaplatí nejvýš jeden timeout (6 s)."""
         if self.cache is None:
             try:
                 return fetch()
@@ -143,12 +167,13 @@ class DashApi:
         fresh = self.cache.peek_cached(key, ttl)
         if fresh is not None:
             return fresh
-        if self.cache.peek_cached(DOWN_KEY, DOWN_TTL) is None:
+        stale = self.cache.peek_cached(key, STALE_TTL)
+        if stale is None or self.cache.peek_cached(DOWN_KEY, DOWN_TTL) is None:
             try:
                 return self.cache.cached_if(key, ttl, fetch, ok=lambda d: d is not None, fresh=True)
             except DashApiError:
                 self.cache.cached_if(DOWN_KEY, DOWN_TTL, lambda: {"t": int(time.time())}, fresh=True)
-        return self.cache.peek_cached(key, STALE_TTL)
+        return stale
 
     # --- katalogy --------------------------------------------------------------------
 
@@ -160,7 +185,7 @@ class DashApi:
             data = self._get("/catalogs")
             return data.get("catalogs") if isinstance(data, dict) and isinstance(data.get("catalogs"), list) else None
 
-        entries = [e for e in (_clean_entry(r) for r in (self._load("nokturno:dash:menu", MENU_TTL, fetch) or []))
+        entries = [e for e in (_clean_entry(r) for r in (self._load("nokturno:dash:menu", min(MENU_TTL, since_midnight()), fetch) or []))
                    if e]
         return [e for e in entries
                 if (placement is None or e["placement"] == placement) and (ctype is None or e["kind"] == ctype)]
@@ -298,7 +323,30 @@ class DashApi:
 
     # --- koncerty --------------------------------------------------------------------
 
-    def concerts(self, sources, install=""):
+    def concert_groups(self, sources, install=""):
+        """Žánry a počáteční písmena s počty (`GET /concerts/groups`) — rozcestník nad dvěma
+        sty jmen. Starší server tuhle cestu nezná a odpoví 404, klient pak nabídne rovnou
+        celý seznam."""
+        srcs = ",".join(sorted(s for s in sources if s in CONCERT_SOURCES))
+
+        def fetch():
+            data = self._get("/concerts/groups", sources=srcs, install=install)
+            return data if isinstance(data, dict) and isinstance(data.get("genres"), list) else None
+
+        data = self._load(f"nokturno:dash:concertgroups:{srcs}", CONCERTS_TTL, fetch)
+        if not data:
+            return None
+        def skupiny(klic):
+            out = []
+            for g in data.get(klic) or []:
+                name = _text(g.get("name"), MAX_GENRE) if isinstance(g, dict) else ""
+                if name:
+                    out.append({"name": name, "artists": int(g.get("artists") or 0)})
+            return out
+        return {"artists": int(data.get("artists") or 0),
+                "genres": skupiny("genres"), "letters": skupiny("letters")}
+
+    def concerts(self, sources, install="", genre="", letter=""):
         """Interpreti s koncerty v zapnutých zdrojích (`GET /concerts?sources=`). Server
         klíčuje koncert názvem, ne IMDb id, a soubor nese hotový vnitřní odkaz
         (`ws:`/`hs:`/`fs:`), který klient rovnou předá `Engine.resolve()`. Zdroje jdou do
@@ -308,15 +356,20 @@ class DashApi:
         srcs = ",".join(sorted(s for s in sources if s in CONCERT_SOURCES))
 
         def fetch():
-            data = self._get("/concerts", sources=srcs, install=install)
+            data = self._get("/concerts", sources=srcs, install=install,
+                             **({"genre": genre} if genre else {}), **({"letter": letter} if letter else {}))
             return data.get("artists") if isinstance(data, dict) and isinstance(data.get("artists"), list) else None
 
         out = []
-        for a in self._load(f"nokturno:dash:concerts:{srcs}", CONCERTS_TTL, fetch) or []:
+        klic = f"nokturno:dash:concerts:{srcs}:{genre}:{letter}"
+        for a in self._load(klic, CONCERTS_TTL, fetch) or []:
             if isinstance(a, dict) and isinstance(a.get("id"), int) and a["id"] > 0:
                 name = _text(a.get("name"), MAX_TITLE)
                 if name:
-                    out.append({"id": a["id"], "name": name, "concerts": int(a.get("concerts") or 0)})
+                    out.append({"id": a["id"], "name": name, "concerts": int(a.get("concerts") or 0),
+                                "genres": [g for g in (a.get("genres") or [])
+                                           if isinstance(g, str)][:4],
+                                "letter": _text(a.get("letter"), 1)})
         return out
 
     def concert_artist(self, artist_id, sources, install=""):
@@ -332,21 +385,21 @@ class DashApi:
         data = self._load(f"nokturno:dash:concerts:{artist_id}:{srcs}", CONCERTS_TTL, fetch)
         if not data:
             return None
-        concerts = []
-        for c in data["concerts"]:
-            if not isinstance(c, dict):
-                continue
-            files = [{"source": f["source"], "ref": f["ref"], "name": _text(f.get("name"), 200),
-                      "size": int(f.get("size") or 0), "duration": int(f.get("duration") or 0)}
-                     for f in (c.get("files") or []) if isinstance(f, dict)
-                     and f.get("source") in CONCERT_SOURCES and isinstance(f.get("ref"), str)
-                     and CONCERT_REF_RE.match(f["ref"])]
-            title = _text(c.get("title"), 200)
-            if files and title:
-                year = c.get("year") if isinstance(c.get("year"), int) else None
-                concerts.append({"title": title, "year": year, "files": files})
         artist = data.get("artist") if isinstance(data.get("artist"), dict) else {}
-        return {"artist": _text(artist.get("name"), MAX_TITLE), "concerts": concerts}
+        return {"artist": _text(artist.get("name"), MAX_TITLE), "concerts": _concerts_with_files(data["concerts"])}
+
+    def concert_recent(self, sources, install=""):
+        """Nově přidané koncerty (`GET /concerts/recent`): schválené za posledních 30 dní,
+        nejnovější napřed, i se soubory. Každý nese i jméno interpreta. Starší server cestu
+        nezná (404) → prázdný seznam, klient položku v menu schová."""
+        srcs = ",".join(sorted(s for s in sources if s in CONCERT_SOURCES))
+
+        def fetch():
+            data = self._get("/concerts/recent", sources=srcs, install=install)
+            return data if isinstance(data, dict) and isinstance(data.get("concerts"), list) else None
+
+        data = self._load(f"nokturno:dash:concerts:recent:{srcs}", CONCERTS_TTL, fetch)
+        return _concerts_with_files(data["concerts"], with_artist=True) if data else []
 
     def concert_items(self, sources, search="", skip=0, install=""):
         """Plochý seznam koncertů napříč interprety (`GET /concerts/items`) — pro klienta bez
@@ -370,7 +423,8 @@ class DashApi:
             if artist and title:
                 out.append({"id": i["id"], "artist": artist, "title": title,
                             "year": i.get("year") if isinstance(i.get("year"), int) else None,
-                            "sources": [s for s in (i.get("sources") or []) if s in CONCERT_SOURCES]})
+                            "sources": [s for s in (i.get("sources") or []) if s in CONCERT_SOURCES],
+                            "img": _img(i.get("img"))})
         return out, int(data.get("total") or 0)
 
     def concert(self, concert_id, sources, install=""):
@@ -388,7 +442,8 @@ class DashApi:
         if not data:
             return None
         files = [{"source": f["source"], "ref": f["ref"], "name": _text(f.get("name"), 200),
-                  "size": int(f.get("size") or 0), "duration": int(f.get("duration") or 0)}
+                  "size": int(f.get("size") or 0), "duration": int(f.get("duration") or 0),
+                  "img": _img(f.get("img"))}
                  for f in data["files"] if isinstance(f, dict)
                  and f.get("source") in CONCERT_SOURCES and isinstance(f.get("ref"), str)
                  and CONCERT_REF_RE.match(f["ref"])]
@@ -397,6 +452,35 @@ class DashApi:
             return None
         return {"id": concert_id, "artist": artist, "title": title,
                 "year": data.get("year") if isinstance(data.get("year"), int) else None, "files": files}
+
+
+def _concerts_with_files(raw, with_artist=False):
+    """Koncerty se soubory ze serveru — jen odkazy známého tvaru; koncert bez souboru
+    (nebo bez názvu, u nově přidaných i bez interpreta) vypadne."""
+    concerts = []
+    for c in raw:
+        if not isinstance(c, dict):
+            continue
+        files = [{"source": f["source"], "ref": f["ref"], "name": _text(f.get("name"), 200),
+                  "size": int(f.get("size") or 0), "duration": int(f.get("duration") or 0),
+                  # náhled je cizí URL — jen http(s), ať se z něj nestane `special://` ani soubor
+                  "img": _img(f.get("img")), "width": int(f.get("width") or 0),
+                  "height": int(f.get("height") or 0)}
+                 for f in (c.get("files") or []) if isinstance(f, dict)
+                 and f.get("source") in CONCERT_SOURCES and isinstance(f.get("ref"), str)
+                 and CONCERT_REF_RE.match(f["ref"])]
+        title = _text(c.get("title"), 200)
+        year = c.get("year") if isinstance(c.get("year"), int) else None
+        item = {"title": title, "year": year, "files": files}
+        if isinstance(c.get("id"), int):
+            item["id"] = c["id"]   # Stremio z něj skládá `nktc:<id>`
+        if with_artist:
+            item["artist"] = _text(c.get("artist"), MAX_TITLE)
+            if not item["artist"]:
+                continue
+        if files and title:
+            concerts.append(item)
+    return concerts
 
 
 if __name__ == "__main__":

@@ -386,6 +386,12 @@ def check_one_wanted(engine, item, before=None):
     except Exception as err:  # noqa: BLE001
         _LOGGER.debug("hlídání streamy %s: %s", item["id"], err)
         streams = []
+    if not streams and before.get("streams"):
+        # streamy nezmizí přes noc — spíš výpadek sítě (Kodi na mobilu na pozadí). Nulou by se
+        # přepsal dobrý výsledek a příští kontrola by pak hlásila „už je k dispozici“ znovu.
+        kept = {**before, "checked": _iso(now), "checked_ts": now}
+        kept.pop("gained", None)
+        return kept
     record = {**item, "type": item.get("type", "movie"), "streams": len(streams),
               "best": streams[0].get("label", "") if streams else "",
               # titul zatím jen na trackeru — pustit ho znamená napřed stáhnout
@@ -445,41 +451,37 @@ def pending_notices(store, now=None):
     Nález z jiného zařízení (přes synchronizaci) se oznámí taky, jen jednou. Starší
     než `NOTICE_MAX_AGE` (nebo bez času — data z doby před jádrem) se jen poznamená,
     aby se nové zařízení ve skupině neozvalo desítkou starých zpráv naráz.
+    Na disk se sahá, jen když je co poznamenat — služba v Kodi se ptá každou minutu.
     """
     now = now or _now()
-    out = []
-    with store.updating(NOTIFIED, {}) as notified:
-        live = set()
-        for sid, item in series(store).items():
-            new = item.get("new")
-            if not isinstance(new, dict):
-                continue
-            key, mark = "s:" + sid, str(new.get("id") or f"{new.get('season')}x{new.get('episode')}")
-            live.add(key)
-            if notified.get(key) == mark:
-                continue
-            notified[key] = mark
-            if now - _ts(new) <= NOTICE_MAX_AGE:
-                out.append({"kind": "episode", "id": sid, "title": item.get("title") or sid,
-                            "season": new.get("season"), "episode": new.get("episode"),
-                            "episode_id": new.get("id"),
-                            "episode_title": new.get("title") or "", "torrent": bool(new.get("torrent"))})
-        for wid, rec in results(store).items():
-            gained = rec.get("gained")
-            if not isinstance(gained, dict):
-                continue
-            key, mark = "w:" + wid, str(gained.get("ts"))
-            live.add(key)
-            if notified.get(key) == mark:
-                continue
-            notified[key] = mark
-            if now - _ts(gained) <= NOTICE_MAX_AGE:
-                out.append({"kind": "more" if gained.get("prev") else "available", "id": wid,
-                            "title": rec.get("title") or wid, "year": rec.get("year"),
-                            "type": rec.get("type", "movie"),
-                            "streams": gained.get("streams"), "prev": gained.get("prev")})
-        for key in [k for k in notified if k not in live]:
-            notified.pop(key, None)
+    notified = store.load(NOTIFIED, {})
+    marks, out = {}, []
+    for sid, item in series(store).items():
+        new = item.get("new")
+        if not isinstance(new, dict):
+            continue
+        key = "s:" + sid
+        marks[key] = mark = str(new.get("id") or f"{new.get('season')}x{new.get('episode')}")
+        if notified.get(key) != mark and now - _ts(new) <= NOTICE_MAX_AGE:
+            out.append({"kind": "episode", "id": sid, "title": item.get("title") or sid,
+                        "season": new.get("season"), "episode": new.get("episode"),
+                        "episode_id": new.get("id"),
+                        "episode_title": new.get("title") or "", "torrent": bool(new.get("torrent"))})
+    for wid, rec in results(store).items():
+        gained = rec.get("gained")
+        if not isinstance(gained, dict):
+            continue
+        key = "w:" + wid
+        marks[key] = mark = str(gained.get("ts"))
+        if notified.get(key) != mark and now - _ts(gained) <= NOTICE_MAX_AGE:
+            out.append({"kind": "more" if gained.get("prev") else "available", "id": wid,
+                        "title": rec.get("title") or wid, "year": rec.get("year"),
+                        "type": rec.get("type", "movie"),
+                        "streams": gained.get("streams"), "prev": gained.get("prev")})
+    if marks != notified:
+        with store.updating(NOTIFIED, {}) as data:
+            data.clear()
+            data.update(marks)
     return out
 
 

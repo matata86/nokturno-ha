@@ -21,7 +21,8 @@ import time
 import urllib.error
 import urllib.request
 
-from . import watch
+# `from .watch import …`, ne `from . import watch` — plochá kopie v Kodi umí jen tenhle tvar
+from .watch import SECTION as WATCH_SECTION, apply as watch_apply, collect as watch_collect
 from .store import ITEMS_MAX, WATCHED_MAX
 
 STATE = "sync"          # sync.json v profilu: {"since", "last_ok", "last_error", "pushed", "pulled"}
@@ -35,7 +36,7 @@ CIRCLES = {
     "history": ("histlog",),                 # historie hledání
     # hlídané seriály a tituly (`watch.py`) — seznam, příznak „kontrolovat dál“
     # i výsledek poslední kontroly, aby se tatáž kontrola nedělala na každém zařízení
-    "watchlist": (watch.SECTION,),
+    "watchlist": (WATCH_SECTION,),
     # volby doplňku a přihlášení ke zdrojům (`setsync.py`). Nejsou ve `Store`,
     # takže je `collect_changes` nesbírá — plní je hostitel přes `syncbox`
     # a přes Home Assistant nechodí vůbec.
@@ -128,7 +129,7 @@ def collect_changes(store, since):
                    if isinstance(v, dict) and _seen(v) >= since}
     items = store.reload("items", {})
     return {"watched": watched, "favlog": favlog, "histlog": histlog, "next_hidden": next_hidden,
-            watch.SECTION: watch.collect(store, since, _seen),
+            WATCH_SECTION: watch_collect(store, since, _seen),
             "items": _snapshots(items, watched, favlog)}
 
 
@@ -245,7 +246,7 @@ def apply_changes(store, changes, stamp=False):
             store.save("items", items)
     if hist_dirty:
         store.rebuild_history()   # zobrazený seznam podle sloučeného deníku
-    applied += watch.apply(store, changes.get(watch.SECTION), stamp=now)
+    applied += watch_apply(store, changes.get(WATCH_SECTION), stamp=now)
     return applied
 
 
@@ -282,7 +283,7 @@ def sync_once(store, base_url, key, device="", circles=None):
         since = 0
     outgoing = filter_circles(collect_changes(store, since), circles)
     pushed = (len(outgoing.get("watched") or {}) + len(outgoing.get("favlog") or {})
-              + len(outgoing.get(watch.SECTION) or {}))
+              + len(outgoing.get(WATCH_SECTION) or {}))
     body = json.dumps({"device": device, "since": since, "changes": outgoing}).encode("utf-8")
     req = urllib.request.Request((base_url or "").rstrip("/") + ENDPOINT, data=body, headers={
         "Content-Type": "application/json", "X-Nokturno-Key": key or "",

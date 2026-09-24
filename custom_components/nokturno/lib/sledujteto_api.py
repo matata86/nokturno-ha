@@ -42,9 +42,11 @@ class SledujtetoError(Exception):
         super().__init__(message)
         self.code = code
         self.status = status
+        self.paused = False
 
 
 from .streams import human_size  # noqa: F401
+from .badlogin import login_paused, mark_bad_login
 
 
 def _duration(text):
@@ -197,7 +199,16 @@ class SledujtetoApi:
     def login(self):
         if not self.email or not self.password:
             raise SledujtetoError("účet není vyplněný")
-        resp = self._request("POST", "v1/token", {"email": self.email, "password": self.password})
+        if login_paused("sledujteto", self.email, self.password, self.cache):
+            err = SledujtetoError(ERROR_TEXTS["invalid_credentials"], code="invalid_credentials", status=401)
+            err.paused = True
+            raise err
+        try:
+            resp = self._request("POST", "v1/token", {"email": self.email, "password": self.password})
+        except SledujtetoError as err:
+            if err.code == "invalid_credentials":
+                mark_bad_login("sledujteto", self.email, self.password, self.cache)
+            raise
         inner = resp.get("data") or {}
         token = inner.get("token")
         if not token:
@@ -247,4 +258,7 @@ class SledujtetoApi:
         link = inner.get("link")
         if not link:
             raise SledujtetoError("odkaz na soubor se nevrátil")
-        return link
+        # `/streaming/` odmítne GET bez hlavičky Range i HEAD (400 `invalid_range_header`).
+        # ExoPlayer (Nuvio, Stremio na Androidu) při startu od nuly Range neposílá.
+        # `/download/` se stejným tokenem vydá týž soubor a Range umí taky.
+        return link.replace("/api/v1/streaming/", "/api/v1/download/", 1)

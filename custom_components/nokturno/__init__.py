@@ -33,7 +33,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.network import NoURLAvailableError, get_url
-from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.start import async_at_started
 from homeassistant.loader import async_get_integration
@@ -94,6 +94,7 @@ from .const import (
     SIGNAL_ACCOUNTS,
     SIGNAL_DOWNLOADS,
     SIGNAL_TRAKT,
+    SIGNAL_SYNCED,
     SIGNAL_WATCHLIST,
     TRAKT_INTERVAL_HOURS,
     WATCH_INTERVAL_HOURS,
@@ -110,13 +111,13 @@ from .lib.stats import COLLECT_URL, Stats
 from .lib.webshare_api import WebshareApiError
 from .lib.sync import apply_changes, collect_changes, filter_circles
 from .lib import syncbox
-from .engine import Engine, NokturnoError, _fold, split_episode_id
+from .lib import watch as watch_lib
+from .engine import Engine, NokturnoError, split_episode_id
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.SENSOR]
 
-TRAKT_MAX = 40  # kolik titulů ze seznamu Traktu kontrolovat (každý = dotaz na všechny zdroje)
 
 CARD_FILE = "www/nokturno-card.js"
 CARD_URL = "/nokturno/nokturno-card.js"
@@ -266,41 +267,10 @@ def sync_circles(entry) -> tuple[str, ...]:
     return zapnute or ()
 
 
-def aired_episodes(episodes: list[dict], today: str) -> list[dict]:
-    """Odvysílané díly bez speciálů, setříděné podle sezóny a čísla.
-
-    **Chybějící datum znamená neodvysíláno**, ne naopak. U běžícího seriálu nemá TMDB
-    datum právě u posledních dílů sezóny, protože se teprve natáčejí. Do 6.2.8 se takový
-    díl počítal za odvysílaný, takže kontrola sledovaných seriálů hledala každých šest
-    hodin ve všech zdrojích díly, které ještě neexistují. Nenašla nic, a protože se
-    ukládá jen nález (`cached_if`), za šest hodin se ptala znovu — u jednoho běžícího
-    seriálu zhruba 180 HTTP dotazů denně. Právě opakovanými dotazy na zdroje si doplněk
-    už dvakrát řekl o blokaci od HellSpy (6.0.2 a 6.0.4).
-
-    Seriály, kterým TMDB data nedává vůbec, se řídí dál starým pravidlem: nemá-li datum
-    ani jeden díl, projde celý seznam. Jinak by u nich kontrola přestala fungovat.
-
-    Díl bez data je něco jiného než díl, který ve zdrojích chybí — mezeru v dostupnosti
-    řeší `skip_gap_candidates()` nad tímhle už profiltrovaným seznamem.
-    """
-    known = [e for e in episodes if e.get("season")]
-    if any(e.get("released") for e in known):
-        known = [e for e in known if e.get("released") and e["released"][:10] <= today]
-    return sorted(known, key=lambda e: (e["season"], e["episode"]))
-
-
-def skip_gap_candidates(aired: list[dict], key: tuple[int, int]) -> list[dict]:
-    """Díly nejnovější sezóny novější než `key`, od nejnovějšího.
-
-    Kontrola nových dílů jde od posledního dostupného dopředu a končí u prvního dílu
-    bez streamu. Když ve zdrojích chybí díl uprostřed (Zrádci: S02E10–13 nikde,
-    S03E01 ano), nová řada by se nikdy nenahlásila. Tyhle díly se proto zkusí zvlášť.
-    """
-    if not aired:
-        return []
-    season = max(e["season"] for e in aired)
-    newer = [e for e in aired if e["season"] == season and (e["season"], e["episode"]) > key]
-    return sorted(newer, key=lambda e: e["episode"], reverse=True)
+# kontrola sledovaných seriálů je v jádru (`lib/watch.py`) — tady zůstávají jména,
+# která importují testy a dřívější kód
+aired_episodes = watch_lib.aired_episodes
+skip_gap_candidates = watch_lib.skip_gap_candidates
 
 
 def episode_target(engine: Engine, call_data: dict) -> tuple[str, str, str | None, str | None]:
@@ -747,8 +717,10 @@ class NokturnoSyncView(HomeAssistantView):
         # obnovit senzor (a tím kartu) — přišlo zhlédnuto/Můj seznam/historie z jiného Kodi
         if result["applied"]:
             async_dispatcher_send(self.hass, SIGNAL_WATCHLIST)
+            async_dispatcher_send(self.hass, SIGNAL_TRAKT)
+            async_dispatcher_send(self.hass, SIGNAL_SYNCED)
         _LOGGER.debug("sync %s: přijato %s, vráceno %s", body.get("device"), result["applied"],
-                      len(result["changes"]["watched"]) + len(result["changes"]["favlog"]))
+                      len(result["changes"].get("watched") or {}) + len(result["changes"].get("favlog") or {}))
         return self.json(result)
 
 
@@ -1051,56 +1023,73 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return {"user_code": code.get("user_code"), "url": code.get("verification_url")}
 
     def trakt_cache():
-        return engine.store.load("trakt_list", {})
+        return engine.store.load(watch_lib.RESULTS, {})
+
+    async def announce():
+        """Oznámí, co tohle HA ještě neoznámilo — nový díl, stream u hlídaného titulu.
+
+        Počítá to jádro (`watch.pending_notices`), takže se ozve i nález, který udělalo
+        některé Kodi a do HA přišel synchronizací. Bez toho by HA mlčelo pokaždé, když
+        byla kontrola rychlejší jinde — a na `nokturno_new_episode` visí automatizace."""
+        notices = await hass.async_add_executor_job(watch_lib.pending_notices, engine.store)
+        for n in notices:
+            if n["kind"] == "episode":
+                # tvar události zůstává z doby před jádrem: `id` a `title` patří dílu
+                hass.bus.async_fire(EVENT_NEW_EPISODE, {
+                    "id": n.get("episode_id") or n["id"], "title": n.get("episode_title") or "",
+                    "season": n.get("season"), "episode": n.get("episode"), "torrent": n.get("torrent"),
+                    "series_id": n["id"], "series_title": n["title"]})
+                await notify("Nokturno — nový díl ke sledování",
+                             f"{n['title']}: {n['season']}x{int(n['episode'] or 0):02d} {n.get('episode_title') or ''}".strip())
+                continue
+            hass.bus.async_fire(EVENT_TRAKT_AVAILABLE, {k: n.get(k) for k in ("id", "title", "type", "streams")})
+            year = f" ({n['year']})" if n.get("year") else ""
+            if n["kind"] == "more":
+                await notify("Nokturno — přibyl nový zdroj",
+                             f"{n['title']}{year} má teď {n['streams']} zdrojů (dřív {n['prev']}).")
+            else:
+                await notify("Nokturno — už je k dispozici",
+                             f"{n['title']}{year} má nově {n['streams']} streamů.")
+
+    async def po_synchronizaci():
+        await announce()
+
+    # korutina, ne lambda — obyčejnou funkci by dispatcher pustil v executoru mimo smyčku
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_SYNCED, po_synchronizaci))
 
     async def handle_trakt_flag(call: ServiceCall):
         """Ruční příznak „kontrolovat dál" — titul má streamy, ale ne v požadované
         kvalitě/zvuku. Uložený zvlášť od `trakt_list`, který se denní kontrolou
         celý přestavuje a příznak by tak přežil jen do dalšího `check_trakt`."""
-        flags = engine.store.load("trakt_flags", {})
         wid = call.data["id"]
-        if flags.pop(wid, None) is None:
-            flags[wid] = True
-        await hass.async_add_executor_job(engine.store.save, "trakt_flags", flags)
+        flagged = await hass.async_add_executor_job(watch_lib.toggle_flag, engine.store, wid)
         async_dispatcher_send(hass, SIGNAL_TRAKT)
-        return {"id": wid, "flagged": wid in flags}
+        return {"id": wid, "flagged": flagged}
 
     def wantlist():
         """Vlastní seznam „chci vidět" — funguje i bez Traktu (ten od 7/2026 chce VIP)."""
-        return engine.store.load("wantlist", {})
+        return engine.store.load(watch_lib.WANTED, {})
 
     async def handle_want(call: ServiceCall):
         """Titul mezi hlídané. Bez `id` stačí `query` — název se hlídá,
         dokud se titul v některém zdroji neobjeví (film, který ještě nikde není)."""
-        data = wantlist()
         query = (call.data.get("query") or "").strip()
-        wid = call.data.get("id") or (f"q:{query.lower()}" if query else "")
+        wid = call.data.get("id") or (watch_lib.query_id(query) if query else "")
         if not wid:
             raise HomeAssistantError("Chybí `id` nebo `query`.")
         if call.data.get("remove"):
-            data.pop(wid, None)
-            # senzor čte uloženou kontrolu, ne wantlist — bez tohohle by položka v kartě zůstala
-            cache = trakt_cache()
-            if cache.pop(wid, None) is not None:
-                await hass.async_add_executor_job(engine.store.save, "trakt_list", cache)
-            flags = engine.store.load("trakt_flags", {})
-            if flags.pop(wid, None) is not None:
-                await hass.async_add_executor_job(engine.store.save, "trakt_flags", flags)
+            await hass.async_add_executor_job(watch_lib.unwant, engine.store, wid)
         else:
-            item = data.get(wid) or {"id": wid, "added": dt_util.now().isoformat()}
-            item.update({k: call.data[k] for k in ("type", "title", "year", "alt", "poster", "series")
-                         if call.data.get(k)})
-            item.setdefault("type", "movie")
+            info = {k: call.data[k] for k in ("type", "title", "year", "alt", "poster", "series")
+                    if call.data.get(k)}
             if query:
-                item["query"] = query
-                item.setdefault("title", query)
-            data[wid] = item
-        await hass.async_add_executor_job(engine.store.save, "wantlist", data)
+                info["query"] = query
+            await hass.async_add_executor_job(watch_lib.want, engine.store, wid, info)
         async_dispatcher_send(hass, SIGNAL_TRAKT)
         if not call.data.get("remove"):
             # jen nová položka — plná kontrola všech 40 titulů ve všech zdrojích je na jednou denně
             hass.async_create_task(check_trakt(only=wid))
-        return {"count": len(data), "watching": wid in data}
+        return {"count": len(wantlist()), "watching": wid in wantlist()}
 
     def favourite_info(title, year, extra):
         """Sjednocené `items.json` očekává název s rokem v závorce (`display_name()`
@@ -1128,14 +1117,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             remember = favourite_info(info.get("title"), info.get("year"),
                                        {k: info.get(k) for k in ("poster", "alt", "type")})
             await hass.async_add_executor_job(engine.store.toggle_favourite, wid, remember)
-        wanted = wantlist()
-        if wanted.pop(wid, None) is not None:
-            await hass.async_add_executor_job(engine.store.save, "wantlist", wanted)
-        if cache.pop(wid, None) is not None:
-            await hass.async_add_executor_job(engine.store.save, "trakt_list", cache)
-        flags = engine.store.load("trakt_flags", {})
-        if flags.pop(wid, None) is not None:
-            await hass.async_add_executor_job(engine.store.save, "trakt_flags", flags)
+        await hass.async_add_executor_job(watch_lib.unwant, engine.store, wid)
         async_dispatcher_send(hass, SIGNAL_TRAKT)
         return {"id": wid}
 
@@ -1149,94 +1131,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async_dispatcher_send(hass, SIGNAL_TRAKT)
         return {"id": wid, "favourite": added}
 
-    async def check_trakt(_now=None, only=None):
-        """Hlídané z Traktu + kontrola, co už jde pustit.
+    async def check_trakt(_now=None, only=None, force=False):
+        """Hlídané (vlastní seznam + Trakt) — co už jde pustit. Logika je v jádru
+        (`watch.check_wanted`), sdílí ji s doplňkem pro Kodi.
 
-        Jednou denně; když titul, který stream neměl, ho nově má, přijde oznámení.
-        `only=<id>`: jen ta jedna položka vlastního seznamu, výsledek se sloučí do
-        uložené kontroly (po `want_to_watch`, ať přidání neznamená 40 hledání).
-        """
-        items = list(wantlist().values())
-        known = trakt_cache()
-        if only is not None:
-            items = [i for i in items if i.get("id") == only]
-            if not items:
-                return known
+        Z časovače jednou denně a jen tituly, které nikdo (ani jiné zařízení ve skupině
+        synchronizace) nekontroloval za posledních 24 h. `only=<id>`: jen ta jedna
+        položka (po `want_to_watch`, ať přidání neznamená 40 hledání)."""
+        extra = []
         api = trakt() if only is None else None
         if api is not None and api.logged_in():
             for kind in ("movies", "shows"):
                 try:
-                    items += await hass.async_add_executor_job(api.watchlist, kind)
+                    extra += await hass.async_add_executor_job(api.watchlist, kind)
                 except Exception as err:  # noqa: BLE001 – výpadek Traktu nesmí shodit kontrolu
                     _LOGGER.debug("trakt watchlist %s: %s", kind, err)
-        if not items:
-            # i prázdný seznam se musí propsat — jinak by v kartě zůstala odebraná položka
-            if known:
-                await hass.async_add_executor_job(engine.store.save, "trakt_list", {})
-                async_dispatcher_send(hass, SIGNAL_TRAKT)
-            return {}
-        fresh, newly = {}, []
-        seen_ids = set()
-        for item in items[:TRAKT_MAX]:
-            if item["id"] in seen_ids:  # týž titul ve vlastním seznamu i na Traktu
-                continue
-            seen_ids.add(item["id"])
-            before = known.get(item["id"]) or {}
-            target, alt = item["id"], item.get("alt")
-            if str(target).startswith("q:"):
-                # ruční položka — zkusit, jestli už titul některý zdroj zná
-                try:
-                    found = await hass.async_add_executor_job(
-                        engine.search, item.get("type", "movie"), item.get("query") or item.get("title") or "", 5)
-                except Exception as err:  # noqa: BLE001
-                    _LOGGER.debug("hledání %s: %s", item.get("query"), err)
-                    found = []
-                # hledání vrací i nepodobné tituly („Duna 3" → „Vánoční prázdniny"),
-                # takže bereme jen shodu, kde jsou všechna slova dotazu v názvu
-                wanted = [w for w in re.split(r"[^\w]+", _fold(item.get("query") or "")) if len(w) > 2]
-                hit = next((f for f in found
-                            if not wanted or all(w in _fold(f.get("title") or "") for w in wanted)), None)
-                if hit is None:
-                    fresh[item["id"]] = {**item, "streams": 0, "best": "", "pending": True,
-                                         "checked": dt_util.now().isoformat()}
-                    continue
-                target, alt = hit["id"], hit.get("alt")
-                item = {**item, "title": hit.get("title") or item.get("title"), "year": hit.get("year") or item.get("year"),
-                        "poster": hit.get("poster") or item.get("poster"), "found_id": hit["id"], "alt": alt}
-            try:
-                streams = await hass.async_add_executor_job(
-                    engine.streams_or_torrents, item["type"], target, alt, item.get("series"))
-            except Exception as err:  # noqa: BLE001
-                _LOGGER.debug("trakt streamy %s: %s", item["id"], err)
-                streams = []
-            record = {**item, "type": item.get("type", "movie"), "streams": len(streams),
-                      "best": streams[0]["label"] if streams else "",
-                      # titul zatím jen na trackeru — pustit ho znamená napřed stáhnout
-                      "torrent": bool(streams) and all(s.get("kind") == "torrent" for s in streams),
-                      "checked": dt_util.now().isoformat()}
-            before_streams = before.get("streams") or 0
-            # hlásí se i nárůst u titulu, který streamy už měl — nová kvalita/jazyk
-            # nebo prostě další zdroj navíc je taky dobrá zpráva, ne jen první nález
-            if streams and before and len(streams) > before_streams:
-                newly.append({**record, "_prev": before_streams})
-            fresh[item["id"]] = record
-        if only is not None:
-            fresh = {**known, **fresh}
-        await hass.async_add_executor_job(engine.store.save, "trakt_list", fresh)
+        await hass.async_add_executor_job(
+            partial(watch_lib.check_wanted, engine, engine.store, extra,
+                    force=force or only is not None, only=only))
         async_dispatcher_send(hass, SIGNAL_TRAKT)
-        for record in newly:
-            hass.bus.async_fire(EVENT_TRAKT_AVAILABLE, {k: record[k] for k in ("id", "title", "type", "streams")})
-            year = f" ({record['year']})" if record.get("year") else ""
-            if record["_prev"]:
-                await notify("Nokturno — přibyl nový zdroj",
-                             f"{record['title']}{year} má teď {record['streams']} zdrojů (dřív {record['_prev']}).")
-            else:
-                await notify("Nokturno — už je k dispozici",
-                             f"{record['title']}{year} má nově {record['streams']} streamů.")
-        return fresh
+        await announce()
+        return trakt_cache()
 
     async def handle_trakt_list(call: ServiceCall):
-        fresh = await check_trakt()
+        fresh = await check_trakt(force=True)
         items = sorted(fresh.values(), key=lambda i: (not i.get("streams"), i.get("title") or ""))
         return {"count": len(items), "available": sum(1 for i in items if i.get("streams")), "items": items}
 
@@ -1271,28 +1189,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     def watchlist():
         # soubor je po startu v paměti (viz předčtení níže), tady už se na disk nesahá
-        return engine.store.load("watchlist", {})
-
-    async def watchlist_save(data):
-        await hass.async_add_executor_job(engine.store.save, "watchlist", data)
-        async_dispatcher_send(hass, SIGNAL_WATCHLIST)
-
-    def _latest_aired(episodes):
-        """Poslední odvysílaná epizoda (bez speciálů a bez budoucích termínů)."""
-        aired = aired_episodes(episodes, dt_util.now().date().isoformat())
-        if not aired:
-            return None
-        last = aired[-1]
-        return {"season": last["season"], "episode": last["episode"], "title": last.get("title") or "",
-                "id": last.get("id"), "released": (last.get("released") or "")[:10]}
+        return engine.store.load(watch_lib.SERIES, {})
 
     kontrola_zamek = asyncio.Lock()
 
-    async def check_series(_now=None):
+    async def check_series(_now=None, force=False, only=None):
         """Projde sledované seriály: nový díl se hlásí, až když má stream (ne jen když byl odvysílán).
-
-        `latest` = poslední odvysílaný podle metadat, `available` = nejnovější díl se streamem.
-        Zkouší se jen díly novější než dosud dostupný, nejvýš tři nejnovější (každý dotaz stojí pár sekund).
+        Logika je v jádru (`watch.check_series`), sdílí ji s doplňkem pro Kodi. Z časovače
+        jen seriály, které nikdo (ani jiné zařízení ve skupině) nekontroloval za 6 h.
 
         Jeden průchod naráz (`kontrola_zamek`): kontrola běží z časovače po 6 h, z ruční služby
         i po startu HA a jeden seriál stojí desítky dotazů na zdroje. Dva souběžné průchody
@@ -1305,106 +1209,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.debug("kontrola seriálů už běží — přeskakuji")
             return watchlist()
         async with kontrola_zamek:
-            return await _check_series()
+            return await _check_series(force, only)
 
-    async def _check_series():
-        data = watchlist()
-        changed = False
-        for sid, item in list(data.items()):
-            try:
-                episodes = await hass.async_add_executor_job(engine.episodes, sid, None)
-            except (NokturnoError, Exception) as err:  # noqa: BLE001 – jeden seriál nesmí zastavit zbytek
-                _LOGGER.debug("kontrola %s: %s", sid, err)
-                continue
-            latest = _latest_aired(episodes)
-            if not latest:
-                continue
-            if latest != item.get("latest"):
-                item["latest"] = latest
-                changed = True
-            known = item.get("available") or {}
-            known_key = (known.get("season", 0), known.get("episode", 0))
-            aired = aired_episodes(episodes, dt_util.now().date().isoformat())
-            budget = [6]  # kolik dotazů na streamy si jedna kontrola seriálu může dovolit
-
-            async def options(ep):
-                """Čím se dá díl pustit — streamy, a když žádné nejsou, torrenty."""
-                if budget[0] <= 0:
-                    return []
-                budget[0] -= 1
-                try:
-                    return await hass.async_add_executor_job(
-                        engine.streams_or_torrents, "series", ep["id"], item.get("alt"), sid)
-                except Exception as err:  # noqa: BLE001
-                    _LOGGER.debug("streamy %s: %s", ep["id"], err)
-                    return []
-
-            def describe(ep, opts=()):
-                return {"season": ep["season"], "episode": ep["episode"], "title": ep.get("title") or "",
-                        "id": ep["id"], "released": (ep.get("released") or "")[:10],
-                        # díl jen na trackeru — karta to má říct, stažení chvíli trvá
-                        "torrent": bool(opts) and all(o.get("kind") == "torrent" for o in opts)}
-
-            found = None
-            if not known:
-                # poprvé: od nejnovější sezóny zpět, poslední díl sezóny — první sezóna se streamem vyhrává
-                last_per_season = {}
-                for ep in aired:
-                    last_per_season[ep["season"]] = ep
-                for season in sorted(last_per_season, reverse=True)[:3]:
-                    opts = await options(last_per_season[season])
-                    if opts:
-                        found = describe(last_per_season[season], opts)
-                        known_key = (season, last_per_season[season]["episode"])
-                        break
-            # pak po dílech dopředu — díly přibývají postupně, první chybějící ukončí hledání
-            gap = None
-            for ep in (e for e in aired if (e["season"], e["episode"]) > known_key):
-                opts = await options(ep)
-                if not opts:
-                    gap = (ep["season"], ep["episode"])
-                    break
-                found = describe(ep, opts)
-                known_key = (ep["season"], ep["episode"])
-            # díl chybí uprostřed — zkusit rovnou nejnovější sezónu, ať se nová řada nahlásí
-            if gap:
-                for ep in skip_gap_candidates(aired, max(known_key, gap)):
-                    opts = await options(ep)
-                    if opts:
-                        found = describe(ep, opts)
-                        break
-            if found:
-                first_check = "available" not in item and "checked" not in item
-                item["available"] = found
-                if not first_check:  # při zařazení jen zapamatovat, hlásit až další
-                    item["new"] = found
-                    hass.bus.async_fire(EVENT_NEW_EPISODE, {"id": sid, "title": item.get("title"), **found})
-                    await notify("Nokturno — nový díl ke sledování",
-                                 f"{item.get('title')}: {found['season']}x{found['episode']:02d} {found['title']}".strip())
-                changed = True
-            item["checked"] = dt_util.now().isoformat()
-            changed = True
-        if changed:
-            await watchlist_save(data)
-        return data
+    async def _check_series(force=False, only=None):
+        await hass.async_add_executor_job(
+            partial(watch_lib.check_series, engine, engine.store, force=force, only=only))
+        async_dispatcher_send(hass, SIGNAL_WATCHLIST)
+        await announce()
+        return watchlist()
 
     async def handle_watch(call: ServiceCall):
-        data = watchlist()
         sid = call.data["id"]
-        if call.data.get("remove") or (sid in data and not call.data.get("title")):
-            data.pop(sid, None)
-            await watchlist_save(data)
-            return {"watching": False, "count": len(data)}
-        entry_item = data.get(sid) or {"id": sid}
-        entry_item.update({k: call.data[k] for k in ("title", "alt", "poster") if call.data.get(k)})
-        entry_item.setdefault("added", dt_util.now().isoformat())
-        data[sid] = entry_item
-        await watchlist_save(data)
-        hass.async_create_task(check_series())
-        return {"watching": True, "count": len(data)}
+        if call.data.get("remove") or (sid in watchlist() and not call.data.get("title")):
+            await hass.async_add_executor_job(watch_lib.unwatch_series, engine.store, sid)
+            async_dispatcher_send(hass, SIGNAL_WATCHLIST)
+            return {"watching": False, "count": len(watchlist())}
+        info = {k: call.data[k] for k in ("title", "alt", "poster") if call.data.get(k)}
+        await hass.async_add_executor_job(watch_lib.watch_series, engine.store, sid, info)
+        async_dispatcher_send(hass, SIGNAL_WATCHLIST)
+        hass.async_create_task(check_series(force=True, only=sid))
+        return {"watching": True, "count": len(watchlist())}
 
     async def handle_check_series(call: ServiceCall):
-        data = await check_series()
+        data = await check_series(force=True)
         return {"count": len(data), "series": list(data.values())}
 
     async def handle_continue(call: ServiceCall):
@@ -1444,16 +1271,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def handle_seen(call: ServiceCall):
         """Označí nový díl (u jednoho nebo všech seriálů) za viděný — zhasne v kartě i v senzoru."""
-        data = watchlist()
-        sid = call.data.get("id")
-        changed = False
-        for key, item in data.items():
-            if (sid in (None, key)) and item.get("new"):
-                item.pop("new", None)
-                changed = True
-        if changed:
-            await watchlist_save(data)
-        return {"count": sum(1 for i in data.values() if i.get("new"))}
+        left = await hass.async_add_executor_job(watch_lib.mark_seen, engine.store, call.data.get("id"))
+        async_dispatcher_send(hass, SIGNAL_WATCHLIST)
+        return {"count": left}
 
     async def handle_clear_history(call: ServiceCall):
         await hass.async_add_executor_job(engine.clear_history)
@@ -1587,6 +1407,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return
         if prijato:
             async_dispatcher_send(hass, SIGNAL_WATCHLIST)
+            async_dispatcher_send(hass, SIGNAL_TRAKT)
+            await announce()
         _LOGGER.debug("relay synchronizace: odesláno %s, přijato %s", poslano, prijato)
 
     entry.async_on_unload(async_track_time_interval(

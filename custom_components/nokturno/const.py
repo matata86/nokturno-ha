@@ -41,10 +41,12 @@ TERMS_VERSION = 2
 CONF_SYNC_WATCHED = "sync_watched"
 CONF_SYNC_FAVOURITES = "sync_favourites"
 CONF_SYNC_HISTORY = "sync_history"
+CONF_SYNC_WATCHLIST = "sync_watchlist"
 SYNC_CIRCLE_OPTIONS = (
     ("watched", CONF_SYNC_WATCHED),
     ("favourites", CONF_SYNC_FAVOURITES),
     ("history", CONF_SYNC_HISTORY),
+    ("watchlist", CONF_SYNC_WATCHLIST),
 )
 
 SUB_CHECK_INTERVAL_HOURS = 12
@@ -91,6 +93,8 @@ SIGNAL_DOWNLOADS = f"{DOMAIN}_downloads_updated"
 SIGNAL_WATCHLIST = f"{DOMAIN}_watchlist_updated"
 SIGNAL_TRAKT = f"{DOMAIN}_trakt_updated"
 SIGNAL_ACCOUNTS = f"{DOMAIN}_accounts_updated"
+# synchronizace přinesla změny odjinud — oznámit, co z nich je nové (`watch.pending_notices`)
+SIGNAL_SYNCED = f"{DOMAIN}_synced"
 EVENT_DOWNLOAD_DONE = f"{DOMAIN}_download_done"
 EVENT_NEW_EPISODE = f"{DOMAIN}_new_episode"
 EVENT_TRAKT_AVAILABLE = f"{DOMAIN}_trakt_available"

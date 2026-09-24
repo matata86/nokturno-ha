@@ -142,14 +142,16 @@
               "sync_code": "Kód skupiny (pre Kodi mimo domácej siete)",
               "sync_watched": "Synchronizovať videné a rozpozeranosť",
               "sync_favourites": "Synchronizovať Môj zoznam",
-              "sync_history": "Synchronizovať históriu hľadania"
+              "sync_history": "Synchronizovať históriu hľadania",
+              "sync_watchlist": "Synchronizovať sledované"
             },
             "data_description": {
               "sync_key": "Kľúč pre Kodi v domácej sieti; zadáva sa v doplnku v Nastavenia → Synchronizácia. Umožňuje prístup k videným titulom a Môjmu zoznamu, preto patrí len vlastným zariadeniam.",
               "sync_code": "Kód skupiny v tvare NKT-XXXX-XXXX-XXXX-XXXX. Vytvorí ho prvé Kodi v Nastavenia → Synchronizácia → Založiť skupinu. Prázdne pole = Home Assistant do skupiny nevstupuje a synchronizuje sa len s Kodi v domácej sieti.",
               "sync_watched": "Označenie videné a pozícia v rozpozeranom filme alebo diele. Vypnuté sa neodosiela ani neprijíma.",
               "sync_favourites": "Tituly pridané do Môjho zoznamu v karte aj v doplnku.",
-              "sync_history": "Dotazy zadané pri hľadaní."
+              "sync_history": "Dotazy zadané pri hľadaní.",
+              "sync_watchlist": "Sledované seriály a sledované tituly aj s príznakom „kontrolovať ďalej“. Kontrolu potom stačí urobiť na jednom zariadení."
             }
           },
           "ostatni": {
@@ -304,14 +306,16 @@
               "sync_code": "Kód skupiny (pre Kodi mimo domácej siete)",
               "sync_watched": "Synchronizovať videné a rozpozeranosť",
               "sync_favourites": "Synchronizovať Môj zoznam",
-              "sync_history": "Synchronizovať históriu hľadania"
+              "sync_history": "Synchronizovať históriu hľadania",
+              "sync_watchlist": "Synchronizovať sledované"
             },
             "data_description": {
               "sync_key": "Kľúč pre Kodi v domácej sieti; zadáva sa v doplnku v Nastavenia → Synchronizácia. Umožňuje prístup k videným titulom a Môjmu zoznamu, preto patrí len vlastným zariadeniam.",
               "sync_code": "Kód skupiny v tvare NKT-XXXX-XXXX-XXXX-XXXX. Vytvorí ho prvé Kodi v Nastavenia → Synchronizácia → Založiť skupinu. Prázdne pole = Home Assistant do skupiny nevstupuje a synchronizuje sa len s Kodi v domácej sieti.",
               "sync_watched": "Označenie videné a pozícia v rozpozeranom filme alebo diele. Vypnuté sa neodosiela ani neprijíma.",
               "sync_favourites": "Tituly pridané do Môjho zoznamu v karte aj v doplnku.",
-              "sync_history": "Dotazy zadané pri hľadaní."
+              "sync_history": "Dotazy zadané pri hľadaní.",
+              "sync_watchlist": "Sledované seriály a sledované tituly aj s príznakom „kontrolovať ďalej“. Kontrolu potom stačí urobiť na jednom zariadení."
             }
           },
           "ostatni": {

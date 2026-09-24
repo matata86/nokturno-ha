@@ -617,7 +617,7 @@ class TestBezpecnostNastaveni(unittest.TestCase):
     def test_polling_a_want_bez_plne_kontroly(self):
         src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
         self.assertIn("check_trakt(only=wid)", src)
-        self.assertIn("async def check_trakt(_now=None, only=None):", src)
+        self.assertIn("async def check_trakt(_now=None, only=None, force=False):", src)
         self.assertIn('torrent_stav["aktivni_do"] = time.time() + 300', src)
         self.assertIn("now - torrent_stav[\"posledni\"] < 60", src)
 
@@ -725,7 +725,7 @@ class TestAudit615(unittest.TestCase):
     # 21. souběžné check_series = dvojí dotazy a dvojí oznámení „nový díl"
     def test_kontrola_serialu_bezi_jen_jedna(self):
         self.assertIn("kontrola_zamek = asyncio.Lock()", self.src)
-        usek = self.src.split("async def check_series(_now=None):")[1].split("async def _check_series")[0]
+        usek = self.src.split("async def check_series(_now=None, force=False, only=None):")[1].split("async def _check_series")[0]
         self.assertIn("if kontrola_zamek.locked():", usek)
         self.assertIn("return watchlist()", usek, "tvar odpovědi musí zůstat stejný")
         self.assertIn("async with kontrola_zamek:", usek)
@@ -816,7 +816,8 @@ class TestSynchronizaceVNastaveni(unittest.TestCase):
 
     def test_okruhy_jsou_ve_formulari(self):
         predvolby = {m.schema for m in config_flow.preferences_schema({}).schema}
-        for key in (const.CONF_SYNC_WATCHED, const.CONF_SYNC_FAVOURITES, const.CONF_SYNC_HISTORY):
+        for key in (const.CONF_SYNC_WATCHED, const.CONF_SYNC_FAVOURITES, const.CONF_SYNC_HISTORY,
+                    const.CONF_SYNC_WATCHLIST):
             self.assertIn(key, predvolby)
 
     def test_okruhy_jsou_v_sekci_synchronizace(self):
@@ -825,17 +826,18 @@ class TestSynchronizaceVNastaveni(unittest.TestCase):
         self.assertIn(const.CONF_SYNC_CODE, sekce["synchronizace"])
 
     def test_vychozi_stav_je_vse_zapnute(self):
-        self.assertEqual(sync_circles(self._Entry()), ("watched", "favourites", "history"))
+        self.assertEqual(sync_circles(self._Entry()), ("watched", "favourites", "history", "watchlist"))
 
     def test_vypnuty_okruh_vypadne(self):
         entry = self._Entry(options={const.CONF_SYNC_HISTORY: False})
-        self.assertEqual(sync_circles(entry), ("watched", "favourites"))
+        self.assertEqual(sync_circles(entry), ("watched", "favourites", "watchlist"))
 
     def test_vypnute_vse_neposila_nic(self):
         """Prázdná sada znamená „nic", ne „vše" — `filter_circles(None)` by bylo „vše"."""
         entry = self._Entry(options={const.CONF_SYNC_WATCHED: False,
                                      const.CONF_SYNC_FAVOURITES: False,
-                                     const.CONF_SYNC_HISTORY: False})
+                                     const.CONF_SYNC_HISTORY: False,
+                                     const.CONF_SYNC_WATCHLIST: False})
         self.assertEqual(sync_circles(entry), ())
         from custom_components.nokturno.lib.sync import filter_circles
         self.assertEqual(filter_circles({"watched": {"x": {}}}, sync_circles(entry)), {})
@@ -966,3 +968,25 @@ class TestVyberPrehravace(unittest.TestCase):
     def test_karta_ma_dlouhy_stisk(self):
         self.assertIn("pointerdown", self.KARTA)
         self.assertIn("_longPress", self.KARTA)
+
+
+class TestHlidaniZJadra(unittest.TestCase):
+    """Hlídání seriálů a titulů je od 8.3.0 v jádru (`lib/watch.py`) a sdílí ho Kodi."""
+
+    def setUp(self):
+        self.src = (COMPONENT / "__init__.py").read_text(encoding="utf-8")
+
+    def test_logika_je_v_jadru(self):
+        from custom_components.nokturno.lib import watch
+        self.assertIs(aired_episodes, watch.aired_episodes)
+        self.assertIs(skip_gap_candidates, watch.skip_gap_candidates)
+        self.assertIn("watch_lib.check_series, engine, engine.store", self.src)
+        self.assertIn("watch_lib.check_wanted, engine, engine.store", self.src)
+
+    def test_nalez_odjinud_se_oznami(self):
+        """Nový díl, který našlo Kodi a přišel synchronizací, musí HA ohlásit taky —
+        na `nokturno_new_episode` visí automatizace."""
+        self.assertIn("watch_lib.pending_notices", self.src)
+        pohled = self.src.split("class NokturnoSyncView")[1].split("\nclass ")[0]
+        self.assertIn("SIGNAL_SYNCED", pohled)
+        self.assertIn("async_dispatcher_connect(hass, SIGNAL_SYNCED, po_synchronizaci)", self.src)

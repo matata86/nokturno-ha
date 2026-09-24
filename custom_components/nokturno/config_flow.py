@@ -27,6 +27,7 @@ from .const import (
     CONF_SYNC_CODE,
     CONF_SYNC_FAVOURITES,
     CONF_SYNC_HISTORY,
+    CONF_SYNC_WATCHLIST,
     CONF_SYNC_KEY,
     CONF_SYNC_WATCHED,
     DEFAULT_PROWLARR_URL,
@@ -123,7 +124,7 @@ SEKCE = [
                   CONF_QBIT_USER, CONF_QBIT_PASS], True),
     ("stahovani", [CONF_DOWNLOAD_DIR, CONF_EXTERNAL_HOST, CONF_NOTIFY_TARGET], True),
     ("synchronizace", [CONF_SYNC_KEY, CONF_SYNC_CODE, CONF_SYNC_WATCHED,
-                       CONF_SYNC_FAVOURITES, CONF_SYNC_HISTORY], True),
+                       CONF_SYNC_FAVOURITES, CONF_SYNC_HISTORY, CONF_SYNC_WATCHLIST], True),
     ("ostatni", [CONF_TMDB_KEY, CONF_TRAKT_ID, CONF_TRAKT_SECRET, CONF_STATS_ENABLED], True),
 ]
 
@@ -233,6 +234,7 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_SYNC_WATCHED, default=data.get(CONF_SYNC_WATCHED, True)): bool,
         vol.Optional(CONF_SYNC_FAVOURITES, default=data.get(CONF_SYNC_FAVOURITES, True)): bool,
         vol.Optional(CONF_SYNC_HISTORY, default=data.get(CONF_SYNC_HISTORY, True)): bool,
+        vol.Optional(CONF_SYNC_WATCHLIST, default=data.get(CONF_SYNC_WATCHLIST, True)): bool,
     })
 
 

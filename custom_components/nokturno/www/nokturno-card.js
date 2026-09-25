@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "8.4.0b1";
+const CARD_VERSION = "8.4.0b2";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -1271,7 +1271,7 @@ class NokturnoCard extends HTMLElement {
         ? { id: ep.id, remove: true }
         : { id: ep.id, type: "series", series: w.id, flag: true, alt: w.alt || undefined,
             poster: w.poster || undefined,
-            title: `${w.title} ${ep.season}x${String(ep.episode).padStart(2, "0")}` }, false);
+            title: `${w.title} · ${ep.season}x${String(ep.episode).padStart(2, "0")}` }, false);
       this._toast(on ? this._t("Odebráno ze seznamu") : this._t("Přidáno — dám vědět, až streamů přibude"));
     });
   }

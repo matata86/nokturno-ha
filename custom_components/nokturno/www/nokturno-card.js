@@ -17,7 +17,7 @@
  *   downloads: sensor.nokturno_stahovani
  */
 
-const CARD_VERSION = "8.3.0b6";
+const CARD_VERSION = "8.4.0b1";
 console.info(`%c NOKTURNO-CARD %c ${CARD_VERSION} `, "background:#5b4b8a;color:#fff;border-radius:3px 0 0 3px", "background:#f0b429;color:#222;border-radius:0 3px 3px 0");
 
 const SOURCE_COLORS = { "Luna": "#8e7cc3", "WebShare": "#4a90d9", "Sosáč": "#e08b3c",
@@ -67,6 +67,9 @@ const SK = {
   "hlídám": "strážim",
   "zatím ne": "zatiaľ nie",
   "kontrolovat dál": "kontrolovať ďalej",
+  "Přestat kontrolovat díl {0}": "Prestať kontrolovať diel {0}",
+  "Díl {0} má streamy, ale ne takové, jaké chceš (např. bez CZ titulků) — kontrolovat dál": "Diel {0} má streamy, ale nie také, aké chceš (napr. bez CZ titulkov) — kontrolovať ďalej",
+  "Přidáno — dám vědět, až streamů přibude": "Pridané — dám vedieť, keď streamov pribudne",
   "Streamy jsou, ale ne v požadované kvalitě/zvuku — kliknutím přestaneš kontrolovat dál": "Streamy sú, ale nie v požadovanej kvalite/zvuku — kliknutím prestaneš kontrolovať ďalej",
   "Streamy jsou, ale ne v požadované kvalitě/zvuku (např. 5.1) — označit, ať se to dál sleduje": "Streamy sú, ale nie v požadovanej kvalite/zvuku (napr. 5.1) — označiť, nech sa to ďalej sleduje",
   "Můj seznam": "Môj zoznam",
@@ -1172,6 +1175,14 @@ class NokturnoCard extends HTMLElement {
                   ? `, ${this._t("odvysíláno")} ${w.latest.season}x${String(w.latest.episode).padStart(2, "0")}` : ""}</span>`}</span>
             <span class="icons">
               ${w.new ? `<ha-icon-button data-wseen="${i}" title="${this._t("Označit nový díl jako viděný")}"><ha-icon icon="mdi:check"></ha-icon></ha-icon-button>` : ""}
+              ${w.available && w.available.id ? (() => {
+                const ep = `${w.available.season}x${String(w.available.episode).padStart(2, "0")}`;
+                const on = this._isEpisodeFlagged(w.available.id);
+                return `<ha-icon-button data-wflag="${i}" title="${on
+                  ? this._t("Přestat kontrolovat díl {0}", ep)
+                  : this._t("Díl {0} má streamy, ale ne takové, jaké chceš (např. bez CZ titulků) — kontrolovat dál", ep)}">
+                  <ha-icon icon="${on ? "mdi:flag" : "mdi:flag-outline"}"></ha-icon></ha-icon-button>`;
+              })() : ""}
               <ha-icon-button data-wopen="${i}" title="${this._t("Otevřít")}"><ha-icon icon="mdi:folder-play-outline"></ha-icon></ha-icon-button>
               <ha-icon-button data-wremove="${i}" title="${this._t("Přestat sledovat")}"><ha-icon icon="mdi:eye-off-outline"></ha-icon></ha-icon-button>
             </span>
@@ -1238,6 +1249,31 @@ class NokturnoCard extends HTMLElement {
     const id = (st.episode && st.episode.id) || (st.item && st.item.id);
     if (!id) return null;
     return this._traktList().find((t) => t.id === id) || null;
+  }
+
+  /** Díl hlídaný s příznakem „kontrolovat dál" (tlačítko u seriálu v Knihovně). */
+  _isEpisodeFlagged(id) {
+    const over = this._wantOverride || {};
+    if (id in over) return over[id] !== false;
+    return this._traktList().some((t) => t.id === id && t.flagged);
+  }
+
+  /** Díl seriálu do Hlídaných s příznakem, nebo ven. Hlídá se jako titul (`tt…:S:E`
+      se `series`) — kontrola se ozve, až streamů přibude. */
+  async _toggleEpisodeFlag(w) {
+    const ep = w.available;
+    const on = this._isEpisodeFlagged(ep.id);
+    this._wantOverride = this._wantOverride || {};
+    this._wantOverride[ep.id] = !on;
+    this._paint();
+    await this._guard(async () => {
+      await this._call("want_to_watch", on
+        ? { id: ep.id, remove: true }
+        : { id: ep.id, type: "series", series: w.id, flag: true, alt: w.alt || undefined,
+            poster: w.poster || undefined,
+            title: `${w.title} ${ep.season}x${String(ep.episode).padStart(2, "0")}` }, false);
+      this._toast(on ? this._t("Odebráno ze seznamu") : this._t("Přidáno — dám vědět, až streamů přibude"));
+    });
   }
 
   _isWanted(id) {
@@ -1747,7 +1783,7 @@ class NokturnoCard extends HTMLElement {
     this._longPress = false;
     clearTimeout(this._pressTimer);
     const keys = ["open", "back", "ep", "play", "phone", "dl", "link", "toggle", "hist", "histclear", "cont",
-                  "contremove", "watch", "wopen", "wremove", "wseen", "trakt", "traktflag", "traktflagdetail",
+                  "contremove", "watch", "wopen", "wremove", "wseen", "wflag", "trakt", "traktflag", "traktflagdetail",
                   "want", "catalog", "research", "torrent", "findtorrents", "findfulltext", "removeprogress",
                   "favmove", "fav", "favtoggle", "hometab"];
     const hit = event.composedPath().find((el) => el.dataset && keys.some((k) => k in el.dataset));
@@ -1833,6 +1869,11 @@ class NokturnoCard extends HTMLElement {
       }
       return this._openItem({ id: t.id, type: t.type, title: t.title, year: t.year, alt: t.alt || null,
                               poster: t.poster || "", description: t.description || "" });
+    }
+    if (data.wflag !== undefined) {
+      const w = this._watchlist()[+data.wflag];
+      if (!w || !w.available) return undefined;
+      return this._toggleEpisodeFlag(w);
     }
     if (data.wseen !== undefined) {
       const w = this._watchlist()[+data.wseen];

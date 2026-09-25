@@ -392,6 +392,10 @@ want_to_watch:
       default: false
       selector:
         boolean: null
+    flag:
+      default: false
+      selector:
+        boolean: null
 favourite_add:
   fields:
     id:

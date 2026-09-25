@@ -749,6 +749,9 @@
         },
         "remove": {
           "name": "Odobrať"
+        },
+        "flag": {
+          "name": "Kontrolovať ďalej"
         }
       }
     },

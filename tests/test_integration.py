@@ -990,3 +990,20 @@ class TestHlidaniZJadra(unittest.TestCase):
         pohled = self.src.split("class NokturnoSyncView")[1].split("\nclass ")[0]
         self.assertIn("SIGNAL_SYNCED", pohled)
         self.assertIn("async_dispatcher_connect(hass, SIGNAL_SYNCED, po_synchronizaci)", self.src)
+
+
+class TestKontrolovatDalDil(unittest.TestCase):
+    """Vlaječka u seriálu v kartě posílá `want_to_watch` s `flag` — služba ho musí znát
+    (schéma, services.yaml i překlady), jinak volání spadne na validaci."""
+
+    def test_karta_a_sluzba_se_shoduji(self):
+        karta = (ROOT / "custom_components/nokturno/www/nokturno-card.js").read_text("utf-8")
+        self.assertIn('data-wflag="${i}"', karta)
+        self.assertIn('"wflag"', karta)
+        self.assertIn("flag: true", karta)
+        zdroj = (ROOT / "custom_components/nokturno/__init__.py").read_text("utf-8")
+        self.assertIn('vol.Optional("flag", default=False)', zdroj)
+        self.assertIn("    flag:\n", (ROOT / "custom_components/nokturno/services.yaml").read_text("utf-8"))
+        for soubor in ("strings.json", "translations/cs.json", "translations/sk.json", "translations/en.json"):
+            data = json.loads((ROOT / "custom_components/nokturno" / soubor).read_text("utf-8"))
+            self.assertIn("flag", data["services"]["want_to_watch"]["fields"], soubor)

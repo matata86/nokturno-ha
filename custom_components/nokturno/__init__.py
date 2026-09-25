@@ -209,6 +209,8 @@ WANT_SCHEMA = vol.Schema({
     vol.Optional("alt"): vol.Any(cv.string, None),
     vol.Optional("poster"): vol.Any(cv.string, None),
     vol.Optional("remove", default=False): cv.boolean,
+    # „kontrolovat dál“ rovnou při přidání (díl seriálu z karty: streamy má, ale ne takové)
+    vol.Optional("flag", default=False): cv.boolean,
 })
 
 WATCH_SCHEMA = vol.Schema({
@@ -1085,6 +1087,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if query:
                 info["query"] = query
             await hass.async_add_executor_job(watch_lib.want, engine.store, wid, info)
+            if call.data.get("flag") and not watch_lib.is_flagged(engine.store, wid):
+                await hass.async_add_executor_job(watch_lib.toggle_flag, engine.store, wid)
         async_dispatcher_send(hass, SIGNAL_TRAKT)
         if not call.data.get("remove"):
             # jen nová položka — plná kontrola všech 40 titulů ve všech zdrojích je na jednou denně

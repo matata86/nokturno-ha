@@ -749,6 +749,9 @@
         },
         "remove": {
           "name": "Remove"
+        },
+        "flag": {
+          "name": "Keep checking"
         }
       }
     },

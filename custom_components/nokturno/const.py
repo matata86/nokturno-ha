@@ -14,6 +14,9 @@ CONF_KODI_ENTITY = "kodi_entity"
 # Co dělá tlačítko Přehrát v kartě, když je nastavený víc než jeden přehrávač.
 # S jediným přehrávačem se karta neptá nikdy.
 CONF_MULTI_PLAY = "multi_play"
+# účet ke katalogu FastShare: fastshare.cz, nebo sdilej.cz (týž katalog, vlastní účty)
+CONF_FS_PROVIDER = "fs_provider"
+FS_PROVIDERS = ("fastshare", "sdilej")
 MULTI_PLAY_ASK = "ask"       # klik = modal s výběrem
 MULTI_PLAY_FIRST = "first"   # klik = první v seznamu, dlouhý stisk = modal
 MULTI_PLAY_OPTIONS = (MULTI_PLAY_ASK, MULTI_PLAY_FIRST)

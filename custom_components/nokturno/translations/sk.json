@@ -61,6 +61,7 @@
               "st_password": "Sledujteto — heslo (prehrávanie len s Premium)",
               "fs_username": "FastShare — používateľ",
               "fs_password": "FastShare — heslo (prehratie z kreditu alebo neobmedzeného paušálu)",
+              "fs_provider": "FastShare — účet z",
               "luna_url": "Luna — adresa servera",
               "luna_token": "Luna — token (alebo celá inštalačná URL)",
               "hs_enabled": "Hľadať aj na HellSpy",
@@ -75,6 +76,7 @@
               "streamuj_username": "Účet streamuj.tv. Bez neho Sosáč tituly nájde, ale neprehrá.",
               "st_email": "Účet Sledujteto.cz. Hľadanie funguje aj bez Premium, prehrávanie iba s ním.",
               "fs_username": "Účet FastShare.cz. Prehrávanie sa účtuje z kreditu alebo z neobmedzeného tarifu.",
+              "fs_provider": "Sdilej.cz má rovnaké súbory ako FastShare, len účet je samostatný. Vyber web, kde máš účet a kredit.",
               "luna_url": "Adresa servera Luny — meno Home Assistantu a port 7126. Vložiť sa dá aj celá inštalačná adresa zo stránky /setup, token sa z nej načíta.",
               "hs_enabled": "HellSpy je verejný a účet nevyžaduje. Po odmietnutí dotazov (HTTP 429) ho integrácia na desať minút vynechá a hľadá bez neho.",
               "sub_warn_days": "Počet dní pred koncom predplatného WebShare, kedy príde upozornenie. 0 = neupozorňovať.",
@@ -225,6 +227,7 @@
               "st_password": "Sledujteto — heslo (prehrávanie len s Premium)",
               "fs_username": "FastShare — používateľ",
               "fs_password": "FastShare — heslo (prehratie z kreditu alebo neobmedzeného paušálu)",
+              "fs_provider": "FastShare — účet z",
               "luna_url": "Luna — adresa servera",
               "luna_token": "Luna — token (alebo celá inštalačná URL)",
               "hs_enabled": "Hľadať aj na HellSpy",
@@ -239,6 +242,7 @@
               "streamuj_username": "Účet streamuj.tv. Bez neho Sosáč tituly nájde, ale neprehrá.",
               "st_email": "Účet Sledujteto.cz. Hľadanie funguje aj bez Premium, prehrávanie iba s ním.",
               "fs_username": "Účet FastShare.cz. Prehrávanie sa účtuje z kreditu alebo z neobmedzeného tarifu.",
+              "fs_provider": "Sdilej.cz má rovnaké súbory ako FastShare, len účet je samostatný. Vyber web, kde máš účet a kredit.",
               "luna_url": "Adresa servera Luny — meno Home Assistantu a port 7126. Vložiť sa dá aj celá inštalačná adresa zo stránky /setup, token sa z nej načíta.",
               "hs_enabled": "HellSpy je verejný a účet nevyžaduje. Po odmietnutí dotazov (HTTP 429) ho integrácia na desať minút vynechá a hľadá bez neho.",
               "sub_warn_days": "Počet dní pred koncom predplatného WebShare, kedy príde upozornenie. 0 = neupozorňovať.",
@@ -882,6 +886,12 @@
       "options": {
         "ask": "Spýtať sa, kde prehrať",
         "first": "Prehrať na prvom v zozname"
+      }
+    },
+    "fs_provider": {
+      "options": {
+        "fastshare": "FastShare.cz",
+        "sdilej": "Sdilej.cz"
       }
     }
   }

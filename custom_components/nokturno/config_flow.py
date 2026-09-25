@@ -52,6 +52,8 @@ from .const import (
     CONF_ST_PASS,
     CONF_FS_USER,
     CONF_FS_PASS,
+    CONF_FS_PROVIDER,
+    FS_PROVIDERS,
     CONF_PT_ENABLED,
     CONF_PT_EMAIL,
     CONF_PT_PASS,
@@ -115,7 +117,7 @@ SEKCE = [
     ("prehravani", [CONF_KODI_ENTITY, CONF_MULTI_PLAY, CONF_PREF_LANG, CONF_PREF_SURROUND,
                     CONF_HIDE_SD, CONF_MAX_BITRATE, CONF_SORT], False),
     ("zdroje", [CONF_WS_USER, CONF_WS_PASS, CONF_STREAMUJ_USER, CONF_STREAMUJ_PASS,
-                CONF_ST_EMAIL, CONF_ST_PASS, CONF_FS_USER, CONF_FS_PASS,
+                CONF_ST_EMAIL, CONF_ST_PASS, CONF_FS_USER, CONF_FS_PASS, CONF_FS_PROVIDER,
                 CONF_HS_ENABLED, CONF_PT_ENABLED, CONF_PT_EMAIL, CONF_PT_PASS,
                 CONF_CZ_ENABLED, CONF_LUNA_URL, CONF_LUNA_TOKEN,
                 CONF_SUB_WARN_DAYS], True),
@@ -219,6 +221,9 @@ def preferences_schema(data: dict) -> vol.Schema:
         vol.Optional(CONF_NOTIFY_TARGET, default=data.get(CONF_NOTIFY_TARGET, "")): str,
         # Trakt, Prowlarr a qBittorrent jsou účty → ACCOUNT_KEYS (entry.data), ne tady
         # HellSpy je veřejný, účet nepotřebuje — proto jen přepínač mezi předvolbami
+        vol.Optional(CONF_FS_PROVIDER, default=data.get(CONF_FS_PROVIDER, "fastshare")):
+            selector.SelectSelector(selector.SelectSelectorConfig(
+                options=list(FS_PROVIDERS), translation_key="fs_provider")),
         vol.Optional(CONF_HS_ENABLED, default=data.get(CONF_HS_ENABLED, True)): bool,
         # Přehraj.to funguje i bez účtu (první strana + překódovaný soubor), účet
         # je nepovinný a přidá stránkování i původní soubor — proto zapnuté ve výchozím

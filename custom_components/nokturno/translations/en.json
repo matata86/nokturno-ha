@@ -61,6 +61,7 @@
               "st_password": "Sledujteto — password (playback needs Premium)",
               "fs_username": "FastShare — username",
               "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
+              "fs_provider": "FastShare — account from",
               "luna_url": "Luna — server address",
               "luna_token": "Luna — token (or the whole install URL)",
               "hs_enabled": "Search HellSpy too",
@@ -75,6 +76,7 @@
               "streamuj_username": "A streamuj.tv account. Without it Sosáč finds titles but cannot play them.",
               "st_email": "A Sledujteto.cz account. Search works without Premium, playback does not.",
               "fs_username": "A FastShare.cz account. Playback is charged against credit or an unlimited plan.",
+              "fs_provider": "Sdilej.cz has the same files as FastShare, only the account is separate. Choose the site where you have your account and credit.",
               "luna_url": "The Luna server address — the Home Assistant host and port 7126. The whole install address from the /setup page can be pasted; the token is read from it.",
               "hs_enabled": "HellSpy is public and needs no account. After it starts refusing queries (HTTP 429) it is skipped for ten minutes.",
               "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = no warning.",
@@ -225,6 +227,7 @@
               "st_password": "Sledujteto — password (playback needs Premium)",
               "fs_username": "FastShare — username",
               "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
+              "fs_provider": "FastShare — account from",
               "luna_url": "Luna — server address",
               "luna_token": "Luna — token (or the whole install URL)",
               "hs_enabled": "Search HellSpy too",
@@ -239,6 +242,7 @@
               "streamuj_username": "A streamuj.tv account. Without it Sosáč finds titles but cannot play them.",
               "st_email": "A Sledujteto.cz account. Search works without Premium, playback does not.",
               "fs_username": "A FastShare.cz account. Playback is charged against credit or an unlimited plan.",
+              "fs_provider": "Sdilej.cz has the same files as FastShare, only the account is separate. Choose the site where you have your account and credit.",
               "luna_url": "The Luna server address — the Home Assistant host and port 7126. The whole install address from the /setup page can be pasted; the token is read from it.",
               "hs_enabled": "HellSpy is public and needs no account. After it starts refusing queries (HTTP 429) it is skipped for ten minutes.",
               "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = no warning.",
@@ -882,6 +886,12 @@
       "options": {
         "ask": "Ask where to play",
         "first": "Play on the first one listed"
+      }
+    },
+    "fs_provider": {
+      "options": {
+        "fastshare": "FastShare.cz",
+        "sdilej": "Sdilej.cz"
       }
     }
   }

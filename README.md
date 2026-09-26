@@ -9,9 +9,9 @@
 
 První tlačítko otevře repozitář rovnou v HACS tvojí instance, druhé spustí průvodce nastavením integrace.
 
-Přehrávač **vlastního úložiště** (WebDAV — NAS, Nextcloud, server) přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu. Volitelně navíc hledání filmů a seriálů ve **WebShare**, **Sosáči**, **Luně**, **HellSpy**, **Sledujteto**, **FastShare**, **CZtor** a **Přehraj.to**.
+Přehrávač **vlastního úložiště** (WebDAV — NAS, Nextcloud, server) přímo z Home Assistantu — s přehráním v Kodi, stažením do HA nebo odesláním odkazu do mobilu. Jako volitelnou doplňkovou službu si zapneš i vyhledávače třetích stran **WebShare**, **Sosáč**, **HellSpy**, **Sledujteto**, **FastShare**, **Přehraj.to**, **CZtor** a **Luna**. Nokturno samo žádný obsah nehostuje ani nešíří.
 
-> **Patří k sobě:** stejné zdroje nabízí i [**Nokturno pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování") a [**Nokturno pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Streamovací server Luna jde provozovat jako [addon HA](https://github.com/matata86/ha-addons).
+> **Patří k sobě:** Nokturno je i jako [**doplněk pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování“) a jako [**doplněk pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio, bez Luny). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Server Luna běží jako [addon HA](https://github.com/matata86/ha-addons), jako APK přímo na Android TV boxu nebo jako program pro Windows, Linux, macOS či NAS; vždy potřebuje WebShare VIP.
 
 ![Úvodní obrazovka karty](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-uvod.png) ![Seznam streamů](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-streamy.png)
 
@@ -32,11 +32,11 @@ Přehrávač **vlastního úložiště** (WebDAV — NAS, Nextcloud, server) př
 ## Co to umí
 
 - **Vlastní úložiště** — až tři WebDAV složky (NAS, Nextcloud, server), soubory jsou v kartě mezi streamy vždy první
-- **Volitelně osm dalších zdrojů** (WebShare, Sosáč, Luna, HellSpy, Sledujteto, FastShare, CZtor, Přehraj.to) v jednom hledání; stejný titul i soubor se sloučí do jednoho řádku
-- **Karta na dashboard** — hledání, výběr streamu, detail titulu, Můj seznam, Hlídané seriály, stažené soubory
+- **Volitelně osm vyhledávačů třetích stran** (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna) v jednom hledání; stejný titul i soubor se sloučí do jednoho řádku
+- **Karta na dashboard** se záložkami Domů, Knihovna a Stažené — hledání, výběr streamu, detail titulu, Pokračovat ve sledování, Hlídané, Můj seznam, sledované seriály, stažené soubory
 - **Přehrání v Kodi** přes doplněk Nokturno (Kodi si drží „Pokračovat ve sledování"), stažení do HA nebo odkaz do mobilu
-- **Hlídání seriálů** — nový díl se ohlásí, až když se dá pustit; seznam k zhlédnutí hlídá i chystané filmy
-- **Střed synchronizace** zhlédnutého a Mého seznamu mezi všemi Kodi
+- **Hlídané** — nový díl sledovaného seriálu se ohlásí, až když se dá pustit; hlídat jde i titul, který zatím žádný zdroj nemá (chystaný film), a s příznakem *kontrolovat dál* i díl, u kterého čekáš na vhodnější stream
+- **Synchronizace s Kodi** — zhlédnuté, rozkoukané, Můj seznam, historie hledání a Hlídané pro Kodi v domácí síti i mimo ni (kód skupiny)
 - **Stav zdrojů** jako senzor (`sensor.nokturno_stav_zdroju`) — vhodný pro automatizace
 - **Česky, slovensky i anglicky**, hlasové ovládání jedním krokem
 
@@ -44,7 +44,7 @@ Přehrávač **vlastního úložiště** (WebDAV — NAS, Nextcloud, server) př
 <summary><b>Všechny funkce podrobně</b></summary>
 
 - **Vlastní úložiště** (od 3.1.1) — až tři WebDAV složky (NAS, Nextcloud, server) v nastavení integrace. Soubory, které k titulu patří, jsou v kartě mezi streamy první se zeleným štítkem. Kodi je přehraje rovnou s heslem v hlavičce, ostatní přehrávače, odkazy do mobilu i stahování jdou přes Home Assistant (podepsaný odkaz na `/api/nokturno/storage/…`, přetáčení funguje, heslo z HA neodejde). Podrobně ve [wiki](https://github.com/matata86/nokturno-ha/wiki/Nastaveni#vlastní-úložiště).
-- **Jedno hledání ve všech volitelných zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz: Luna, přímý fulltext WebShare (víc variant dotazu, aby neunikly soubory, které Lunin jeden dotaz mine) i Sosáč. Stejný soubor nalezený víc cestami se ukáže jednou. U každého streamu je zdroj, kvalita, název souboru, jazyky zvuku i titulků a velikost.
+- **Jedno hledání ve všech zapnutých zdrojích** — stejný titul z Luny i Sosáče se sloučí do jedné položky, streamy se pak nabídnou ze všech zdrojů naráz (vlastní úložiště, WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna). Stejný soubor nalezený víc cestami se ukáže jednou. U každého streamu je zdroj, kvalita, název souboru, jazyky zvuku i titulků a velikost.
 - **CZtor jako sedmý volitelný zdroj** (od 6.0.0) — placený katalog cztor.com. Zapneš přepínačem v nastavení integrace a spáruješ ho PINem z `cztor.com/activate`; heslo integrace nevidí.
 - **Přehraj.to jako osmý volitelný zdroj** (od 7.1.0) — zapnuté ve výchozím stavu, **funguje i bez účtu** (první strana výsledků a překódovaný soubor v 1080p). Nepovinný Premium účet (pole v nastavení integrace) přidá stránkování a původní soubor včetně 4K.
 - **Stav zdrojů** (od 6.3.2) — `sensor.nokturno_stav_zdroju` počítá zdroje, které potřebují zásah (vypršelé předplatné, nespárovaný CZtor, Luna, která neběží…); `0` = vše v pořádku.
@@ -53,9 +53,9 @@ Přehrávač **vlastního úložiště** (WebDAV — NAS, Nextcloud, server) př
 - **Stahování do `/media/nokturno`** s frontou, průběhem, rychlostí a odhadem času; přerušené stahování (restart HA, výpadek) se po startu samo dokončí od místa, kde skončilo; hotové soubory jsou vidět v kartě **na úvodní obrazovce**, dají se přehrát, smazat nebo poslat do mobilu odkazem přes Nabu Casa. Titulky se stáhnou vedle videa a mažou se spolu s ním.
 - **Odkazy použitelné mimo domácí síť** (ikona 🌐) — přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
 - **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat. Když zrovna neodpoví ani jedno Kodi (vypnutá), ukáže se naposledy známý stav místo prázdné sekce — přehrání samotné logicky počká, až Kodi zapneš.
-- **Společné zhlédnuto a Můj seznam pro všechna Kodi** — integrace je střed synchronizace: zhlédnuté, rozkoukané (i pozice) a Můj seznam se sdílí mezi všemi Kodi s doplňkem Nokturno v síti. V nastavení integrace je klíč, který se opíše do každého Kodi (*Nastavení → Synchronizace*). Film rozkoukaný v obýváku pak pokračuje v pracovně na stejném místě.
-- **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB. Když stream není a máš nastavený Prowlarr, kontrola sáhne i na trackery.
-- **Seznam „k zhlédnutí"** — u titulu klepneš na záložku a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
+- **Synchronizace s Kodi** — zhlédnuté, rozkoukané (i pozice), Můj seznam, historie hledání a Hlídané se sdílí mezi Home Assistantem a všemi Kodi s doplňkem Nokturno. Kodi v domácí síti se připojí **klíčem** z nastavení integrace (v Kodi *Nastavení → Synchronizace → Home Assistant*). Kodi mimo domácí síť (chata, telefon) chodí přes **kód skupiny** `NKT-XXXX-XXXX-XXXX-XXXX`: založí ho první Kodi (*Synchronizace → Založit skupinu*) a opíšeš ho i do nastavení integrace. Co se sdílí, zapneš v sekci *Synchronizace s Kodi*. Film rozkoukaný v obýváku pak pokračuje v pracovně na stejném místě.
+- **Sledované seriály** — nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB. Když stream není a máš nastavený Prowlarr, kontrola sáhne i na trackery. Kontrolu stačí udělat na jednom zařízení, výsledek se synchronizuje.
+- **Hlídané tituly** — u titulu klepneš na zvonek a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) — hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) — propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Vlastní aplikaci na Traktu nepotřebuješ: spusť službu `nokturno.trakt_auth` a kód zadej na webu Traktu. Jde to i s free účtem (ten má nejvýš dvě připojené aplikace naráz).
 - **Rok v dotazu je filtr** — „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere. Rok se hlídá i u souborů z fulltextu WebShare, takže se k titulu nepřimíchá stejnojmenný film z jiného roku.
 - **Jedno hledání pro filmy i seriály** — přepínač *Filmy / Seriály* se objeví, jen když dotaz sedí na obojí; jinak karta rovnou ukáže to, co našla. Stejně to funguje i v doplňku do Kodi.
@@ -89,51 +89,55 @@ Zkopíruj složku `custom_components/nokturno` do své konfigurace a restartuj H
 
 ## Nastavení integrace
 
-Vlastní úložiště (WebDAV) nastavíš přímo v tomhle formuláři — nic dalšího není potřeba. Zbytek jsou volitelné zdroje z internetu: průvodce je jeden formulář, nahoře **účty** (vyplň jen ty zdroje, které chceš používat), pod nimi předvolby. Hesla se zadávají skrytě a ukládají se odděleně od předvoleb:
+Vlastní úložiště (WebDAV) nastavíš přímo v tomhle formuláři — nic dalšího není potřeba. Formulář má sbalitelné sekce **Přehrávání**, **Zdroje a účty**, **Vlastní úložiště**, **Torrenty**, **Stahování a odkazy**, **Synchronizace s Kodi** a **Ostatní**; vyplň jen to, co chceš používat. Hesla se zadávají skrytě a ukládají se odděleně od předvoleb. Volitelné vyhledávače (sekce *Zdroje a účty*):
 
 | Pole | Bez čeho to nejde | Co tím získáš |
 |---|---|---|
 | WebShare — e-mail, heslo | placený účet WebShare | fulltextové hledání souborů, streamy u titulů z Luny, přímé odkazy z CDN (hrají i mimo domácí síť), titulky. Heslo lze zadat i jako uložený salted hash z Kodi doplňku. |
 | Streamuj.tv — uživatel, heslo | účet Streamuj.tv (přehrávač Sosáče) | streamy Sosáče, tedy české tituly a dabing. Katalogy a hledání jdou z veřejných exportů, přihlášení je potřeba až na přehrání. |
-| Luna — adresa, token | běžící addon [Luna](https://github.com/matata86/ha-addons) v síti | katalogy a metadata z TMDB (české názvy, popisy, plakáty) a streamy z WebShare přes Lunu. Token lze vložit i jako celou instalační URL, adresa se z ní vytáhne sama. |
 | HellSpy — jen přepínač | nic, rozhraní je veřejné | další soubory k titulu z hellspy.to. Nabízí se původní soubor, ne překódování, takže velikost i kvalita v seznamu odpovídají tomu, co se přehraje. Rychlost bez účtu kolísá, naměřeno 37 až 400 Mb/s. |
 | Sledujteto — e-mail a heslo (od 3.0.0) | účet Sledujteto, k přehrání **Premium** | další soubory k titulu ze sledujteto.cz; rozlišení, kanály a kodek zvuku posílá přímo jejich API, soubor se nečte |
-| FastShare — uživatel a heslo (od 5.1.0) | účet FastShare, přehrání z **kreditu** nebo neomezeného tarifu | další soubory k titulu z fastshare.cz; hledá se i bez účtu, zvuk se dočte z hlavičky souboru (pár set kB z kreditu, jednou za 30 dní). Mimo Kodi jde soubor přes HA — přehrávač cookie z přihlášení neumí poslat |
+| FastShare / Sdilej.cz — uživatel, heslo a *účet z* (od 5.1.0) | účet FastShare nebo Sdilej.cz (volba *účet z*, od 8.4.0), přehrání z **kreditu** nebo neomezeného tarifu | další soubory k titulu z fastshare.cz; hledá se i bez účtu, zvuk se dočte z hlavičky souboru (pár set kB z kreditu, jednou za 30 dní). Mimo Kodi jde soubor přes HA — přehrávač cookie z přihlášení neumí poslat |
+| Přehraj.to — přepínač, e-mail a heslo (od 7.1.0) | nic, zapnuté ve výchozím stavu | další soubory k titulu z prehraj.to. Bez účtu první strana výsledků a překódovaný soubor v 1080p, s Premium účtem stránkování a původní soubor včetně 4K. |
 | CZtor — přepínač a PIN (od 6.0.0) | placený účet cztor.com | další soubory k titulu; po zapnutí se otevře krok s PINem z `cztor.com/activate`, tokeny se ukládají do `.storage/nokturno/`, heslo ne |
+| Luna — adresa, token | běžící server [Luna](https://github.com/matata86/ha-addons) v síti: addon HA, APK na Android TV boxu nebo program pro Windows/Linux/macOS/NAS; vždy s WebShare VIP | katalogy a metadata z TMDB (české názvy, popisy, plakáty) a streamy z WebShare přes Lunu. Token lze vložit i jako celou instalační URL, adresa se z ní vytáhne sama. |
 | TMDB — API klíč | zdarma klíč z [themoviedb.org](https://www.themoviedb.org/signup) (ikona profilu → *Nastavení* → *API* → *Request an API Key* → *Developer* → zkopírovat **API Key (v3 auth)**) | vlastní databáze filmů a seriálů — jakmile je klíč vyplněný, katalog i hledání jedou přes TMDB **přednostně i před Lunou** (umí i český popis a obsazení, ne jen název); Luna zůstává zdrojem streamů. Bez klíče je primární Luna (je-li dostupná), jinak zdarma veřejný katalog Sosáče a nakonec Cinemeta (obojí bez popisu, nebo jen anglicky). |
 
-Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Katalog i hledání titulů fungují dokonce i úplně bez jediného vyplněného zdroje (viz [Vlastní databáze filmů a seriálů](#vlastní-databáze-filmů-a-seriálů) níž). HellSpy je zapnutý a vypíná se v předvolbách.
+Stačí jeden zdroj — integrace se přizpůsobí tomu, co je vyplněné. Katalog i hledání titulů fungují dokonce i úplně bez jediného vyplněného zdroje (viz [Vlastní databáze filmů a seriálů](#vlastní-databáze-filmů-a-seriálů) níž). HellSpy a Přehraj.to jsou zapnuté a vypínají se v sekci *Zdroje a účty*.
 
 ### Vlastní databáze filmů a seriálů
 
-Katalog a hledání titulů běžely dřív jen přes Lunu (nebo Sosáč) — bez nich integrace neměla odkud vzít ani základní metadata. Teď se použije řetězec zdrojů metadat, v tomhle pořadí (každý se zkusí, jen když předchozí nic nevrátil):
+Katalog a hledání titulů nepotřebují žádný zdroj. Použije se řetězec zdrojů metadat v tomhle pořadí (každý se zkusí, jen když předchozí nic nevrátil):
 
-1. **TMDB** — jakmile má uživatel vlastní zdarma klíč (viz tabulka výš), má přednost **i před Lunou** — umí česky i to, co Luna neřekne (popis, obsazení). Luna zůstává zdrojem streamů, ne metadat.
-2. **Luna** — bez TMDB klíče, když je dostupná (beze změny oproti dřívějšku)
+1. **TMDB** — s vlastním zdarma klíčem (viz tabulka výš, sekce *Ostatní*) má přednost **i před Lunou** — umí česky i to, co Luna neřekne (popis, obsazení). Luna zůstává zdrojem streamů, ne metadat.
+2. **Luna** — bez klíče TMDB, když je dostupná
 3. **Veřejný katalog Sosáče** — bez TMDB i Luny, bez účtu, české tituly a žánry, ale bez popisu
 4. **Cinemeta** — poslední záchrana, funguje vždy, ale jen anglicky
 
-Streamy samotné (WebShare/HellSpy/Sledujteto/FastShare/Luna) se pak hledají stejně jako dřív — vlastní databáze řeší jen „co je to za titul", ne odkud stream stáhnout. Tlačítko **Hledat v databázi filmů** (viz [Databáze filmů](#databáze-filmů) níž) běží nezávisle na tomhle pořadí — vždy přes Cinemetu, protože slouží k dohledání titulů, které žádný zdroj (ani vlastní databáze) ještě nezná.
+Streamy samotné (úložiště, WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna) se hledají zvlášť — vlastní databáze řeší jen „co je to za titul", ne odkud stream stáhnout. Tlačítko **Hledat v databázi filmů** (viz [Databáze filmů](#databáze-filmů) níž) běží nezávisle na tomhle pořadí — vždy přes Cinemetu, protože slouží k dohledání titulů, které žádný zdroj (ani vlastní databáze) ještě nezná.
 
-**Předvolby přehrávání** (jdou kdykoli změnit v *Nastavení → Zařízení a služby → Nokturno → Konfigurovat*):
+**Ostatní volby** (jdou kdykoli změnit v *Nastavení → Zařízení a služby → Nokturno → Konfigurovat*):
 
 | Pole | Hodnoty | Výchozí | Co dělá |
 |---|---|---|---|
-| Výchozí přehrávač | entita `media_player` | — | Kodi, na které se pouští, když se v kartě nevybere jiné. Kodi se pozná z registru entit, takže se do něj pouští přes doplněk Nokturno a titul si drží pozici; ostatní přehrávače dostanou přímý odkaz. |
+| Výchozí přehrávače (Kodi) | seznam entit `media_player` | — | přehrávače, ze kterých karta nabízí výběr. Kodi se pozná z registru entit, takže se do něj pouští přes doplněk Nokturno a titul si drží pozici; ostatní přehrávače dostanou přímý odkaz. Volání služby `nokturno.play` bez `entity_id` spustí přehrávání na všech. |
+| Přehrávání při více přehrávačích | zeptat se / první v seznamu | zeptat se | *Zeptat se* ukáže po klepnutí na Přehrát okno s výběrem přehrávače. *První v seznamu* spustí rovnou na prvním a výběr vyvolá dlouhý stisk tlačítka. S jediným přehrávačem se karta neptá. |
 | Preferovaný jazyk zvuku | CZ, SK, EN, … | CZ | streamy s tímhle zvukem jdou v seznamu nahoru. Neodfiltrují se ostatní, jen se seřadí. |
 | Preferovat prostorový zvuk | ano / ne | ne | při shodné kvalitě jde nahoru 5.1 a víc. |
 | Skrýt SD streamy | ano / ne | ne | vyhodí ze seznamu všechno pod 720p. |
 | Max. datový tok (Mb/s) | číslo, 0 = bez omezení | 0 | přepočítá se na GB podle stopáže právě otevřeného titulu — pevné GB nedávaly smysl, devadesátiminutová pohádka a tříhodinový epos se stejnou rychlostí vyjdou na jinou velikost. |
 | Řazení streamů | `quality`, `size_desc`, `size_asc`, `source` | `size_desc` | `size_desc` dá nahoru největší soubory, `quality` řadí podle rozlišení (odhad z velikosti u souborů bez kvality v názvu se pozná podle vlnovky), `source` seskupí podle zdroje. |
 | Složka pro stahování | cesta | `/media/nokturno` | musí být uvnitř `media_dirs`, jinak stažené soubory neuvidíš v Médiích. Titulky se ukládají vedle videa se stejným názvem. |
-| Adresa mimo domácí síť | IP nebo doména | — | Tailscale/VPN adresa HA (např. `100.94.191.65`). Použije se při odesílání odkazu a při `resolve`, a jen tehdy, když addon Tailscale skutečně běží — integrace si to ověřuje přes Supervisor. |
+| Adresa mimo domácí síť | IP nebo doména | — | Tailscale/VPN adresa HA (např. `100.x.y.z`). Použije se při odesílání odkazu a při `resolve`, a jen tehdy, když addon Tailscale skutečně běží — integrace si to ověřuje přes Supervisor. |
 | Oznámení | notify služba | — | kam chodí hlášky o dokončeném stahování, novém dílu a nově dostupném titulu (`notify.mobile_app_…`). Prázdné = trvalé oznámení v HA. |
 | Trakt.tv — vlastní Client ID, Secret | z [developer.trakt.tv](https://developer.trakt.tv/apps/new) | prázdné | nepovinné. Prázdné = použije se aplikace Nokturna a stačí služba `nokturno.trakt_auth`. Vyplň jen, když máš vlastní aplikaci. |
 | Prowlarr — adresa, API klíč | `http://IP:9696` a klíč ze *Settings → General* | — | hledání na torrentových trackerech. **Dokud není vyplněné obojí, torrenty se v kartě vůbec nenabídnou.** Prowlarr drží přihlášení k trackerům za tebe, takže integrace nemusí řešit HTML jednotlivých stránek. |
 | qBittorrent — adresa, jméno, heslo | `http://IP:9091` | — | kam se předávají nalezené torrenty. Jméno a heslo nech prázdné, když má web UI povolenou místní síť bez přihlášení. Stažené video skončí ve složce pro stahování. |
-| Klíč pro synchronizaci Kodi | text | vygeneruje se | opiš ho do Kodi doplňku (*Nastavení → Synchronizace*) — zhlédnuto, rozkoukané a Můj seznam se pak sdílí mezi všemi Kodi v síti přes tuhle integraci (`POST /api/nokturno/sync`). Klíč jde kdykoli změnit, pak ho přepiš i v Kodi. |
+| Klíč pro Kodi v domácí síti | text | vygeneruje se | opiš ho do Kodi doplňku (*Nastavení → Synchronizace → Home Assistant*) — Kodi v domácí síti se pak synchronizuje přímo přes tuhle integraci (`POST /api/nokturno/sync`). Klíč jde kdykoli změnit, pak ho přepiš i v Kodi. |
+| Kód skupiny | `NKT-XXXX-XXXX-XXXX-XXXX` | prázdné | kód skupiny, kterou založilo první Kodi (*Synchronizace → Založit skupinu*). Home Assistant se tím stane členem skupiny a synchronizuje se i s Kodi mimo domácí síť. Prázdné = jen Kodi v domácí síti. |
+| Synchronizovat … | ano / ne | ano | co se sdílí: zhlédnuto a rozkoukanost, Můj seznam, historie hledání, Hlídané (sledované seriály a hlídané tituly i s příznakem *kontrolovat dál*). |
 | Upozornit na konec předplatného (dny) | 0–14, 0 = vypnuto | 5 | kolik dní předem hlásit blížící se konec VIP na WebShare. Kontroluje se dvanáctkrát denně, upozornění (přes stejnou `notify` službu jako stahování) chodí nejvýš jednou za den — po vypršení dál, dokud předplatné neprodloužíš. Stejná logika běží i v Kodi doplňku. |
-| Anonymní statistiky | ano / ne | ano | posílá jednou za šest hodin počet zobrazení streamů podle titulu a čas posledního použití. Neodchází nic o tobě ani o tvé instalaci kromě náhodného identifikátoru, verze, platformy a jazyka — žádné adresy, účty ani odkazy. Vypnutím se přestane sbírat i odesílat všechno kromě jednoho údaje: jednou za šest hodin dál odejde náhodný identifikátor a verze integrace, aby bylo vidět, že instalace žije — žádné tituly, zdroje, platforma ani jazyk. |
+| Anonymní statistiky | ano / ne | ano | posílá jednou za šest hodin náhodný identifikátor, verzi, platformu, jazyk, zapnuté zdroje (jen přepínače) a počet zobrazení streamů podle titulu. Přihlašovací údaje, adresy ani obsah hledání neodcházejí. Po vypnutí se dál posílá jen náhodný identifikátor a verze integrace, aby bylo vidět, že instalace žije. |
 
 Po vyplnění Traktu spusť službu `nokturno.trakt_auth` — přijde oznámení s kódem, který zadáš na [trakt.tv/activate](https://trakt.tv/activate).
 
@@ -156,7 +160,7 @@ phones:                          # volitelně ruční seznam; jinak se doplní s
 downloads: sensor.nokturno_stahovani   # senzor s frontou stahování
 ```
 
-Vše je volitelné: bez `players` se nabídnou všechny `media_player`, bez `phone` první telefon s aplikací HA, `downloads` má výchozí hodnotu.
+Vše je volitelné: bez `players` se nabídnou přehrávače z nastavení integrace (a když tam žádné nejsou, všechny `media_player`), bez `phone` první telefon s aplikací HA, `downloads` má výchozí hodnotu.
 
 | Pole v editoru | Odpovídá |
 |---|---|
@@ -172,12 +176,14 @@ Vše je volitelné: bez `players` se nabídnou všechny `media_player`, bez `pho
 
 ![Úvodní obrazovka](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-uvod.png)
 
+Nahoře **pole pro hledání**, pod ním záložky **Domů**, **Knihovna** a **Stažené**.
+
 - **Pole pro hledání** a tlačítko **Hledat** (během dotazu se v něm točí kolečko). Přepínač **Filmy / Seriály** se ukáže až u výsledků, a jen když dotaz našel obojí. Rok napsaný do dotazu se použije jako filtr — „Duna 2021" vrátí jen film z roku 2021.
 - **Štítky** s posledními dotazy (nejvýš 10, sdíleno s doplňkem pro Kodi) — klepnutím se hledání zopakuje, křížek historii smaže.
-- **Pokračovat ve sledování** — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
-- **Sledované seriály** — zelený štítek „nový díl" znamená, že další epizoda už má stream. Díl, který je zatím jen na trackeru, je označený „(jen torrent)" — pustit ho znamená napřed ho stáhnout. Ikony: ✓ odškrtne nový díl, 📂 otevře seriál, 👁 přestane sledovat.
-- **K zhlédnutí** — tituly, které sis uložil záložkou (a případně seznam z Traktu). Záložka v detailu **dílu** uloží ten díl, ne celý seriál; v seznamu je pak i s číslem („Okresní přebor — 1×01 Pohřeb") a klepnutí otevře rovnou jeho streamy. Zelené „lze pustit" u těch, které už mají stream, „jen torrent" u těch, které leží jen na trackerech, „hlídám" u těch, které zatím nikde nejsou; klepnutí otevře streamy. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.
-- Dole **Stahování** — u běžícího souboru procenta, rychlost, odhad zbývajícího času, kolik už je staženo z celku a křížek, kterým se stahování zruší. Pod tím **Stažené** — u každého souboru počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
+- **Pokračovat ve sledování** (záložka *Domů*) — rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
+- **Hlídané** (záložka *Domů*) — tituly, které sis uložil zvonkem (a případně seznam z Traktu). Zvonek v detailu **dílu** uloží ten díl, ne celý seriál; v seznamu je pak i s číslem („Okresní přebor · 1x01“) a klepnutí otevře rovnou jeho streamy. Zelené „lze pustit“ u těch, které už mají stream, „jen torrent“ u těch, které leží jen na trackerech, „hlídám“ u těch, které zatím nikde nejsou. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.
+- **Můj seznam** a **sledované seriály** (záložka *Knihovna*) — zelený štítek „nový díl“ znamená, že další epizoda už má stream. Díl, který je zatím jen na trackeru, je označený „(jen torrent)“ — pustit ho znamená napřed ho stáhnout.
+- Záložka **Stažené** — u běžícího souboru procenta, rychlost, odhad zbývajícího času, kolik už je staženo z celku a křížek, kterým se stahování zruší. Pod tím hotové soubory — u každého počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
 
 ### Výsledky hledání
 
@@ -221,7 +227,7 @@ Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, 
 
 ![Streamy](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-streamy.png)
 
-Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová, HellSpy červený, Sledujteto tyrkysový, FastShare zlatý) s 🌐 u odkazů, které hrají i mimo domácí síť, **nad** popisem `kvalita · název souboru · zvuk · titulky · velikost`, který jde přes celou šířku karty. Tlačítka jsou pod ním na vlastním řádku, takže nezkracují název. Po najetí myší se v bublině ukáže celý název souboru, titulky, bitrate a jestli hraje venku. Kvalita s vlnovkou (`~4K`) je odhad z velikosti souboru — zdroj ji v názvu neuvedl. Čtyři akce:
+Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová, HellSpy červený, Sledujteto tyrkysový, FastShare zlatý, Přehraj.to růžový; vlastní úložiště zelený se svým názvem) s 🌐 u odkazů, které hrají i mimo domácí síť, **nad** popisem `kvalita · název souboru · zvuk · titulky · velikost`, který jde přes celou šířku karty. Tlačítka jsou pod ním na vlastním řádku, takže nezkracují název. Po najetí myší se v bublině ukáže celý název souboru, titulky, bitrate a jestli hraje venku. Kvalita s vlnovkou (`~4K`) je odhad z velikosti souboru — zdroj ji v názvu neuvedl. Čtyři akce:
 
 | Ikona | Co udělá |
 |---|---|
@@ -250,7 +256,7 @@ Každé tlačítko v kartě má bublinu, která říká, co udělá — od ští
 |---|---|---|
 | `sensor.nokturno_stahovani` | počet běžících stahování | `downloads` (fronta), `files` (hotové soubory), `free_gb`, `directory`, `search_history`, `notify_targets` |
 | `sensor.nokturno_nove_dily` | kolik sledovaných seriálů má nový díl | `series` — u každého `latest` (odvysíláno), `available` (nejnovější se streamem), `new`, `checked` |
-| `sensor.nokturno_k_zhlednuti` | kolik titulů ze seznamu k zhlédnutí už má stream | `total`, `items` (id, název, rok, počet streamů, nejlepší stream) |
+| `sensor.nokturno_hlidane` (u starších instalací `sensor.nokturno_k_zhlednuti`) | kolik hlídaných titulů už má stream | `total`, `items` (id, název, rok, počet streamů, nejlepší stream) |
 | `sensor.nokturno_stav_zdroju` | počet zdrojů, které potřebují zásah (`0` = vše v pořádku) | `sources` (u každého `level`, `code`, `detail`), `problems` |
 
 ## Služby
@@ -288,8 +294,9 @@ Zruší stahování (`download_id`) / smaže stažený soubor i s jeho titulky (
 
 ### `nokturno.share_file` ↩
 
-*`delete_file` i `share_file` smí od 6.1.6 spustit jen správce HA (volání z automatizace bez uživatele projde).*
 Vytvoří dočasný podepsaný odkaz na stažený soubor přes **veřejnou adresu HA** (Nabu Casa, když je k dispozici) a volitelně ho pošle do mobilu. `path` (povinné), `notify_service` (prázdné = cíl z nastavení), `hours` (platnost, výchozí 24).
+
+*`delete_file` i `share_file` smí spustit jen správce HA (volání z automatizace bez uživatele projde).*
 
 ### `nokturno.continue_watching` ↩
 Rozkoukané tituly ze všech Kodi (nebo z jednoho přes `entity_id`). U každé položky `entity_id` zdrojového Kodi a `file` (plugin odkaz, který pokračuje od uložené pozice).
@@ -385,14 +392,12 @@ actions:
 
 | Problém | Co s tím |
 |---|---|
-| Karta hlásí „Custom element doesn't exist" / chybu nastavení | aktualizuj na 1.8.5+ (karta se registruje přes zdroje Lovelace, ne přes `extra_module_url` — ten se vyhodnotí dřív, než si frontend nasadí vlastní registr prvků) a stránku načti znovu |
 | Karta hlásí chybu nastavení, na desktopu je v pořádku | mobilní aplikaci úplně zavři a otevři znovu (drží si stránku v cache) |
 | Karta se načte dvakrát / „already used" | odeber ruční záznam `/local/nokturno/…` ze zdrojů Lovelace |
 | Změny v integraci se neprojeví | po zásahu do Pythonu je nutný restart HA Core, reload integrace nestačí |
 | U titulu chybí plakát | Sosáč obrázky nemá; pokud nejde dohledat ani přes TMDB, zůstane podklad s ikonou |
 | Stream nejde pustit venku | vyber řádek s 🌐, nebo vyplň adresu Tailscale a zkontroluj, že addon běží |
 | Trakt hlásí „nepřihlášeno" | spusť `nokturno.trakt_auth` a zadej kód na trakt.tv/activate |
-| Odebraný titul zůstal v seznamu k zhlédnutí | opraveno v 1.8.8 — karta čte poslední kontrolu, ta se teď maže spolu s položkou |
 | Integrace hlásí *vyžaduje opravu* | WebShare odmítl přihlášení — klikni na *Opravit* a zadej e-mail a heslo znovu; heslo se před uložením ověří |
 | Senzory se jmenují jinak než v návodu | od 4.0 se názvy senzorů překládají podle jazyka HA — nová instalace v angličtině má třeba `sensor.nokturno_downloads`. Karta si senzor stahování najde sama, v automatizacích použij skutečné `entity_id` |
 | Potřebuju poslat podklady k chybě | u integrace *Stáhnout diagnostiku* — hesla, účty a klíče se do souboru nedostanou |
@@ -408,21 +413,27 @@ actions:
 ## Právní upozornění
 
 Nokturno je především přehrávač a správce **vlastního úložiště** — obsah, který
-si sami nahrajete a zpřístupníte (např. přes WebDAV), přehrává napřímo. Jako
-doplňkovou službu si můžete volitelně napojit i některé veřejně dostupné
-vyhledávače třetích stran (WebShare, Sosáč, HellSpy, Sledujteto, FastShare,
-Přehraj.to, CZtor, Luna, OpenSubtitles) — v tom případě je Nokturno jen
-technické rozhraní, samo žádný obsah nehostuje, neukládá ani neposkytuje.
+si nahraješ a zpřístupníš (např. přes WebDAV), přehrává napřímo. Jako doplňkovou
+službu si můžeš volitelně napojit i některé veřejně dostupné vyhledávače třetích
+stran (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna,
+OpenSubtitles) — v tom případě je Nokturno jen technické rozhraní, samo žádný
+obsah nehostuje, neukládá ani neposkytuje.
 
-Integraci smíte používat jen k obsahu, ke kterému máte zákonné oprávnění,
-licenci nebo jiný právní titul. Při přidávání integrace je právní upozornění
-první krok, bez odsouhlasení se instalace nedokončí — existující instalace se
-na nic neptají. Plný text i kam nahlásit nelegální obsah u jednotlivých zdrojů
-je i na <https://nokturno.stream/terms>.
+Nokturno smíš používat jen k obsahu, ke kterému máš zákonné oprávnění, licenci
+nebo jiný právní titul. Vyhledávání, zpřístupňování nebo přehrávání autorsky
+chráněného obsahu bez souhlasu nositelů práv je zakázáno.
+
+Nokturno je poskytováno „tak, jak je“, bez záruky funkčnosti, dostupnosti ani
+legálnosti zdrojů třetích stran. Za způsob použití odpovídáš výhradně ty.
+Provozovatel si vyhrazuje právo kdykoli omezit nebo ukončit přístup.
+
+Při přidávání integrace je právní upozornění první krok, bez odsouhlasení se
+instalace nedokončí. Plný text a kontakty pro nahlášení nelegálního obsahu
+u jednotlivých zdrojů: <https://nokturno.stream/terms>
 
 ## Licence
 
-MIT
+Všechna práva vyhrazena (All rights reserved), viz [LICENSE](LICENSE).
 
 ---
 

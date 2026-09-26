@@ -1,5 +1,5 @@
 /**
- * Nokturno — karta pro hledání ve WebShare, Sosáči a Luně.
+ * Nokturno — karta přehrávače vlastního úložiště a volitelných zdrojů.
  *
  * Hledání → výsledky → streamy → přehrát v Kodi / poslat do mobilu / stáhnout.
  * Data tahá ze služeb integrace `nokturno` (volání s návratovou hodnotou).
@@ -43,28 +43,28 @@ const SK = {
   "Zpět": "Späť",
   "Stahuji do {0}": "Sťahujem do {0}",
   "úložiště": "úložiska",
-  "Na trackerech nic nenašel": "Na trackeroch sa nič nenašlo",
+  "Na trackerech se nic nenašlo": "Na trackeroch sa nič nenašlo",
   "Fulltext nic dalšího nenašel": "Fulltext nič ďalšie nenašiel",
   "Torrent zařazen do stahování": "Torrent zaradený do sťahovania",
-  "Nenašel jsem žádný mobil s aplikací Home Assistant.": "Nenašiel som žiadny mobil s aplikáciou Home Assistant.",
+  "Žádný mobil s aplikací Home Assistant se nenašel.": "Nenašiel sa žiadny mobil s aplikáciou Home Assistant.",
   "Odkaz odeslán: {0}": "Odkaz odoslaný: {0}",
   "Odkaz zkopírován — vlož ho do VLC nebo prohlížeče": "Odkaz skopírovaný — vlož ho do VLC alebo prehliadača",
   "Zkopíruj odkaz (Ctrl+C):": "Skopíruj odkaz (Ctrl+C):",
   "Titul se nepodařilo najít.": "Titul sa nepodarilo nájsť.",
   "Název filmu nebo seriálu": "Názov filmu alebo seriálu",
-  "Hledat ve WebShare, Sosáči a Luně": "Hľadať vo WebShare, Sosáči a Lune",
+  "Hledat ve všech zapnutých zdrojích": "Hľadať vo všetkých zapnutých zdrojoch",
   "Hledat": "Hľadať",
   "Vymazat cache hledání a streamů": "Vymazať cache vyhľadávania a streamov",
   "Zopakovat hledání „{0}“": "Zopakovať hľadanie „{0}“",
   "Smazat historii": "Zmazať históriu",
-  "Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.": "Zadaj názov — hľadá sa vo WebShare, Sosáči aj Lune naraz.",
+  "Zadej název — hledá se naráz ve vlastním úložišti i ve všech zapnutých zdrojích.": "Zadaj názov — hľadá sa naraz vo vlastnom úložisku aj vo všetkých zapnutých zdrojoch.",
   "Pokračovat ve sledování": "Pokračovať v sledovaní",
-  "Hlídané": "Strážené",
+  "Hlídané": "Sledované",
   "Otevřít streamy — {0} k dispozici": "Otvoriť streamy — {0} k dispozícii",
-  "Zatím žádný stream; hlídám a dám vědět": "Zatiaľ žiadny stream; strážim a dám vedieť",
+  "Zatím žádný stream; hlídám a dám vědět": "Zatiaľ žiadny stream; sledujem a dám vedieť",
   "jen torrent": "len torrent",
   "lze pustit": "dá sa pustiť",
-  "hlídám": "strážim",
+  "hlídám": "sledujem",
   "zatím ne": "zatiaľ nie",
   "kontrolovat dál": "kontrolovať ďalej",
   "Přestat kontrolovat díl {0}": "Prestať kontrolovať diel {0}",
@@ -80,36 +80,35 @@ const SK = {
   "Odebrat z Mého seznamu": "Odobrať z Môjho zoznamu",
   "· {0} streamů": "· {0} streamov",
   "nový díl": "nový diel",
-  "sleduji": "sledujem",
+  "hlídám": "sledujem",
   "ke sledování": "na sledovanie",
   "zatím bez streamu": "zatiaľ bez streamu",
   "odvysíláno": "odvysielané",
   "Označit nový díl jako viděný": "Označiť nový diel ako videný",
   "Otevřít": "Otvoriť",
-  "Přestat sledovat": "Prestať sledovať",
-  "Seriál už nesleduji": "Seriál už nesledujem",
-  "Nové díly budu hlásit": "Nové diely budem hlásiť",
+  "Přestat hlídat": "Prestať sledovať",
+  "Seriál se už nehlídá": "Seriál sa už nesleduje",
+  "Nové díly se budou hlásit": "Nové diely sa budú hlásiť",
   "Odebráno ze seznamu": "Odobraté zo zoznamu",
   "Přidáno — dám vědět, až bude ke sledování": "Pridané — dám vedieť, keď bude na sledovanie",
   "Odebráno z Pokračovat ve sledování": "Odobraté z Pokračovať v sledovaní",
   "Napiš název — hledat budu rovnou v databázi filmů.": "Napíš názov — hľadať budem rovno v databáze filmov.",
   "V databázi filmů nic takového není.": "V databáze filmov nič také nie je.",
   "Napiš nejdřív název do pole pro hledání.": "Najprv napíš názov do poľa na hľadanie.",
-  "Hlídám „{0}\" — dám vědět, až bude ke sledování": "Strážim „{0}“ — dám vedieť, keď bude na sledovanie",
+  "Hlídám „{0}“ — dám vědět, až bude ke sledování": "Sledujem „{0}“ — dám vedieť, keď sa bude dať pozrieť",
   "Zpět na úvodní obrazovku": "Späť na úvodnú obrazovku",
-  "Zpět na výsledky z WebShare, Sosáče a Luny": "Späť na výsledky z WebShare, Sosáča a Luny",
   "Zpět k výsledkům ze zdrojů": "Späť k výsledkom zo zdrojov",
   "Hledat v databázi filmů (IMDb/TMDB) — najde i tituly, které zdroje nemají": "Hľadať v databáze filmov (IMDb/TMDB) — nájde aj tituly, ktoré zdroje nemajú",
   "Hledat v databázi filmů": "Hľadať v databáze filmov",
   "Ve zdrojích nic nenalezeno — zkus databázi filmů.": "V zdrojoch sa nič nenašlo — skús databázu filmov.",
-  "Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš mezi hlídané.": "Z databázy filmov — ťuknutím otvoríš detail; záložkou v ňom si titul uložíš medzi strážené.",
-  "Sledovat nové díly": "Sledovať nové diely",
-  "Sezóna": "Séria",
+  "Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš do Hlídaných.": "Z databázy filmov — ťuknutím otvoríš detail; záložkou v ňom si titul uložíš do Sledovaných.",
+  "Hlídat nové díly": "Sledovať nové diely",
+  "Série": "Séria",
   "Speciály": "Špeciály",
-  "Zobrazit streamy epizody": "Zobraziť streamy epizódy",
+  "Zobrazit streamy dílu": "Zobraziť streamy dielu",
   "Přeskočeno — streamy jsou z ostatních zdrojů.": "Preskočené — streamy sú z ostatných zdrojov.",
-  "Odebrat z hlídaných": "Odobrať zo strážených",
-  "Přidat mezi hlídané": "Pridať medzi strážené",
+  "Odebrat z Hlídaných": "Odobrať zo Sledovaných",
+  "Přidat do Hlídaných": "Pridať do Sledovaných",
   "Odebrat z Pokračovat ve sledování": "Odobrať z Pokračovať v sledovaní",
   "Prohledat torrentové trackery přes Prowlarr — trvá pár sekund, proto se hledá až na vyžádání": "Prehľadať torrentové trackery cez Prowlarr — trvá pár sekúnd, preto sa hľadá až na požiadanie",
   "Hledám torrenty…": "Hľadám torrenty…",
@@ -138,8 +137,8 @@ const SK = {
   "· volných {0} GB": "· voľných {0} GB",
   "Poslat odkaz do mobilu": "Poslať odkaz do mobilu",
   "Smazat i s titulky": "Zmazať aj s titulkami",
-  "Stahování „{0}\" zrušeno": "Sťahovanie „{0}“ zrušené",
-  "Stahování „{0}\" spuštěno": "Sťahovanie „{0}“ spustené",
+  "Stahování „{0}“ zrušeno": "Sťahovanie „{0}“ zrušené",
+  "Stahování „{0}“ spuštěno": "Sťahovanie „{0}“ spustené",
   "Odkaz se nepodařilo vytvořit": "Odkaz sa nepodarilo vytvoriť",
   "Smazat soubor?": "Zmazať súbor?",
   "i s titulky": "aj s titulkami",
@@ -148,7 +147,7 @@ const SK = {
   "zbývá {0} s": "zostáva {0} s",
   "zbývá {0} min": "zostáva {0} min",
   "zbývá {0} h {1} min": "zostáva {0} h {1} min",
-  "Titul zatím žádný zdroj nemá — hlídám ho.": "Titul zatiaľ nemá žiadny zdroj — strážim ho.",
+  "Titul zatím žádný zdroj nemá — hlídám ho.": "Titul zatiaľ nemá žiadny zdroj — sledujem ho.",
   "{0} sdílí, {1} stahuje": "{0} zdieľa, {1} sťahuje",
   "stáhne se přes qBittorrent, přehrát půjde až potom": "stiahne sa cez qBittorrent, prehrať pôjde až potom",
   "Zobrazit nadpis a ikonu": "Zobraziť nadpis a ikonu",
@@ -158,8 +157,11 @@ const SK = {
   "Senzor stahování": "Senzor sťahovania",
   "Domů": "Domov",
   "Knihovna": "Knižnica",
-  "Zatím nic rozkoukaného ani hlídaného.": "Zatiaľ nič rozkukané ani strážené.",
-  "Zatím nic v Mém seznamu ani mezi sledovanými seriály.": "Zatiaľ nič v Mojom zozname ani medzi sledovanými seriálmi.",
+  "Zatím nic rozkoukaného ani hlídaného.": "Zatiaľ nič rozpozerané ani sledované.",
+  "Zatím nic v Mém seznamu ani mezi hlídanými seriály.": "Zatiaľ nič v Mojom zozname ani medzi sledovanými seriálmi.",
+  "Hlídané seriály": "Sledované seriály",
+  "pokračovat": "pokračovať",
+  "Nadpis karty": "Nadpis karty",
 };
 
 /** Text v jazyce UI z HA (`hass.locale.language`, u starších verzí `hass.language`). */
@@ -621,7 +623,7 @@ class NokturnoCard extends HTMLElement {
       // torrenty patří nad streamy — kvůli nim se hledalo, tak ať jsou hned vidět
       this._state.streams = (res.streams || []).concat(this._state.streams);
       this._state.torrents = true;
-      if (!(res.streams || []).length) this._toast(this._t("Na trackerech nic nenašel"));
+      if (!(res.streams || []).length) this._toast(this._t("Na trackerech se nic nenašlo"));
     });
     this._state.findingTorrents = false;
     this._paint();
@@ -654,7 +656,7 @@ class NokturnoCard extends HTMLElement {
 
   async _toPhone(stream) {
     const target = await this._choose("phone");
-    if (!target) { if (!this._phones().length) this._toast(this._t("Nenašel jsem žádný mobil s aplikací Home Assistant.")); return; }
+    if (!target) { if (!this._phones().length) this._toast(this._t("Žádný mobil s aplikací Home Assistant se nenašel.")); return; }
     this._state.phone = target;
     await this._guard(async () => {
       await this._call("send_link", {
@@ -961,7 +963,7 @@ class NokturnoCard extends HTMLElement {
         <div class="bar" id="search">
           <ha-input id="q" placeholder="${this._t("Název filmu nebo seriálu")}" with-clear></ha-input>
           <div class="searchrow">
-            <ha-control-button id="go" title="${this._t("Hledat ve WebShare, Sosáči a Luně")}"><ha-icon icon="mdi:magnify"></ha-icon> ${this._t("Hledat")}<span class="pct"></span></ha-control-button>
+            <ha-control-button id="go" title="${this._t("Hledat ve všech zapnutých zdrojích")}"><ha-icon icon="mdi:magnify"></ha-icon> ${this._t("Hledat")}<span class="pct"></span></ha-control-button>
             <ha-control-button id="clearcache" title="${this._t("Vymazat cache hledání a streamů")}"><ha-icon icon="mdi:trash-can-outline"></ha-icon></ha-control-button>
           </div>
           <ha-control-select id="type"></ha-control-select>
@@ -1065,7 +1067,7 @@ class NokturnoCard extends HTMLElement {
     let html = history.length
       ? `<div class="chips">${history.map((q, i) => `<button class="chip" data-hist="${i}" title="${this._t("Zopakovat hledání „{0}“", this._esc(q))}">${this._esc(q)}</button>`).join("")}
          <button class="chip x" data-histclear="1" title="${this._t("Smazat historii")}">×</button></div>`
-      : `<div class="muted" style="margin-top:10px">${this._t("Zadej název — hledá se ve WebShare, Sosáči i Luně naráz.")}</div>`;
+      : `<div class="muted" style="margin-top:10px">${this._t("Zadej název — hledá se naráz ve vlastním úložišti i ve všech zapnutých zdrojích.")}</div>`;
     if (st.continueItems === null) this._loadContinue();
     const cont = st.continueItems || [];
     const trakt = this._traktList();
@@ -1161,12 +1163,12 @@ class NokturnoCard extends HTMLElement {
         }).join("")}</div>`;
     }
     if (series.length) {
-      html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> Sledované seriály</div>
+      html += `<div class="section"><ha-icon icon="mdi:television-play"></ha-icon> ${this._t("Hlídané seriály")}</div>
         <div>${series.map((w, i) => `
           <div class="stream stacked">
             <span class="tag" style="background:${w.new ? "var(--success-color, #2e8b57)" : "var(--disabled-text-color, #777)"}">
               <ha-icon icon="${w.new ? "mdi:new-box" : "mdi:eye-outline"}" class="ext"></ha-icon>
-              ${w.new ? this._t("nový díl") : this._t("sleduji")}</span>
+              ${w.new ? this._t("nový díl") : this._t("hlídám")}</span>
             <span class="label${w.new ? "" : " label--meta"}">${this._esc(w.title)}${w.new
               ? ` — ${w.new.season}x${String(w.new.episode).padStart(2, "0")} ${this._esc(w.new.title)}`
               : `<span class="muted">${w.available
@@ -1184,11 +1186,11 @@ class NokturnoCard extends HTMLElement {
                   <ha-icon icon="${on ? "mdi:flag" : "mdi:flag-outline"}"></ha-icon></ha-icon-button>`;
               })() : ""}
               <ha-icon-button data-wopen="${i}" title="${this._t("Otevřít")}"><ha-icon icon="mdi:folder-play-outline"></ha-icon></ha-icon-button>
-              <ha-icon-button data-wremove="${i}" title="${this._t("Přestat sledovat")}"><ha-icon icon="mdi:eye-off-outline"></ha-icon></ha-icon-button>
+              <ha-icon-button data-wremove="${i}" title="${this._t("Přestat hlídat")}"><ha-icon icon="mdi:eye-off-outline"></ha-icon></ha-icon-button>
             </span>
           </div>`).join("")}</div>`;
     }
-    if (!fav.length && !series.length) html += `<div class="muted empty">${this._t("Zatím nic v Mém seznamu ani mezi sledovanými seriály.")}</div>`;
+    if (!fav.length && !series.length) html += `<div class="muted empty">${this._t("Zatím nic v Mém seznamu ani mezi hlídanými seriály.")}</div>`;
     return html;
   }
 
@@ -1204,7 +1206,7 @@ class NokturnoCard extends HTMLElement {
       await this._call("watch_series", watching
         ? { id: item.id, remove: true }
         : { id: item.id, title: item.title, alt: item.alt || undefined, poster: item.poster || undefined }, false);
-      this._toast(watching ? this._t("Seriál už nesleduji") : this._t("Nové díly budu hlásit"));
+      this._toast(watching ? this._t("Seriál se už nehlídá") : this._t("Nové díly se budou hlásit"));
     });
   }
 
@@ -1387,7 +1389,7 @@ class NokturnoCard extends HTMLElement {
     this._state.searching = true;
     await this._guard(async () => {
       await this._call("want_to_watch", { query, type: this._state.type === "series" ? "series" : "movie" }, false);
-      this._toast(this._t("Hlídám „{0}\" — dám vědět, až bude ke sledování", query));
+      this._toast(this._t("Hlídám „{0}“ — dám vědět, až bude ke sledování", query));
       this._state.view = "search";
     });
   }
@@ -1417,7 +1419,7 @@ class NokturnoCard extends HTMLElement {
     const home = `<div class="chips">
       <button class="chip" data-back="search" title="${this._t("Zpět na úvodní obrazovku")}"><ha-icon icon="mdi:home-outline" style="--mdc-icon-size:14px"></ha-icon> Úvod</button>
       ${st.catalog
-        ? `<button class="chip" data-research="1" title="${this._t("Zpět na výsledky z WebShare, Sosáče a Luny")}"><ha-icon icon="mdi:magnify" style="--mdc-icon-size:14px"></ha-icon> ${this._t("Zpět k výsledkům ze zdrojů")}</button>`
+        ? `<button class="chip" data-research="1" title="${this._t("Zpět k výsledkům ze zdrojů")}"><ha-icon icon="mdi:magnify" style="--mdc-icon-size:14px"></ha-icon> ${this._t("Zpět k výsledkům ze zdrojů")}</button>`
         : `<button class="chip" data-catalog="1" title="${this._t("Hledat v databázi filmů (IMDb/TMDB) — najde i tituly, které zdroje nemají")}"><ha-icon icon="mdi:database-search-outline" style="--mdc-icon-size:14px"></ha-icon> ${this._t("Hledat v databázi filmů")}</button>`}
     </div>`;
     if (!st.results.length) return home + `<div class="muted" style="margin-top:10px">${st.catalog
@@ -1425,7 +1427,7 @@ class NokturnoCard extends HTMLElement {
       : this._t("Ve zdrojích nic nenalezeno — zkus databázi filmů.")}</div>`;
     const files = st.results.every((r) => r.type === "file");
     const hint = st.catalog
-      ? `<div class="muted" style="margin-top:8px">${this._t("Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš mezi hlídané.")}</div>` : "";
+      ? `<div class="muted" style="margin-top:8px">${this._t("Z databáze filmů — klepnutím otevřeš detail; záložkou v něm si titul uložíš do Hlídaných.")}</div>` : "";
     return home + hint + `<div class="grid${files ? " files" : ""}">` + st.results.map((r, i) => `
       <button class="poster" data-open="${i}" title="${this._esc(
         [r.title + (r.year ? ` (${r.year})` : ""), r.description].filter(Boolean).join("\n"))}">
@@ -1447,16 +1449,16 @@ class NokturnoCard extends HTMLElement {
         <div class="titlerow">
           <ha-icon-button data-back="back" title="${this._t("Zpět")}"><ha-icon icon="mdi:arrow-left"></ha-icon></ha-icon-button>
           <span class="name">${this._esc(st.item.title)}${st.item.year ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
-          <ha-icon-button data-watch="1" title="${this._isWatched(st.item.id) ? this._t("Přestat sledovat") : this._t("Sledovat nové díly")}">
+          <ha-icon-button data-watch="1" title="${this._isWatched(st.item.id) ? this._t("Přestat hlídat") : this._t("Hlídat nové díly")}">
             <ha-icon icon="${this._isWatched(st.item.id) ? "mdi:eye-check" : "mdi:eye-plus-outline"}"></ha-icon>
           </ha-icon-button>
         </div>
         <span class="picks">
-          ${this._pick("season", this._t("Sezóna"), st.seasons.map((n) => ({ value: String(n), label: n === 0 ? this._t("Speciály") : this._t("Sezóna") + " " + n })), String(st.season))}
+          ${this._pick("season", this._t("Série"), st.seasons.map((n) => ({ value: String(n), label: n === 0 ? this._t("Speciály") : this._t("Série") + " " + n })), String(st.season))}
         </span>
       </div>
       <div>${list.map((e, i) => `
-        <div class="ep" data-ep="${i}" title="${this._t("Zobrazit streamy epizody")}">
+        <div class="ep" data-ep="${i}" title="${this._t("Zobrazit streamy dílu")}">
           <span class="n">${e.season}x${String(e.episode).padStart(2, "0")}</span>
           <span>${this._esc(e.title)}</span>
         </div>`).join("")}</div>`;
@@ -1485,7 +1487,7 @@ class NokturnoCard extends HTMLElement {
             && !String(st.title).includes(String(st.item.year)) ? ` <span class="muted">(${st.item.year})</span>` : ""}</span>
           ${st.item ? (() => {
             const saved = this._isWanted((this._wantTarget() || {}).id);
-            return `<ha-icon-button data-want="1" title="${saved ? this._t("Odebrat z hlídaných") : this._t("Přidat mezi hlídané")}">
+            return `<ha-icon-button data-want="1" title="${saved ? this._t("Odebrat z Hlídaných") : this._t("Přidat do Hlídaných")}">
             <ha-icon icon="${saved ? "mdi:bell-check" : "mdi:bell-plus-outline"}"></ha-icon>
           </ha-icon-button>`; })() : ""}
           ${st.item ? (() => {
@@ -1681,7 +1683,7 @@ class NokturnoCard extends HTMLElement {
     if (!job) return;
     await this._guard(async () => {
       await this._call("cancel_download", { download_id: job.id }, false);
-      this._toast(this._t("Stahování „{0}\" zrušeno", job.name));
+      this._toast(this._t("Stahování „{0}“ zrušeno", job.name));
     });
   }
 
@@ -1689,7 +1691,7 @@ class NokturnoCard extends HTMLElement {
     if (!job) return;
     await this._guard(async () => {
       await this._call("start_download", { download_id: job.id }, false);
-      this._toast(this._t("Stahování „{0}\" spuštěno", job.name));
+      this._toast(this._t("Stahování „{0}“ spuštěno", job.name));
     });
   }
 
@@ -2047,5 +2049,5 @@ if (!window.customCards.some((c) => c.type === "nokturno-card")) window.customCa
   preview: true,
   documentationURL: "https://github.com/matata86/nokturno-ha",
   name: "Nokturno",
-  description: "Hledání ve WebShare, Sosáči a Luně — přehrání v Kodi, stažení nebo odeslání do mobilu.",
+  description: "Přehrávač vlastního úložiště a volitelných zdrojů — hledání, přehrání v Kodi, stažení nebo odeslání do mobilu.",
 });

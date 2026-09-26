@@ -1606,6 +1606,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             url = await _in_executor(engine.resolve, stream.get("ws_url") or stream["url"], True)
         return {"url": url, "label": stream.get("label", ""), "subtitles": stream.get("subtitles") or []}
 
+    async def _subtitle_links(stream: dict) -> list:
+        """Odkazy na titulky; nedostupné se vynechají, video kvůli nim nesmí selhat."""
+        links = []
+        for u in stream.get("subtitles") or []:
+            try:
+                links.append(await _in_executor(engine.resolve, u))
+            except Exception as err:  # noqa: BLE001 – titulky jsou nepovinné
+                _LOGGER.warning("titulky vynechány (%s): %s", u, err)
+        return links
+
     async def handle_play(call: ServiceCall):
         call_data = await _with_query(call.data)
         ctype, item_id, series, alt, stream = await _chosen_stream(call_data)
@@ -1635,7 +1645,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             elif plugin_ok and item_id:
                 # titulky z WebShare musí do Kodi už jako http odkazy (doplněk `ws:` nepřekládá)
                 resolved = dict(stream)
-                resolved["subtitles"] = [await _in_executor(engine.resolve, u) for u in (stream.get("subtitles") or [])]
+                resolved["subtitles"] = await _subtitle_links(stream)
                 media_id = kodi_url(ctype, item_id, series, alt, resolved)
             else:
                 media_id = await _in_executor(engine.resolve, stream["url"])
@@ -1663,7 +1673,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         needed = float(stream.get("size_gb") or 0)
         if needed and downloader.free_gb and needed > downloader.free_gb - 0.5:
             raise HomeAssistantError(f"Na disku je jen {downloader.free_gb:.1f} GB, soubor má {needed:.1f} GB.")
-        subs = [await _in_executor(engine.resolve, u) for u in (stream.get("subtitles") or [])]
+        subs = await _subtitle_links(stream)
         job = downloader.add(url, name or "nokturno", {"stream": stream.get("label", "")},
                              subtitles=subs, source_url="" if is_storage else stream.get("url", ""))
         return {"download_id": job["id"], "path": job["path"], "name": job["name"]}

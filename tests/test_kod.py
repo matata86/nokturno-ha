@@ -30,5 +30,19 @@ class TestNedosazitelnyKod(unittest.TestCase):
         self.assertIsInstance(fn.body[-1], ast.AsyncWith, "posílání dat patří do `async with upstream`, ne pod return")
 
 
+class TestTitulkyNepovinne(unittest.TestCase):
+    def test_titulky_nezastavi_prehrani_ani_stazeni(self):
+        """WebShare občas nevydá soubor s titulky („File temporarily unavailable“) —
+        výjimka z jejich rozklíčování dřív shodila celé nokturno.play i stažení."""
+        tree = ast.parse((BALIK / "__init__.py").read_text(encoding="utf-8"))
+        fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)}
+        pomocna = fns["_subtitle_links"]
+        self.assertTrue(any(isinstance(n, ast.Try) for n in ast.walk(pomocna)))
+        for jmeno in ("handle_play", "handle_download"):
+            kod = ast.unparse(fns[jmeno])
+            self.assertIn("_subtitle_links(stream)", kod)
+            self.assertNotIn("for u in stream.get('subtitles')", kod)
+
+
 if __name__ == "__main__":
     unittest.main()

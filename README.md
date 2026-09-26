@@ -13,7 +13,7 @@ Přehrávač **vlastního úložiště** (WebDAV — NAS, Nextcloud, server) př
 
 > **Patří k sobě:** Nokturno je i jako [**doplněk pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování“) a jako [**doplněk pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio, bez Luny). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Server Luna běží jako [addon HA](https://github.com/matata86/ha-addons), jako APK přímo na Android TV boxu nebo jako program pro Windows, Linux, macOS či NAS; vždy potřebuje WebShare VIP.
 
-![Úvodní obrazovka karty](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-uvod.png) ![Seznam streamů](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-streamy.png)
+<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-domu.jpg" alt="Karta – záložka Domů" width="352"> <img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/04-streamy.jpg" alt="Karta – streamy dílu" width="352">
 
 ## Obsah
 
@@ -90,7 +90,11 @@ Zkopíruj složku `custom_components/nokturno` do své konfigurace a restartuj H
 
 ## Nastavení integrace
 
-Vlastní úložiště (WebDAV) nastavíš přímo v tomhle formuláři — nic dalšího není potřeba. Formulář má sbalitelné sekce **Přehrávání**, **Zdroje a účty**, **Vlastní úložiště**, **Torrenty**, **Stahování a odkazy**, **Synchronizace s Kodi** a **Ostatní**; vyplň jen to, co chceš používat. Hesla se zadávají skrytě a ukládají se odděleně od předvoleb. Volitelné vyhledávače (sekce *Zdroje a účty*):
+Vlastní úložiště (WebDAV) nastavíš přímo v tomhle formuláři — nic dalšího není potřeba. Formulář má sbalitelné sekce **Přehrávání**, **Zdroje a účty**, **Vlastní úložiště**, **Torrenty**, **Stahování a odkazy**, **Synchronizace s Kodi** a **Ostatní**; vyplň jen to, co chceš používat. Hesla se zadávají skrytě a ukládají se odděleně od předvoleb.
+
+<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/05-nastaveni.jpg" alt="Nastavení integrace – sekce Přehrávání" width="400">
+
+Volitelné vyhledávače (sekce *Zdroje a účty*):
 
 | Pole | Bez čeho to nejde | Co tím získáš |
 |---|---|---|
@@ -175,7 +179,7 @@ Vše je volitelné: bez `players` se nabídnou přehrávače z nastavení integr
 
 ### Úvodní obrazovka
 
-![Úvodní obrazovka](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-uvod.png)
+<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-domu.jpg" alt="Karta – záložka Domů" width="352"> <img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/02-knihovna.jpg" alt="Karta – záložka Knihovna" width="352">
 
 Nahoře **pole pro hledání**, pod ním záložky **Domů**, **Knihovna** a **Stažené**.
 
@@ -187,8 +191,6 @@ Nahoře **pole pro hledání**, pod ním záložky **Domů**, **Knihovna** a **S
 - Záložka **Stažené** — u běžícího souboru procenta, rychlost, odhad zbývajícího času, kolik už je staženo z celku a křížek, kterým se stahování zruší. Pod tím hotové soubory — u každého počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
 
 ### Výsledky hledání
-
-![Výsledky hledání](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/02-vysledky.png)
 
 Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí kolečko a druhé se točí v tlačítku *Hledat*, dokud se detail nenačte. Vedle tlačítka **Úvod** je vždy **Hledat v databázi filmů** (IMDb/TMDB) — hodí se, když zdroje vrátí něco jiného, než jsi hledal, nebo film teprve vyjde; z těch výsledků klepnutím titul rovnou uložíš do seznamu k zhlédnutí a **Zpět k výsledkům ze zdrojů** tě vrátí. Když hledáš s rokem a zdroje nic z toho roku nemají, výsledek je prázdný — právě proto, aby ti nepodstrčily jiný film. Titul, který má jen Sosáč, dostane plakát z TMDB. **Úvod** vlevo nahoře se vrátí zpět.
 
@@ -208,8 +210,6 @@ Mřížka plakátů s názvem a rokem. Po klepnutí se přes plakát položí ko
 
 ### Databáze filmů
 
-![Detail titulu z databáze filmů](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/05-databaze.png)
-
 Tlačítko **Hledat v databázi filmů** se ptá Cinemety (IMDb/TMDB), takže najde i tituly, které zdroje vůbec nemají — třeba film, který teprve vyjde. Klepnutí na výsledek otevře detail:
 
 - **plakát a popis** — popis se bere z TMDB (česky), a když ho nemá ani TMDB ani IMDb, složí se věta ze žánru, země, režie a hlavních rolí;
@@ -220,13 +220,13 @@ Názvy jsou v databázi vedené mezinárodním přepisem („Sunday League - Pep
 
 ### Seriál a epizody
 
-![Epizody seriálu](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/04-epizody.png)
+<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-epizody.jpg" alt="Epizody seriálu" width="352">
 
 Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, šipka zpět, **záložka** (přidá do seznamu k zhlédnutí) a u seriálu **oko** pro sledování nových dílů. Výběr sezóny je pod názvem, epizody se pak vypíšou jako seznam.
 
 ### Streamy
 
-![Streamy](https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-streamy.png)
+<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/04-streamy.jpg" alt="Streamy" width="352">
 
 Každý řádek má **štítek zdroje** (WebShare modrý, Sosáč oranžový, Luna fialová, HellSpy červený, Sledujteto tyrkysový, FastShare zlatý, Přehraj.to růžový; vlastní úložiště zelený se svým názvem) s 🌐 u odkazů, které hrají i mimo domácí síť, **nad** popisem `kvalita · název souboru · zvuk · titulky · velikost`, který jde přes celou šířku karty. Tlačítka jsou pod ním na vlastním řádku, takže nezkracují název. Po najetí myší se v bublině ukáže celý název souboru, titulky, bitrate a jestli hraje venku. Kvalita s vlnovkou (`~4K`) je odhad z velikosti souboru — zdroj ji v názvu neuvedl. Čtyři akce:
 

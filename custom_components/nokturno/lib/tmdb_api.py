@@ -170,6 +170,7 @@ class TmdbApi:
                 "description": raw.get("overview") or "",
                 "genres": genres,
                 "imdbRating": raw.get("vote_average") or None,
+                "ratingSource": "tmdb" if raw.get("vote_average") else None,
                 "voteCount": int(raw.get("vote_count") or 0),   # v odpovědi katalogu zdarma, žádný dotaz navíc
                 **self._art(kind, raw["id"], raw.get("backdrop_path") or "", images=details.get("images") or {}),
             }
@@ -234,6 +235,33 @@ class TmdbApi:
         with ThreadPoolExecutor(max_workers=WORKERS) as pool:
             items = list(pool.map(lambda r: self._item(ctype, r, genre_map), raw))
         return [i for i in items if i and i["id"] != imdb_id]
+
+    def brief(self, ctype, imdb_id):
+        """Popis, hodnocení, žánry a obrázky česky jedním dotazem (`/find`) — pro
+        `enrich()` u výpisů, kde plný `meta()` (u seriálu všechny sezóny) je zbytečně drahý."""
+        if not _IMDB_RE.match(str(imdb_id or "")):
+            raise TmdbError(f"neplatné IMDb id: {str(imdb_id)[:20]!r}")
+        kind = self._kind(ctype)
+
+        def load():
+            found = self._get(f"/find/{imdb_id}", external_source="imdb_id")
+            results = found.get(f"{kind}_results") or []
+            if not results:
+                return {}
+            raw, genre_map = results[0], self._genres(ctype)
+            return {
+                "description": raw.get("overview") or "",
+                "imdbRating": raw.get("vote_average") or None,
+                "ratingSource": "tmdb" if raw.get("vote_average") else None,
+                "genres": [g for g in (genre_map.get(gid, "") for gid in raw.get("genre_ids") or []) if g],
+                "poster": IMG + raw["poster_path"] if raw.get("poster_path") else "",
+                "background": IMG_BIG + raw["backdrop_path"] if raw.get("backdrop_path") else "",
+                "year": (raw.get("release_date") or raw.get("first_air_date") or "")[:4],
+            }
+        data = self._cached(f"tmdb:brief:{kind}:{imdb_id}", DETAIL_TTL, load)
+        if data and data.get("imdbRating"):
+            data["ratingSource"] = "tmdb"   # i záznamy z cache před 8.4.0, jinak by je enrich označil za IMDb
+        return data
 
     def meta(self, ctype, imdb_id):
         """Detail podle `tt…` id (přes TMDB `/find`) — titul, popis, žánry, obsazení,
@@ -304,6 +332,7 @@ class TmdbApi:
                 "writer": writer,
                 "cast": cast,
                 "imdbRating": data.get("vote_average") or None,
+                "ratingSource": "tmdb" if data.get("vote_average") else None,
                 "voteCount": int(data.get("vote_count") or 0),
                 "mpaa": _certification(kind, data.get(ratings_key) or {}),
                 "trailerYoutubeId": trailer_id,

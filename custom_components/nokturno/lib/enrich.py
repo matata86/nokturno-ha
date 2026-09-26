@@ -96,7 +96,8 @@ def _fetch_title(luna, store, ctype, title, year):
             my = str(m.get("year") or m.get("releaseInfo") or "")[:4]
             if year and my.isdigit() and abs(int(my) - int(year)) > 1:
                 continue
-            picked = {k: m[k] for k in ("poster", "background", "description", "imdbRating", "genres") if m.get(k)}
+            picked = {k: m[k] for k in ("poster", "background", "description", "imdbRating", "ratingSource", "genres")
+                      if m.get(k)}
             if picked.get("poster"):
                 picked["poster"] = _capped(picked["poster"], "w500")
             if picked.get("background"):
@@ -109,14 +110,22 @@ def _fetch_title(luna, store, ctype, title, year):
     return store.cached(key, TTL, load) if store else load()
 
 
-def _fetch(luna, store, ctype, imdb):
+def _fetch(luna, store, ctype, imdb, tmdb=None):
     def load():
         data = {}
-        if luna:
+        if tmdb:
+            # vlastní klíč TMDB má přednost: česky, kdežto Cinemeta (záloha bez Luny) anglicky
             try:
-                data = luna.meta(ctype, imdb) or {}
-            except Exception:  # noqa: BLE001 – Luna nedostupná → Cinemeta
+                data = {k: v for k, v in (tmdb.brief(ctype, imdb) or {}).items() if v}
+            except Exception:  # noqa: BLE001 – TMDB nedostupné → Luna/Cinemeta
                 data = {}
+        if luna and (not data.get("description") or not data.get("imdbRating")):
+            try:
+                for k, v in (luna.meta(ctype, imdb) or {}).items():
+                    if v:
+                        data.setdefault(k, v)
+            except Exception:  # noqa: BLE001 – Luna nedostupná → Cinemeta
+                pass
         if not data.get("description") or not data.get("imdbRating"):
             # Luna umí vrátit popis bez hodnocení (2026-09-15: zjištěno u titulů ze
             # Sosáčova „nově přidané" — Sosáč sám hodnocení skoro nikdy nenosí, tak
@@ -128,8 +137,10 @@ def _fetch(luna, store, ctype, imdb):
                 cinemeta = {}
             for k, v in cinemeta.items():
                 data.setdefault(k, v)
+        if data.get("imdbRating"):
+            data.setdefault("ratingSource", "imdb")   # bez značky z TMDB je to Luna nebo Cinemeta
         picked = {k: data[k] for k in FIELDS if data.get(k)}
-        for k in ("imdbRating", "background", "genres", "year", "releaseInfo", "poster"):
+        for k in ("imdbRating", "ratingSource", "background", "genres", "year", "releaseInfo", "poster"):
             if data.get(k):
                 picked[k] = data[k]
         if picked.get("poster"):
@@ -137,11 +148,18 @@ def _fetch(luna, store, ctype, imdb):
         if picked.get("background"):
             picked["background"] = _capped(picked["background"], "w1280")
         return picked
-    key = f"ttmeta:{ctype}:{imdb}"
+    # s TMDB jiný klíč: pod `ttmeta:` může 30 dní ležet anglický popis z Cinemety
+    key = f"ttmeta:{ctype}:{imdb}" + (":tmdb" if tmdb else "")
     return store.cached(key, TTL, load) if store else load()
 
 
 def _apply(meta, extra):
+    # zdroj hodnocení jen spolu s hodnocením — jinak by titul s hodnocením z IMDb
+    # dostal značku TMDB od doplněného popisu
+    if extra.get("imdbRating") and not meta.get("imdbRating"):
+        meta.pop("ratingSource", None)
+    else:
+        extra = {k: v for k, v in extra.items() if k != "ratingSource"}
     for k, v in extra.items():
         if k in ("poster", "background"):
             if not meta.get(k) or DEAD_IMAGES in (meta.get(k) or ""):
@@ -152,14 +170,14 @@ def _apply(meta, extra):
     return meta
 
 
-def _lookup(luna, store, ctype, meta):
+def _lookup(luna, store, ctype, meta, tmdb=None):
     if meta.get("imdb_id"):
-        return _fetch(luna, store, ctype, meta["imdb_id"])
+        return _fetch(luna, store, ctype, meta["imdb_id"], tmdb)
     year = str(meta.get("year") or "")[:4]
     return _fetch_title(luna, store, ctype, meta.get("_title") or meta.get("name"), year if year.isdigit() else "")
 
 
-def enrich(metas, luna=None, store=None, ctype="movie", deadline=DEADLINE, on_tick=None, on_count=None):
+def enrich(metas, luna=None, store=None, ctype="movie", deadline=DEADLINE, on_tick=None, on_count=None, tmdb=None):
     """Doplní popis do metas (in-place). Vrátí počet doplněných položek.
 
     `on_count(n)` se zavolá jednou se skutečným počtem položek k dohledání (pro
@@ -173,7 +191,7 @@ def enrich(metas, luna=None, store=None, ctype="movie", deadline=DEADLINE, on_ti
         return 0
     by_future = {}
     for m in todo:
-        by_future.setdefault(_submit(luna, store, ctype, m), []).append(m)
+        by_future.setdefault(_submit(luna, store, ctype, m, tmdb), []).append(m)
     filled = 0
     try:
         # jako dřívější wait(timeout=deadline) — po timeoutu se přestane čekat,
@@ -196,14 +214,14 @@ def enrich(metas, luna=None, store=None, ctype="movie", deadline=DEADLINE, on_ti
     return filled
 
 
-def _submit(luna, store, ctype, meta):
+def _submit(luna, store, ctype, meta, tmdb=None):
     """Dotaz na titul ve sdíleném executoru; běží-li už pro tentýž titul, vrátí jeho future."""
     key = (ctype, meta.get("imdb_id") or _norm(meta.get("_title") or meta.get("name")), str(meta.get("year") or "")[:4])
     with _INFLIGHT_LOCK:
         fut = _INFLIGHT.get(key)
         if fut is not None and not fut.done():
             return fut
-        fut = _pool().submit(_lookup, luna, store, ctype, meta)
+        fut = _pool().submit(_lookup, luna, store, ctype, meta, tmdb)
         _INFLIGHT[key] = fut
 
         def hotovo(f, key=key):
@@ -246,10 +264,10 @@ def shutdown_pool(cancel=False):
         _INFLIGHT.clear()
 
 
-def enrich_one(meta, luna=None, store=None, ctype="movie"):
+def enrich_one(meta, luna=None, store=None, ctype="movie", tmdb=None):
     if _needs(meta):
         try:
-            extra = _lookup(luna, store, ctype, meta)
+            extra = _lookup(luna, store, ctype, meta, tmdb)
         except Exception:  # noqa: BLE001
             return meta
         if extra:

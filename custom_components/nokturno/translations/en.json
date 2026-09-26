@@ -161,13 +161,13 @@
             "description": "TMDB, Trakt.tv and anonymous statistics.",
             "data": {
               "tmdb_api_key": "TMDB — API key (optional, but takes precedence even over Luna — Czech titles and descriptions)",
-              "trakt_client_id": "Trakt.tv — Client ID (from trakt.tv/oauth/applications)",
-              "trakt_client_secret": "Trakt.tv — Client Secret",
+              "trakt_client_id": "Trakt.tv — own Client ID (optional)",
+              "trakt_client_secret": "Trakt.tv — own Client Secret (optional)",
               "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)"
             },
             "data_description": {
               "tmdb_api_key": "Your own key from themoviedb.org. Speeds up loading of titles and plots and removes the dependency on Luna.",
-              "trakt_client_id": "Credentials from trakt.tv/oauth/applications. Watched titles are then reported to Trakt as well.",
+              "trakt_client_id": "Leave empty to use the Nokturno app — then just run the nokturno.trakt_auth service and enter the code on the Trakt website. Works with a free account too. Fill in only if you have your own app.",
               "stats_enabled": "Anonymous usage data — a random id, the version and the titles played. No accounts, addresses or content. When off, only the id and version are sent."
             }
           }
@@ -327,13 +327,13 @@
             "description": "TMDB, Trakt.tv and anonymous statistics.",
             "data": {
               "tmdb_api_key": "TMDB — API key (optional, but takes precedence even over Luna — Czech titles and descriptions)",
-              "trakt_client_id": "Trakt.tv — Client ID (from trakt.tv/oauth/applications)",
-              "trakt_client_secret": "Trakt.tv — Client Secret",
+              "trakt_client_id": "Trakt.tv — own Client ID (optional)",
+              "trakt_client_secret": "Trakt.tv — own Client Secret (optional)",
               "stats_enabled": "Send anonymous statistics (when off, only a random id and version are sent)"
             },
             "data_description": {
               "tmdb_api_key": "Your own key from themoviedb.org. Speeds up loading of titles and plots and removes the dependency on Luna.",
-              "trakt_client_id": "Credentials from trakt.tv/oauth/applications. Watched titles are then reported to Trakt as well.",
+              "trakt_client_id": "Leave empty to use the Nokturno app — then just run the nokturno.trakt_auth service and enter the code on the Trakt website. Works with a free account too. Fill in only if you have your own app.",
               "stats_enabled": "Anonymous usage data — a random id, the version and the titles played. No accounts, addresses or content. When off, only the id and version are sent."
             }
           }

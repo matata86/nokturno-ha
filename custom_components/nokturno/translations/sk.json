@@ -161,13 +161,13 @@
             "description": "TMDB, Trakt.tv a anonymné štatistiky.",
             "data": {
               "tmdb_api_key": "TMDB — API kľúč (nepovinné, ale má prednosť aj pred Lunou — pre české názvy a popisy)",
-              "trakt_client_id": "Trakt.tv — Client ID (z trakt.tv/oauth/applications)",
-              "trakt_client_secret": "Trakt.tv — Client Secret",
+              "trakt_client_id": "Trakt.tv — vlastné Client ID (nepovinné)",
+              "trakt_client_secret": "Trakt.tv — vlastný Client Secret (nepovinné)",
               "stats_enabled": "Posielať anonymné štatistiky (aj vypnuté pošlú len náhodné id a verziu)"
             },
             "data_description": {
               "tmdb_api_key": "Vlastný kľúč z themoviedb.org. Zrýchľuje načítanie názvov a popisov a nevyžaduje k nim Lunu.",
-              "trakt_client_id": "Údaje z trakt.tv/oauth/applications. Videné tituly sa potom hlásia aj na Trakt.",
+              "trakt_client_id": "Nechaj prázdne, použije sa aplikácia Nokturna — potom stačí služba nokturno.trakt_auth a zadať kód na webe Traktu. Ide to aj s free účtom. Vlastnú aplikáciu vyplň, len ak ju máš.",
               "stats_enabled": "Anonymné údaje o používaní — náhodné id, verzia a prehrané tituly. Bez účtov, adries a obsahu. Vypnuté odosiela len id a verziu."
             }
           }
@@ -327,13 +327,13 @@
             "description": "TMDB, Trakt.tv a anonymné štatistiky.",
             "data": {
               "tmdb_api_key": "TMDB — API kľúč (nepovinné, ale má prednosť aj pred Lunou — pre české názvy a popisy)",
-              "trakt_client_id": "Trakt.tv — Client ID (z trakt.tv/oauth/applications)",
-              "trakt_client_secret": "Trakt.tv — Client Secret",
+              "trakt_client_id": "Trakt.tv — vlastné Client ID (nepovinné)",
+              "trakt_client_secret": "Trakt.tv — vlastný Client Secret (nepovinné)",
               "stats_enabled": "Posielať anonymné štatistiky (aj vypnuté pošlú len náhodné id a verziu)"
             },
             "data_description": {
               "tmdb_api_key": "Vlastný kľúč z themoviedb.org. Zrýchľuje načítanie názvov a popisov a nevyžaduje k nim Lunu.",
-              "trakt_client_id": "Údaje z trakt.tv/oauth/applications. Videné tituly sa potom hlásia aj na Trakt.",
+              "trakt_client_id": "Nechaj prázdne, použije sa aplikácia Nokturna — potom stačí služba nokturno.trakt_auth a zadať kód na webe Traktu. Ide to aj s free účtom. Vlastnú aplikáciu vyplň, len ak ju máš.",
               "stats_enabled": "Anonymné údaje o používaní — náhodné id, verzia a prehrané tituly. Bez účtov, adries a obsahu. Vypnuté odosiela len id a verziu."
             }
           }

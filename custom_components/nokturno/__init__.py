@@ -988,23 +988,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # --- Trakt.tv -------------------------------------------------------------
 
-    def trakt():
-        """Klient Traktu, nebo None, když nejsou vyplněné údaje aplikace."""
-        from .lib.trakt_api import TraktApi
+    def trakt(auth=False):
+        """Klient Traktu, nebo None. Vlastní aplikace z nastavení je nepovinná, jinak
+        aplikace Nokturno z dashboardu (`/trakt-key`). Bez přihlášení (`auth=False`)
+        se klíč vůbec nestahuje. Blokuje (síť) — volat v executoru."""
+        from .lib.trakt_api import TraktApi, pick_keys
 
-        if not options.get(CONF_TRAKT_ID) or not options.get(CONF_TRAKT_SECRET):
+        tokens = engine.store.load("trakt", {})
+        if not auth and not tokens.get("access_token"):
             return None
-        return TraktApi(options[CONF_TRAKT_ID], options[CONF_TRAKT_SECRET],
-                        tokens=engine.store.load("trakt", {}),
-                        on_tokens=lambda data: engine.store.save("trakt", data))
+        cid, sec = pick_keys(options.get(CONF_TRAKT_ID), options.get(CONF_TRAKT_SECRET), engine.dash)
+        if not cid or not sec:
+            return None
+        return TraktApi(cid, sec, tokens=tokens, on_tokens=lambda data: engine.store.save("trakt", data))
 
     async def handle_trakt_auth(call: ServiceCall):
         """Přihlášení kódem: pošle kód do oznámení a na pozadí čeká na potvrzení."""
         from .lib.trakt_api import TraktError
 
-        api = trakt()
+        api = await hass.async_add_executor_job(partial(trakt, auth=True))
         if api is None:
-            raise HomeAssistantError("Nejsou vyplněné Client ID a Secret aplikace na Trakt.tv.")
+            raise HomeAssistantError("Klíč aplikace Trakt se nepodařilo načíst ze serveru Nokturna. "
+                                     "Zkus to později, nebo vyplň vlastní Client ID a Secret.")
         try:
             code = await hass.async_add_executor_job(api.device_code)
         except TraktError as err:
@@ -1143,7 +1148,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         synchronizace) nekontroloval za posledních 24 h. `only=<id>`: jen ta jedna
         položka (po `want_to_watch`, ať přidání neznamená 40 hledání)."""
         extra = []
-        api = trakt() if only is None else None
+        api = await hass.async_add_executor_job(trakt) if only is None else None
         if api is not None and api.logged_in():
             for kind in ("movies", "shows"):
                 try:
@@ -1165,7 +1170,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_trakt_watched(call: ServiceCall):
         from .lib.trakt_api import TraktError
 
-        api = trakt()
+        api = await hass.async_add_executor_job(trakt)
         if api is None or not api.logged_in():
             raise HomeAssistantError("Trakt.tv není propojený (spusť nokturno.trakt_auth).")
         base_id, season, episode = split_episode_id(call.data["id"])
@@ -1180,7 +1185,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def trakt_scrobble_start(ctype, item_id):
         """Po spuštění přehrávání dá Traktu vědět, co se hraje (jen když je propojený)."""
-        api = trakt()
+        api = await hass.async_add_executor_job(trakt)
         if api is None or not api.logged_in():
             return
         base_id, season, episode = split_episode_id(item_id)

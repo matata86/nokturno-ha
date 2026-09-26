@@ -13,7 +13,7 @@ Přehrávač **vlastního úložiště** (WebDAV — NAS, Nextcloud, server) př
 
 > **Patří k sobě:** Nokturno je i jako [**doplněk pro Kodi**](https://github.com/matata86/plugin.video.nokturno) (tahle integrace přehrává právě přes něj, takže si Kodi drží „Pokračovat ve sledování“) a jako [**doplněk pro Stremio**](https://github.com/matata86/nokturno-stremio) (i Nuvio, bez Luny). Všechny tři stojí na společném jádru [nokturno-core](https://github.com/matata86/nokturno-core). Server Luna běží jako [addon HA](https://github.com/matata86/ha-addons), jako APK přímo na Android TV boxu nebo jako program pro Windows, Linux, macOS či NAS; vždy potřebuje WebShare VIP.
 
-<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-domu.jpg" alt="Karta – záložka Domů" width="352"> <img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/04-streamy.jpg" alt="Karta – streamy dílu" width="352">
+<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/01-domu.jpg" alt="Karta – záložka Domů" width="352"> <img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/04-streamy.jpg" alt="Karta – streamy titulu" width="352">
 
 ## Obsah
 

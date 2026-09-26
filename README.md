@@ -414,7 +414,7 @@ actions:
 ## Pomoc
 
 - **Dotazy, rady a novinky:** [facebooková skupina Nokturno](https://www.facebook.com/groups/nokturno). Odpovídáme tam my i ostatní uživatelé.
-- **Návody a řešení potíží:** [wiki](https://github.com/matata86/nokturno-ha/wiki).
+- **Řešení častých potíží:** [nápověda Nokturna](https://matata86.github.io/nokturno-napoveda/). Podrobné návody k nastavení jsou ve [wiki](https://github.com/matata86/nokturno-ha/wiki).
 - **Chyba v kódu** (pád nebo chování, které jde zopakovat): [GitHub Issues](https://github.com/matata86/nokturno-ha/issues). Napiš verzi integrace a Home Assistantu a přilož diagnostiku (u integrace *Stáhnout diagnostiku*).
 
 ## Právní upozornění

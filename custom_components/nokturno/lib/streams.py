@@ -257,11 +257,24 @@ def stream_hdr(s):
     return bool(HDR_RE.search(text))
 
 
+STEREO_3D_RE = re.compile(r"(?<![A-Za-z0-9])(3D|HSBS|H-SBS|H-?OU|Half[ ._-]?(?:SBS|OU|TAB)|MVC)(?![A-Za-z0-9])",
+                          re.IGNORECASE)
+
+
+def stream_3d(s):
+    """3D verze (SBS, OU, MVC) podle hlavičky MKV (`StereoMode`), jinak podle popisku nebo
+    názvu souboru — na běžné TV dva obrazy vedle sebe nebo nad sebou."""
+    if (s.get("_media") or {}).get("stereo3d"):
+        return True
+    text = " ".join(str(s.get(k) or "") for k in ("label", "_ws_name", "name"))
+    return bool(STEREO_3D_RE.search(text))
+
+
 def merge_key(s):
     """Co uživatel při výběru streamu opravdu řeší: kvalita, jazyky zvuku a titulků,
     prostorový zvuk a HDR. Velikost se porovnává zvlášť, s tolerancí."""
     return (int(s.get("quality_rank") or 0), tuple(sorted(s.get("langs") or ())),
-            tuple(sorted(s.get("subs") or ())), is_surround(s), stream_hdr(s))
+            tuple(sorted(s.get("subs") or ())), is_surround(s), stream_hdr(s), stream_3d(s))
 
 
 def _same_size(a, b):
@@ -307,13 +320,21 @@ def expand_groups(streams):
     return out
 
 
-def arrange(streams, pref_lang="", hide_sd=False, max_size_gb=0.0, order="source", pref_surround=False):
+def arrange(streams, pref_lang="", hide_sd=False, max_size_gb=0.0, order="source", pref_surround=False,
+            hide_3d=False):
     """Vyfiltruje a seřadí streamy; když by filtr nic nenechal, vrátí původní pořadí.
 
     order: source (jak přišly) | quality (nejlepší první) | size_desc | size_asc
     """
     for s in streams:
         parse_stream(s)
+    if hide_3d:
+        # na rozdíl od ostatních filtrů bez pádu na původní seznam: 3D se neukáže nikdy
+        # (přání uživatele 2026-09-26), ani mezi sloučenými verzemi
+        streams = [s for s in streams if not stream_3d(s)]
+        for s in streams:
+            if s.get("_alts"):
+                s["_alts"] = [a for a in s["_alts"] if not stream_3d(a)]
     kept = []
     for s in streams:
         if hide_sd and s["quality_rank"] and s["quality_rank"] <= 1:

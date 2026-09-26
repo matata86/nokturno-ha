@@ -944,6 +944,31 @@ class TestPreklyadHodnotSelectu(unittest.TestCase):
                              set(const.MULTI_PLAY_OPTIONS), soubor)
             self.assertNotIn("pref_lang", selektory, soubor)
 
+    def test_selecty_sluzeb_maji_preklad(self):
+        """Volby selectů ve `services.yaml` (`movie`, `ws`, `catalog_series`…) by se
+        v UI služeb ukázaly jako kódy. Každý select nese `translation_key` a každá
+        jeho volba má popisek ve všech jazycích."""
+        radky = (ROOT / "custom_components/nokturno/services.yaml").read_text("utf-8").splitlines()
+        selecty = {}
+        for i, radek in enumerate(radky):
+            if radek.strip() != "select:":
+                continue
+            odsazeni = len(radek) - len(radek.lstrip()) + 2
+            telo = []
+            for dalsi in radky[i + 1:]:
+                if len(dalsi) - len(dalsi.lstrip()) < odsazeni:
+                    break
+                telo.append(dalsi.strip())
+            klic = next((t.split(":", 1)[1].strip() for t in telo if t.startswith("translation_key:")), None)
+            self.assertIsNotNone(klic, f"services.yaml:{i + 1} select bez translation_key")
+            selecty.setdefault(klic, set()).update(t[2:] for t in telo if t.startswith("- "))
+        for soubor in ("strings.json", "translations/cs.json", "translations/sk.json",
+                       "translations/en.json"):
+            d = json.loads((ROOT / "custom_components/nokturno" / soubor).read_text("utf-8"))
+            for klic, volby in selecty.items():
+                self.assertEqual(set(d["selector"].get(klic, {}).get("options", {})), volby,
+                                 f"{soubor}: selector.{klic}")
+
 
 class TestVyberPrehravace(unittest.TestCase):
     """Volba „co dělá Přehrát s víc přehrávači" jde z nastavení přes atribut

@@ -3,9 +3,9 @@
     "step": {
       "user": {
         "title": "Legal notice",
-        "description": "Nokturno is primarily a player and manager for your own storage — content you upload and expose yourself (e.g. via WebDAV) is played directly. As an optional add-on service, you may connect some publicly available third-party search engines (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) — in that case Nokturno is only a technical interface; it does not host, store, or provide any content itself.\n\nUse the add-on only for content you have a legal right, licence, or other legal title to access. Searching for, accessing, or playing copyrighted content without the rightsholders' consent is prohibited.\n\nThe add-on is provided \"as is\", with no warranty of functionality, availability, or legality of third-party sources. Responsibility for how it is used lies solely with the user. The operator reserves the right to restrict or terminate access at any time.\n\nWhere to report illegal content at each source: WebShare — abuse@webshare.cz; Sosáč/Streamuj.tv — streamuj.tv/advertise (DMCA); HellSpy — hellspy.to/contact; Sledujteto — sledujteto.cz/nahlasit-nelegalni-soubor; FastShare — fastshare.cz/abuse; Přehraj.to — prehrajto.cz/nahlasit-nelegalni-soubor; CZtor — contact via cztor.com/kontakt; OpenSubtitles — copyright@opensubtitles.org (DMCA).",
+        "description": "Nokturno is primarily a player and manager for your own storage — content you upload and share yourself (e.g. via WebDAV) is played directly. As an optional add-on service, you can connect some publicly available third-party search engines (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) — in that case Nokturno is only a technical interface; it does not host, store, or provide any content itself.\n\nUse Nokturno only for content you have a legal right, licence, or other legal title to access. Searching for, accessing, or playing copyrighted content without the rightsholders' consent is prohibited.\n\nNokturno is provided \"as is\", with no warranty of functionality, availability, or legality of third-party sources. You alone are responsible for how you use it. The operator reserves the right to restrict or terminate access at any time.\n\nWhere to report illegal content: the provider of the content is responsible for it, so report it to them directly. WebShare — abuse@webshare.cz; Sosáč/Streamuj.tv — streamuj.tv/advertise (DMCA); HellSpy — hellspy.to/contact; Sledujteto — sledujteto.cz/nahlasit-nelegalni-soubor; FastShare — fastshare.cz/abuse; Přehraj.to — prehrajto.cz/nahlasit-nelegalni-soubor; CZtor — contact via cztor.com/kontakt; OpenSubtitles — copyright@opensubtitles.org (DMCA).",
         "data": {
-          "terms_accepted": "I confirm I will use the add-on only for content I have the right to access, and I agree to the terms of use."
+          "terms_accepted": "I confirm I will use Nokturno only for content I have the right to access, and I agree to the terms of use."
         }
       },
       "reauth_confirm": {
@@ -25,7 +25,7 @@
       },
       "account": {
         "title": "Nokturno",
-        "description": "Fill in only the sources and options you want to use — or nothing at all. Even without a single field the integration offers a catalogue and search (through the public Sosáč/Cinemeta database, in Czech with a TMDB key). The values are the same as in the Nokturno add-on for Kodi. Anything can be changed later in the integration settings.",
+        "description": "Nokturno mainly plays your own storage (the Own storage section). Third-party search engines are optional. Fill in only the sources and options you want to use — or nothing at all. Even without a single field the integration offers a catalogue and search (through the public Sosáč/Cinemeta database, in Czech with a TMDB key). The values are the same as in the Nokturno add-on for Kodi. Anything can be changed later in the integration settings.",
         "sections": {
           "prehravani": {
             "name": "Playback",
@@ -37,7 +37,7 @@
               "hide_sd": "Hide SD streams",
               "sort_streams": "Stream order",
               "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)",
-              "multi_play": "Play with several players"
+              "multi_play": "Playback with several players"
             },
             "data_description": {
               "kodi_entity": "The players the card offers to choose from. A service call that names no entity starts playback on all of them.",
@@ -46,7 +46,7 @@
               "hide_sd": "Streams below 720p are left out of the list. With older titles this can leave the list empty.",
               "sort_streams": "How streams are ordered when language and audio are the same.",
               "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited.",
-              "multi_play": "Works only with more than one player set. “Ask” opens a dialog with the player list when Play is tapped; “first one listed” starts right away on the first player and a long press on the button opens the list."
+              "multi_play": "Applies only when more than one player is set. “Ask” opens a list of players when Play is tapped; “first one listed” starts playback right away on the first player and a long press on the button opens the list."
             }
           },
           "zdroje": {
@@ -59,8 +59,8 @@
               "streamuj_password": "Streamuj.tv — password",
               "st_email": "Sledujteto — e-mail",
               "st_password": "Sledujteto — password (playback needs Premium)",
-              "fs_username": "FastShare — username",
-              "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
+              "fs_username": "FastShare / Sdilej.cz — username",
+              "fs_password": "FastShare / Sdilej.cz — password (playback uses your credit or unlimited plan)",
               "fs_provider": "FastShare — account from",
               "luna_url": "Luna — server address",
               "luna_token": "Luna — token (or the whole install URL)",
@@ -75,10 +75,10 @@
               "ws_password": "Stored as a hash, not as the password. The end of the subscription is detected automatically and reported by the source-status sensor.",
               "streamuj_username": "A streamuj.tv account. Without it Sosáč finds titles but cannot play them.",
               "st_email": "A Sledujteto.cz account. Search works without Premium, playback does not.",
-              "fs_username": "A FastShare.cz account. Playback is charged against credit or an unlimited plan.",
+              "fs_username": "A FastShare.cz or Sdilej.cz account, as set in “account from”. Playback is charged against credit or an unlimited plan.",
               "fs_provider": "Sdilej.cz has the same files as FastShare, only the account is separate. Choose the site where you have your account and credit.",
-              "luna_url": "The Luna server address — the Home Assistant host and port 7126. The whole install address from the /setup page can be pasted; the token is read from it.",
-              "hs_enabled": "HellSpy is public and needs no account. After it starts refusing queries (HTTP 429) it is skipped for ten minutes.",
+              "luna_url": "Address of the device running Luna, with port 7126 — the Home Assistant host for the HA add-on, or the IP address of the TV box, computer or NAS running Luna. The whole install address from the /setup page can be pasted; the token is read from it.",
+              "hs_enabled": "HellSpy is public and needs no account. Refused queries (HTTP 429) usually mean HellSpy is blocking your network (VPN, mobile data); the integration then skips it for ten minutes and searches without it.",
               "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = no warning.",
               "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step; the integration never receives the account password.",
               "pt_enabled": "Přehraj.to works without an account: the first page of results and a transcoded 1080p file. A Premium account adds paging and the original file.",
@@ -138,14 +138,14 @@
           },
           "synchronizace": {
             "name": "Sync with Kodi",
-            "description": "Sharing of watched titles, resume points, My list and search history with the Kodi add-on. There are two routes and both can be used at once: Kodi on the home network connects to Home Assistant directly using the key, Kodi outside the home network goes through a group on the dashboard that Home Assistant joins with the code. The data is encrypted with a key derived from the group code and the server cannot read it.",
+            "description": "Sharing of watched titles, resume points, My list, Watchlist and search history with the Kodi add-on. There are two routes and both can be used at once: Kodi on the home network connects to Home Assistant directly using the key, Kodi outside the home network goes through a group on the Nokturno dashboard that Home Assistant joins with the code. The data is encrypted with a key derived from the group code and the server cannot read it.",
             "data": {
               "sync_key": "Key for Kodi on the home network",
               "sync_code": "Group code (for Kodi outside the home network)",
               "sync_watched": "Sync watched state and resume points",
               "sync_favourites": "Sync My list",
               "sync_history": "Sync search history",
-              "sync_watchlist": "Sync watchlist"
+              "sync_watchlist": "Sync Watchlist"
             },
             "data_description": {
               "sync_key": "The key for Kodi on the home network; enter it in the add-on under Settings → Synchronisation. It grants access to watched titles and My list, so it belongs only on your own devices.",
@@ -153,7 +153,7 @@
               "sync_watched": "The watched flag and the resume position in a film or episode. When off, it is neither sent nor received.",
               "sync_favourites": "Titles added to My list in the card and in the add-on.",
               "sync_history": "The queries entered when searching.",
-              "sync_watchlist": "Watched series and wanted titles, including the “keep checking” flag. The check then only needs to run on one device."
+              "sync_watchlist": "Series and titles on the Watchlist, including the “keep checking” flag. The check then only needs to run on one device."
             }
           },
           "ostatni": {
@@ -203,7 +203,7 @@
               "hide_sd": "Hide SD streams",
               "sort_streams": "Stream order",
               "max_bitrate_mbps": "Max. bitrate (Mb/s, 0 = unlimited)",
-              "multi_play": "Play with several players"
+              "multi_play": "Playback with several players"
             },
             "data_description": {
               "kodi_entity": "The players the card offers to choose from. A service call that names no entity starts playback on all of them.",
@@ -212,7 +212,7 @@
               "hide_sd": "Streams below 720p are left out of the list. With older titles this can leave the list empty.",
               "sort_streams": "How streams are ordered when language and audio are the same.",
               "max_bitrate_mbps": "Upper limit on stream bitrate. 0 = unlimited.",
-              "multi_play": "Works only with more than one player set. “Ask” opens a dialog with the player list when Play is tapped; “first one listed” starts right away on the first player and a long press on the button opens the list."
+              "multi_play": "Applies only when more than one player is set. “Ask” opens a list of players when Play is tapped; “first one listed” starts playback right away on the first player and a long press on the button opens the list."
             }
           },
           "zdroje": {
@@ -225,8 +225,8 @@
               "streamuj_password": "Streamuj.tv — password",
               "st_email": "Sledujteto — e-mail",
               "st_password": "Sledujteto — password (playback needs Premium)",
-              "fs_username": "FastShare — username",
-              "fs_password": "FastShare — password (playback uses your credit or unlimited plan)",
+              "fs_username": "FastShare / Sdilej.cz — username",
+              "fs_password": "FastShare / Sdilej.cz — password (playback uses your credit or unlimited plan)",
               "fs_provider": "FastShare — account from",
               "luna_url": "Luna — server address",
               "luna_token": "Luna — token (or the whole install URL)",
@@ -241,10 +241,10 @@
               "ws_password": "Stored as a hash, not as the password. The end of the subscription is detected automatically and reported by the source-status sensor.",
               "streamuj_username": "A streamuj.tv account. Without it Sosáč finds titles but cannot play them.",
               "st_email": "A Sledujteto.cz account. Search works without Premium, playback does not.",
-              "fs_username": "A FastShare.cz account. Playback is charged against credit or an unlimited plan.",
+              "fs_username": "A FastShare.cz or Sdilej.cz account, as set in “account from”. Playback is charged against credit or an unlimited plan.",
               "fs_provider": "Sdilej.cz has the same files as FastShare, only the account is separate. Choose the site where you have your account and credit.",
-              "luna_url": "The Luna server address — the Home Assistant host and port 7126. The whole install address from the /setup page can be pasted; the token is read from it.",
-              "hs_enabled": "HellSpy is public and needs no account. After it starts refusing queries (HTTP 429) it is skipped for ten minutes.",
+              "luna_url": "Address of the device running Luna, with port 7126 — the Home Assistant host for the HA add-on, or the IP address of the TV box, computer or NAS running Luna. The whole install address from the /setup page can be pasted; the token is read from it.",
+              "hs_enabled": "HellSpy is public and needs no account. Refused queries (HTTP 429) usually mean HellSpy is blocking your network (VPN, mobile data); the integration then skips it for ten minutes and searches without it.",
               "sub_warn_days": "How many days before the WebShare subscription ends to warn. 0 = no warning.",
               "cz_enabled": "The paid cztor.com catalogue. Turning it on opens a PIN step; the integration never receives the account password.",
               "pt_enabled": "Přehraj.to works without an account: the first page of results and a transcoded 1080p file. A Premium account adds paging and the original file.",
@@ -304,14 +304,14 @@
           },
           "synchronizace": {
             "name": "Sync with Kodi",
-            "description": "Sharing of watched titles, resume points, My list and search history with the Kodi add-on. There are two routes and both can be used at once: Kodi on the home network connects to Home Assistant directly using the key, Kodi outside the home network goes through a group on the dashboard that Home Assistant joins with the code. The data is encrypted with a key derived from the group code and the server cannot read it.",
+            "description": "Sharing of watched titles, resume points, My list, Watchlist and search history with the Kodi add-on. There are two routes and both can be used at once: Kodi on the home network connects to Home Assistant directly using the key, Kodi outside the home network goes through a group on the Nokturno dashboard that Home Assistant joins with the code. The data is encrypted with a key derived from the group code and the server cannot read it.",
             "data": {
               "sync_key": "Key for Kodi on the home network",
               "sync_code": "Group code (for Kodi outside the home network)",
               "sync_watched": "Sync watched state and resume points",
               "sync_favourites": "Sync My list",
               "sync_history": "Sync search history",
-              "sync_watchlist": "Sync watchlist"
+              "sync_watchlist": "Sync Watchlist"
             },
             "data_description": {
               "sync_key": "The key for Kodi on the home network; enter it in the add-on under Settings → Synchronisation. It grants access to watched titles and My list, so it belongs only on your own devices.",
@@ -319,7 +319,7 @@
               "sync_watched": "The watched flag and the resume position in a film or episode. When off, it is neither sent nor received.",
               "sync_favourites": "Titles added to My list in the card and in the add-on.",
               "sync_history": "The queries entered when searching.",
-              "sync_watchlist": "Watched series and wanted titles, including the “keep checking” flag. The check then only needs to run on one device."
+              "sync_watchlist": "Series and titles on the Watchlist, including the “keep checking” flag. The check then only needs to run on one device."
             }
           },
           "ostatni": {
@@ -348,9 +348,9 @@
       },
       "terms_update": {
         "title": "Updated terms of use",
-        "description": "Nokturno is primarily a player and manager for your own storage — content you upload and expose yourself (e.g. via WebDAV) is played directly. As an optional add-on service, you may connect some publicly available third-party search engines (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) — in that case Nokturno is only a technical interface; it does not host, store, or provide any content itself.\n\nUse the add-on only for content you have a legal right, licence, or other legal title to access. Searching for, accessing, or playing copyrighted content without the rightsholders' consent is prohibited.\n\nThe add-on is provided \"as is\", with no warranty of functionality, availability, or legality of third-party sources. Responsibility for how it is used lies solely with the user. The operator reserves the right to restrict or terminate access at any time.\n\nWhere to report illegal content at each source: WebShare — abuse@webshare.cz; Sosáč/Streamuj.tv — streamuj.tv/advertise (DMCA); HellSpy — hellspy.to/contact; Sledujteto — sledujteto.cz/nahlasit-nelegalni-soubor; FastShare — fastshare.cz/abuse; Přehraj.to — prehrajto.cz/nahlasit-nelegalni-soubor; CZtor — contact via cztor.com/kontakt; OpenSubtitles — copyright@opensubtitles.org (DMCA).",
+        "description": "Nokturno is primarily a player and manager for your own storage — content you upload and share yourself (e.g. via WebDAV) is played directly. As an optional add-on service, you can connect some publicly available third-party search engines (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) — in that case Nokturno is only a technical interface; it does not host, store, or provide any content itself.\n\nUse Nokturno only for content you have a legal right, licence, or other legal title to access. Searching for, accessing, or playing copyrighted content without the rightsholders' consent is prohibited.\n\nNokturno is provided \"as is\", with no warranty of functionality, availability, or legality of third-party sources. You alone are responsible for how you use it. The operator reserves the right to restrict or terminate access at any time.\n\nWhere to report illegal content: the provider of the content is responsible for it, so report it to them directly. WebShare — abuse@webshare.cz; Sosáč/Streamuj.tv — streamuj.tv/advertise (DMCA); HellSpy — hellspy.to/contact; Sledujteto — sledujteto.cz/nahlasit-nelegalni-soubor; FastShare — fastshare.cz/abuse; Přehraj.to — prehrajto.cz/nahlasit-nelegalni-soubor; CZtor — contact via cztor.com/kontakt; OpenSubtitles — copyright@opensubtitles.org (DMCA).",
         "data": {
-          "terms_accepted": "I confirm I will use the add-on only for content I have the right to access, and I agree to the terms of use."
+          "terms_accepted": "I confirm I will use Nokturno only for content I have the right to access, and I agree to the terms of use."
         }
       }
     },
@@ -358,7 +358,8 @@
       "cz_pending": "The PIN has not been confirmed yet — enter it at cztor.com/activate and press Submit again.",
       "cz_failed": "PIN expired or pairing failed — a new PIN is shown, try again.",
       "cz_network": "CZtor server did not respond. Try again later.",
-      "terms_required": "Setup cannot continue without confirmation."
+      "terms_required": "Setup cannot continue without confirmation.",
+      "sync_code": "The group code does not look right — copy it from Kodi, format NKT-XXXX-XXXX-XXXX-XXXX."
     }
   },
   "services": {
@@ -623,8 +624,8 @@
       }
     },
     "watch_series": {
-      "name": "Watch series",
-      "description": "Adds a series to the watched list (new episodes are announced); with `remove` it removes it.",
+      "name": "Watch for new episodes",
+      "description": "Adds a series to the Watchlist (new episodes are announced); with `remove` it removes it.",
       "fields": {
         "id": {
           "name": "Series ID"
@@ -645,7 +646,7 @@
     },
     "check_series": {
       "name": "Check for new episodes",
-      "description": "Checks watched series right away (otherwise every 6 hours)."
+      "description": "Checks series on the Watchlist right away (otherwise every 6 hours)."
     },
     "clear_history": {
       "name": "Clear search history",
@@ -656,8 +657,8 @@
       "description": "Clears the cache of searches, streams and catalogues (not history or My list) — forces fresh data."
     },
     "mark_seen": {
-      "name": "New episode seen",
-      "description": "Clears the new-episode mark of a watched series (without ID: all).",
+      "name": "Mark new episode as seen",
+      "description": "Clears the new-episode mark of a series on the Watchlist (without ID: all).",
       "fields": {
         "id": {
           "name": "Series ID"
@@ -717,8 +718,8 @@
       }
     },
     "want_to_watch": {
-      "name": "Want to watch",
-      "description": "Adds a title to the watchlist (checked daily whether it has a stream yet). Without an ID a name is enough — it is watched until the title appears somewhere. With `remove` it removes the item.",
+      "name": "Watch until available",
+      "description": "Adds a title to the Watchlist (checked daily whether it has a stream yet). Without an ID a name is enough — it is watched until the title appears somewhere. With `remove` it removes the item.",
       "fields": {
         "id": {
           "name": "Title ID",
@@ -756,18 +757,18 @@
       }
     },
     "favourite_add": {
-      "name": "Move to My List",
-      "description": "Moves a title from the watchlist into My List (local favourites, shared with Kodi/Stremio) and stops watching/checking it further.",
+      "name": "Move to My list",
+      "description": "Moves a title from the Watchlist into My list (shared with Kodi) and stops checking it.",
       "fields": {
         "id": {
           "name": "Title ID",
-          "description": "ID as shown in the watchlist item."
+          "description": "ID as shown on the Watchlist item."
         }
       }
     },
     "favourite_toggle": {
-      "name": "Add/remove in My List",
-      "description": "Adds a title to My List, or removes it if already saved there — independent of the watchlist.",
+      "name": "Add/remove in My list",
+      "description": "Adds a title to My list, or removes it if already saved there — independent of the Watchlist.",
       "fields": {
         "id": {
           "name": "Title ID"
@@ -855,7 +856,7 @@
         },
         "source": {
           "name": "Source",
-          "description": "Where to search — empty tries both."
+          "description": "Where to search — empty searches all enabled sources."
         }
       }
     }
@@ -869,7 +870,7 @@
         "name": "New episodes"
       },
       "trakt": {
-        "name": "To watch"
+        "name": "Watchlist"
       },
       "sources": {
         "name": "Source status"
@@ -895,6 +896,29 @@
       "options": {
         "fastshare": "FastShare.cz",
         "sdilej": "Sdilej.cz"
+      }
+    },
+    "title_type": {
+      "options": {
+        "movie": "Movie",
+        "series": "Series"
+      }
+    },
+    "search_type": {
+      "options": {
+        "movie": "Movie",
+        "series": "Series",
+        "webshare": "WebShare full-text",
+        "catalog": "Movie database — movie",
+        "catalog_series": "Movie database — series"
+      }
+    },
+    "fulltext_source": {
+      "options": {
+        "ws": "WebShare",
+        "hs": "HellSpy",
+        "st": "Sledujteto",
+        "fs": "FastShare / Sdilej.cz"
       }
     }
   }

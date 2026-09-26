@@ -10,6 +10,7 @@ search:
       default: movie
       selector:
         select:
+          translation_key: search_type
           options:
           - movie
           - series
@@ -32,6 +33,7 @@ streams:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -68,6 +70,7 @@ play:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -108,6 +111,7 @@ resolve:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -147,6 +151,7 @@ download:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -195,6 +200,7 @@ send_link:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -244,6 +250,7 @@ detail:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -371,6 +378,7 @@ want_to_watch:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -412,6 +420,7 @@ favourite_toggle:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -450,6 +459,7 @@ torrents:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -484,6 +494,7 @@ fulltext_search:
       default: movie
       selector:
         select:
+          translation_key: title_type
           options:
           - movie
           - series
@@ -503,6 +514,7 @@ fulltext_search:
     source:
       selector:
         select:
+          translation_key: fulltext_source
           multiple: true
           options:
           - ws

@@ -142,14 +142,14 @@
             "data": {
               "sync_key": "Key for Kodi on the home network",
               "sync_code": "Group code (for Kodi outside the home network)",
-              "sync_watched": "Sync watched state and resume points",
+              "sync_watched": "Sync watched and resume points",
               "sync_favourites": "Sync My list",
               "sync_history": "Sync search history",
               "sync_watchlist": "Sync Watchlist"
             },
             "data_description": {
               "sync_key": "The key for Kodi on the home network; enter it in the add-on under Settings → Synchronisation. It grants access to watched titles and My list, so it belongs only on your own devices.",
-              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it under Settings → Synchronisation → Create group. An empty field means Home Assistant stays out of the group and syncs only with Kodi on the home network.",
+              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it under Settings → Synchronisation → Create group / open for joining. An empty field means Home Assistant stays out of the group and syncs only with Kodi on the home network.",
               "sync_watched": "The watched flag and the resume position in a film or episode. When off, it is neither sent nor received.",
               "sync_favourites": "Titles added to My list in the card and in the add-on.",
               "sync_history": "The queries entered when searching.",
@@ -308,14 +308,14 @@
             "data": {
               "sync_key": "Key for Kodi on the home network",
               "sync_code": "Group code (for Kodi outside the home network)",
-              "sync_watched": "Sync watched state and resume points",
+              "sync_watched": "Sync watched and resume points",
               "sync_favourites": "Sync My list",
               "sync_history": "Sync search history",
               "sync_watchlist": "Sync Watchlist"
             },
             "data_description": {
               "sync_key": "The key for Kodi on the home network; enter it in the add-on under Settings → Synchronisation. It grants access to watched titles and My list, so it belongs only on your own devices.",
-              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it under Settings → Synchronisation → Create group. An empty field means Home Assistant stays out of the group and syncs only with Kodi on the home network.",
+              "sync_code": "The group code, NKT-XXXX-XXXX-XXXX-XXXX. The first Kodi creates it under Settings → Synchronisation → Create group / open for joining. An empty field means Home Assistant stays out of the group and syncs only with Kodi on the home network.",
               "sync_watched": "The watched flag and the resume position in a film or episode. When off, it is neither sent nor received.",
               "sync_favourites": "Titles added to My list in the card and in the add-on.",
               "sync_history": "The queries entered when searching.",

@@ -142,14 +142,14 @@
             "data": {
               "sync_key": "Klíč pro Kodi v domácí síti",
               "sync_code": "Kód skupiny (pro Kodi mimo domácí síť)",
-              "sync_watched": "Synchronizovat zhlédnuto a rozkoukanost",
+              "sync_watched": "Synchronizovat zhlédnuté a rozkoukané",
               "sync_favourites": "Synchronizovat Můj seznam",
               "sync_history": "Synchronizovat historii hledání",
               "sync_watchlist": "Synchronizovat Hlídané"
             },
             "data_description": {
               "sync_key": "Klíč pro Kodi v domácí síti; zadává se v doplňku v Nastavení → Synchronizace. Umožňuje přístup ke zhlédnutým titulům a Mému seznamu, proto patří jen vlastním zařízením.",
-              "sync_code": "Kód skupiny ve tvaru NKT-XXXX-XXXX-XXXX-XXXX. Vytvoří ho první Kodi v Nastavení → Synchronizace → Založit skupinu. Prázdné pole = Home Assistant do skupiny nevstupuje a synchronizuje se jen s Kodi v domácí síti.",
+              "sync_code": "Kód skupiny ve tvaru NKT-XXXX-XXXX-XXXX-XXXX. Vytvoří ho první Kodi v Nastavení → Synchronizace → Založit skupinu / otevřít připojení. Prázdné pole = Home Assistant do skupiny nevstupuje a synchronizuje se jen s Kodi v domácí síti.",
               "sync_watched": "Označení zhlédnuto a pozice v rozkoukaném filmu nebo dílu. Vypnuté se neodesílá ani nepřijímá.",
               "sync_favourites": "Tituly přidané do Mého seznamu v kartě i v doplňku.",
               "sync_history": "Dotazy zadané při hledání.",
@@ -308,14 +308,14 @@
             "data": {
               "sync_key": "Klíč pro Kodi v domácí síti",
               "sync_code": "Kód skupiny (pro Kodi mimo domácí síť)",
-              "sync_watched": "Synchronizovat zhlédnuto a rozkoukanost",
+              "sync_watched": "Synchronizovat zhlédnuté a rozkoukané",
               "sync_favourites": "Synchronizovat Můj seznam",
               "sync_history": "Synchronizovat historii hledání",
               "sync_watchlist": "Synchronizovat Hlídané"
             },
             "data_description": {
               "sync_key": "Klíč pro Kodi v domácí síti; zadává se v doplňku v Nastavení → Synchronizace. Umožňuje přístup ke zhlédnutým titulům a Mému seznamu, proto patří jen vlastním zařízením.",
-              "sync_code": "Kód skupiny ve tvaru NKT-XXXX-XXXX-XXXX-XXXX. Vytvoří ho první Kodi v Nastavení → Synchronizace → Založit skupinu. Prázdné pole = Home Assistant do skupiny nevstupuje a synchronizuje se jen s Kodi v domácí síti.",
+              "sync_code": "Kód skupiny ve tvaru NKT-XXXX-XXXX-XXXX-XXXX. Vytvoří ho první Kodi v Nastavení → Synchronizace → Založit skupinu / otevřít připojení. Prázdné pole = Home Assistant do skupiny nevstupuje a synchronizuje se jen s Kodi v domácí síti.",
               "sync_watched": "Označení zhlédnuto a pozice v rozkoukaném filmu nebo dílu. Vypnuté se neodesílá ani nepřijímá.",
               "sync_favourites": "Tituly přidané do Mého seznamu v kartě i v doplňku.",
               "sync_history": "Dotazy zadané při hledání.",

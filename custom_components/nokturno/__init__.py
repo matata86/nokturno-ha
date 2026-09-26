@@ -497,7 +497,7 @@ async def _kodi_remove_progress(hass: HomeAssistant, entity_id: str, file: str) 
     ať Kodi na výpis složky nečeká navěky."""
     kodis = kodi_endpoints(hass, entity_id)
     if not kodis:
-        raise HomeAssistantError("Tohle Kodi není v Home Assistantu nastavené.")
+        raise HomeAssistantError("Toto Kodi není v Home Assistantu nastavené.")
     kodi = kodis[0]
     query = dict(urllib.parse.parse_qsl((file or "").split("?", 1)[-1]))
     # klíč ve `watched.json` se liší podle zdroje (viz store.py v jádru) — pro
@@ -915,7 +915,8 @@ def _varovat_kratky_klic(hass: HomeAssistant, entry: ConfigEntry) -> None:
         hass,
         "Klíč pro synchronizaci s Kodi má jen 48 bitů — starší instalace ho dostaly "
         "automaticky. Vyměň ho za delší: Nastavení → Zařízení a služby → Nokturno → "
-        "Konfigurovat, pole „Klíč pro synchronizaci“ přepiš (např. 32 náhodných znaků) "
+        "Konfigurovat → Synchronizace s Kodi, pole „Klíč pro Kodi v domácí síti“ přepiš "
+        "(např. 32 náhodných znaků) "
         "a stejnou hodnotu vlož v Kodi do Nastavení → Synchronizace. Do té doby "
         "synchronizace funguje dál.",
         title="Nokturno: slabý klíč pro synchronizaci",
@@ -1052,8 +1053,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.bus.async_fire(EVENT_TRAKT_AVAILABLE, {k: n.get(k) for k in ("id", "title", "type", "streams")})
             year = f" ({n['year']})" if n.get("year") else ""
             if n["kind"] == "more":
-                await notify("Nokturno — přibyl nový zdroj",
-                             f"{n['title']}{year} má teď {n['streams']} zdrojů (dřív {n['prev']}).")
+                await notify("Nokturno — přibyly streamy",
+                             f"{n['title']}{year} má teď {n['streams']} streamů (dřív {n['prev']}).")
             else:
                 await notify("Nokturno — už je k dispozici",
                              f"{n['title']}{year} má nově {n['streams']} streamů.")
@@ -1115,13 +1116,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def handle_favourite_add(call: ServiceCall):
         """Přesune položku „Hlídané“ do Mého seznamu (lokální oblíbené, sdílené
-        s Kodi/Stremiem) a přestane titul dál hlídat/kontrolovat — stejné odebrání
+        s Kodi) a přestane titul dál hlídat/kontrolovat — stejné odebrání
         jako `want_to_watch` s `remove`, jen navíc přidá do `favourites`."""
         wid = call.data["id"]
         cache = trakt_cache()
         info = cache.get(wid) or wantlist().get(wid)
         if info is None:
-            raise HomeAssistantError("Titul s tímhle ID není mezi hlídanými.")
+            raise HomeAssistantError("Titul s tímto ID není v Hlídaných.")
         if not engine.store.is_favourite(wid):
             remember = favourite_info(info.get("title"), info.get("year"),
                                        {k: info.get(k) for k in ("poster", "alt", "type")})
@@ -1353,7 +1354,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     def _sub_warn_message(status):
         if status.get("vip"):
-            return f"Předplatné WebShare končí za {status['days']} dní ({status['until'][:10]})."
+            dny = int(status.get("days") or 0)
+            tvar = "den" if dny == 1 else "dny" if 2 <= dny <= 4 else "dní"
+            return f"Předplatné WebShare končí za {dny} {tvar} ({status['until'][:10]})."
         return "Předplatné WebShare vypršelo."
 
     async def check_subscription(_now=None):

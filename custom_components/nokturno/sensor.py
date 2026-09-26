@@ -51,7 +51,7 @@ class NokturnoDownloadsSensor(SensorEntity):
             identifiers={(DOMAIN, entry.entry_id)},
             name="Nokturno",
             manufacturer="matata86",
-            model="WebShare · Sosáč · Luna",
+            model="Přehrávač vlastního úložiště",
         )
 
     async def async_added_to_hass(self) -> None:

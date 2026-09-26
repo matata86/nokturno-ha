@@ -3,21 +3,21 @@
     "step": {
       "user": {
         "title": "Právne upozornenie",
-        "description": "Nokturno je predovšetkým prehrávač a správca tvojho vlastného úložiska — obsah, ktorý si nahráš a sprístupníš (napr. cez WebDAV), prehráva priamo. Ako doplnkovú službu si môžeš voliteľne napojiť aj niektoré verejne dostupné vyhľadávače tretích strán (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) — v tom prípade je Nokturno len technické rozhranie, samo žiadny obsah nehostuje, neukladá ani neposkytuje.\n\nNokturno smieš používať len na obsah, ku ktorému máš zákonné oprávnenie, licenciu alebo iný právny titul. Vyhľadávanie, sprístupňovanie alebo prehrávanie autorsky chráneného obsahu bez súhlasu nositeľov práv je zakázané.\n\nNokturno sa poskytuje „tak, ako je“, bez záruky funkčnosti, dostupnosti ani legálnosti zdrojov tretích strán. Za spôsob použitia zodpovedáš výhradne ty. Prevádzkovateľ si vyhradzuje právo kedykoľvek obmedziť alebo ukončiť prístup.\n\nKam nahlásiť nelegálny obsah: za obsah zodpovedá jeho poskytovateľ, nahlás ho priamo jemu. WebShare — abuse@webshare.cz; Sosáč/Streamuj.tv — streamuj.tv/advertise (DMCA); HellSpy — hellspy.to/contact; Sledujteto — sledujteto.cz/nahlasit-nelegalni-soubor; FastShare — fastshare.cz/abuse; Přehraj.to — prehrajto.cz/nahlasit-nelegalni-soubor; CZtor — kontakt na cztor.com/kontakt; OpenSubtitles — copyright@opensubtitles.org (DMCA).",
+        "description": "Nokturno je predovšetkým prehrávač a správca tvojho vlastného úložiska – obsah, ktorý si nahráš a sprístupníš (napr. cez WebDAV), prehráva priamo. Ako doplnkovú službu si môžeš voliteľne napojiť aj niektoré verejne dostupné vyhľadávače tretích strán (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) – v tom prípade je Nokturno len technické rozhranie, samo žiadny obsah nehostuje, neukladá ani neposkytuje.\n\nNokturno smieš používať len na obsah, ku ktorému máš zákonné oprávnenie, licenciu alebo iný právny titul. Vyhľadávanie, sprístupňovanie alebo prehrávanie autorsky chráneného obsahu bez súhlasu nositeľov práv je zakázané.\n\nNokturno sa poskytuje „tak, ako je“, bez záruky funkčnosti, dostupnosti ani legálnosti zdrojov tretích strán. Za spôsob použitia zodpovedáš výhradne ty. Prevádzkovateľ si vyhradzuje právo kedykoľvek obmedziť alebo ukončiť prístup.\n\nKam nahlásiť nelegálny obsah: za obsah zodpovedá jeho poskytovateľ, nahlás ho priamo jemu. WebShare – abuse@webshare.cz; Sosáč/Streamuj.tv – streamuj.tv/advertise (DMCA); HellSpy – hellspy.to/contact; Sledujteto – sledujteto.cz/nahlasit-nelegalni-soubor; FastShare – fastshare.cz/abuse; Přehraj.to – prehrajto.cz/nahlasit-nelegalni-soubor; CZtor – kontakt na cztor.com/kontakt; OpenSubtitles – copyright@opensubtitles.org (DMCA).",
         "data": {
           "terms_accepted": "Potvrdzujem, že budem Nokturno používať iba na obsah, ku ktorému mám právo prístupu, a súhlasím s podmienkami použitia."
         }
       },
       "reauth_confirm": {
         "title": "Prihlásenie k WebShare",
-        "description": "WebShare odmietol prihlásenie — skontroluj e-mail a heslo.",
+        "description": "WebShare odmietol prihlásenie – skontroluj e-mail a heslo.",
         "data": {
-          "ws_username": "WebShare — e-mail",
-          "ws_password": "WebShare — heslo (alebo uložený hash)"
+          "ws_username": "WebShare – e-mail",
+          "ws_password": "WebShare – heslo (alebo uložený hash)"
         }
       },
       "cztor": {
-        "title": "CZtor — spárovanie",
+        "title": "CZtor – spárovanie",
         "description": "Na telefóne alebo počítači otvor **{url}**, prihlás sa a zadaj PIN **{pin}**. Potom tu klikni na Odoslať. Heslo k účtu sa do Home Assistantu nezadáva.",
         "data": {
           "pair": "Spárovať CZtor (odškrtnutím CZtor vypneš)"
@@ -53,23 +53,23 @@
             "name": "Zdroje a účty",
             "description": "Prihlásenie k jednotlivým zdrojom. Prázdne pole = zdroj sa nepoužíva. Heslá sa ukladajú do HA a von idú len tomu zdroju, ktorému patria.",
             "data": {
-              "ws_username": "WebShare — e-mail",
-              "ws_password": "WebShare — heslo (alebo uložený hash)",
-              "streamuj_username": "Streamuj.tv — používateľ (pre Sosáč)",
-              "streamuj_password": "Streamuj.tv — heslo",
-              "st_email": "Sledujteto — e-mail",
-              "st_password": "Sledujteto — heslo (prehrávanie len s Premium)",
-              "fs_username": "FastShare / Sdilej.cz — používateľ",
-              "fs_password": "FastShare / Sdilej.cz — heslo (prehratie z kreditu alebo neobmedzeného paušálu)",
-              "fs_provider": "FastShare — účet z",
-              "luna_url": "Luna — adresa servera",
-              "luna_token": "Luna — token (alebo celá inštalačná URL)",
+              "ws_username": "WebShare – e-mail",
+              "ws_password": "WebShare – heslo (alebo uložený hash)",
+              "streamuj_username": "Streamuj.tv – používateľ (pre Sosáč)",
+              "streamuj_password": "Streamuj.tv – heslo",
+              "st_email": "Sledujteto – e-mail",
+              "st_password": "Sledujteto – heslo (prehrávanie len s Premium)",
+              "fs_username": "FastShare / Sdilej.cz – používateľ",
+              "fs_password": "FastShare / Sdilej.cz – heslo (prehratie z kreditu alebo neobmedzeného paušálu)",
+              "fs_provider": "FastShare – účet z",
+              "luna_url": "Luna – adresa servera",
+              "luna_token": "Luna – token (alebo celá inštalačná URL)",
               "hs_enabled": "Používať HellSpy",
               "sub_warn_days": "Upozorniť N dní pred koncom predplatného WebShare (0 = vypnuté)",
               "cz_enabled": "Používať CZtor",
               "pt_enabled": "Používať Přehraj.to",
-              "pt_email": "Přehraj.to — e-mail (nepovinné)",
-              "pt_password": "Přehraj.to — heslo (nepovinné)"
+              "pt_email": "Přehraj.to – e-mail (nepovinné)",
+              "pt_password": "Přehraj.to – heslo (nepovinné)"
             },
             "data_description": {
               "ws_password": "Ukladá sa ako hash, nie ako heslo. Koniec predplatného integrácia rozpozná sama a hlási ho v senzore stavu zdrojov.",
@@ -77,7 +77,7 @@
               "st_email": "Účet Sledujteto.cz. Hľadanie funguje aj bez Premium, prehrávanie iba s ním.",
               "fs_username": "Účet FastShare.cz alebo Sdilej.cz podľa voľby „účet z“. Prehrávanie sa účtuje z kreditu alebo z neobmedzeného tarifu.",
               "fs_provider": "Sdilej.cz má rovnaké súbory ako FastShare, len účet je samostatný. Vyber web, kde máš účet a kredit.",
-              "luna_url": "Adresa zariadenia, kde Luna beží, s portom 7126 — pri doplnku v Home Assistante jeho meno, pri Lune na TV boxe, počítači alebo NAS ich IP adresa. Vložiť sa dá aj celá inštalačná adresa zo stránky /setup, token sa z nej načíta.",
+              "luna_url": "Adresa zariadenia, kde Luna beží, s portom 7126 – pri doplnku v Home Assistante jeho meno, pri Lune na TV boxe, počítači alebo NAS ich IP adresa. Vložiť sa dá aj celá inštalačná adresa zo stránky /setup, token sa z nej načíta.",
               "hs_enabled": "HellSpy je verejný a účet nevyžaduje. Odmietnutie dotazov (HTTP 429) zvyčajne znamená, že HellSpy blokuje tvoju sieť (VPN, mobilné dáta); integrácia ho potom na desať minút vynechá a hľadá bez neho.",
               "sub_warn_days": "Počet dní pred koncom predplatného WebShare, kedy príde upozornenie. 0 = neupozorňovať.",
               "cz_enabled": "Platený katalóg cztor.com. Zapnutie otvorí krok s PINom; heslo k účtu integrácia nezískava.",
@@ -89,18 +89,18 @@
             "name": "Vlastné úložisko (WebDAV)",
             "description": "Až tri vlastné priečinky cez WebDAV (NAS, Nextcloud). Prehľadávajú sa spolu so zdrojmi a nájdené súbory sa ponúknu ako ďalšie streamy.",
             "data": {
-              "dav1_url": "Úložisko 1 — adresa priečinka (WebDAV)",
-              "dav1_username": "Úložisko 1 — používateľ",
-              "dav1_password": "Úložisko 1 — heslo",
-              "dav1_name": "Úložisko 1 — názov pri streamoch",
-              "dav2_url": "Úložisko 2 — adresa priečinka (WebDAV)",
-              "dav2_username": "Úložisko 2 — používateľ",
-              "dav2_password": "Úložisko 2 — heslo",
-              "dav2_name": "Úložisko 2 — názov pri streamoch",
-              "dav3_url": "Úložisko 3 — adresa priečinka (WebDAV)",
-              "dav3_username": "Úložisko 3 — používateľ",
-              "dav3_password": "Úložisko 3 — heslo",
-              "dav3_name": "Úložisko 3 — názov pri streamoch"
+              "dav1_url": "Úložisko 1 – adresa priečinka (WebDAV)",
+              "dav1_username": "Úložisko 1 – používateľ",
+              "dav1_password": "Úložisko 1 – heslo",
+              "dav1_name": "Úložisko 1 – názov pri streamoch",
+              "dav2_url": "Úložisko 2 – adresa priečinka (WebDAV)",
+              "dav2_username": "Úložisko 2 – používateľ",
+              "dav2_password": "Úložisko 2 – heslo",
+              "dav2_name": "Úložisko 2 – názov pri streamoch",
+              "dav3_url": "Úložisko 3 – adresa priečinka (WebDAV)",
+              "dav3_username": "Úložisko 3 – používateľ",
+              "dav3_password": "Úložisko 3 – heslo",
+              "dav3_name": "Úložisko 3 – názov pri streamoch"
             },
             "data_description": {
               "dav1_url": "Adresa priečinka s filmami a seriálmi na NAS alebo v Nextcloude. Musí byť dosiahnuteľná z Home Assistantu.",
@@ -109,13 +109,13 @@
           },
           "torrenty": {
             "name": "Torrenty",
-            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent — bez nich sa torrenty neponúkajú.",
+            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent – bez nich sa torrenty neponúkajú.",
             "data": {
-              "prowlarr_url": "Prowlarr — adresa (hľadanie torrentov)",
-              "prowlarr_key": "Prowlarr — API kľúč",
-              "qbit_url": "qBittorrent — adresa",
-              "qbit_username": "qBittorrent — meno (len keď web UI vyžaduje prihlásenie)",
-              "qbit_password": "qBittorrent — heslo"
+              "prowlarr_url": "Prowlarr – adresa (hľadanie torrentov)",
+              "prowlarr_key": "Prowlarr – API kľúč",
+              "qbit_url": "qBittorrent – adresa",
+              "qbit_username": "qBittorrent – meno (len keď web UI vyžaduje prihlásenie)",
+              "qbit_password": "qBittorrent – heslo"
             },
             "data_description": {
               "prowlarr_url": "Prowlarr združuje torrentové indexery. Bez neho sa torrenty nevyhľadávajú.",
@@ -127,7 +127,7 @@
             "description": "Kam sa stiahnuté súbory ukladajú a kadiaľ chodia oznámenia a odkazy do mobilu.",
             "data": {
               "download_dir": "Priečinok na sťahovanie",
-              "external_host": "Adresa mimo domácej siete (Tailscale/VPN) — pre odkazy do mobilu",
+              "external_host": "Adresa mimo domácej siete (Tailscale/VPN) – pre odkazy do mobilu",
               "notify_target": "Upozornenia na stiahnutie a nové diely (napr. notify.mobile_app_telefon; prázdne = upozornenie v HA)"
             },
             "data_description": {
@@ -160,15 +160,15 @@
             "name": "Ostatné",
             "description": "TMDB, Trakt.tv a anonymné štatistiky.",
             "data": {
-              "tmdb_api_key": "TMDB — API kľúč (nepovinné, ale má prednosť aj pred Lunou — pre české názvy a popisy)",
-              "trakt_client_id": "Trakt.tv — vlastné Client ID (nepovinné)",
-              "trakt_client_secret": "Trakt.tv — vlastný Client Secret (nepovinné)",
+              "tmdb_api_key": "TMDB – API kľúč (nepovinné, ale má prednosť aj pred Lunou – pre české názvy a popisy)",
+              "trakt_client_id": "Trakt.tv – vlastné Client ID (nepovinné)",
+              "trakt_client_secret": "Trakt.tv – vlastný Client Secret (nepovinné)",
               "stats_enabled": "Posielať anonymné štatistiky (aj vypnuté pošlú len náhodné id a verziu)"
             },
             "data_description": {
               "tmdb_api_key": "Vlastný kľúč z themoviedb.org. Zrýchľuje načítanie názvov a popisov a nevyžaduje k nim Lunu.",
-              "trakt_client_id": "Nechaj prázdne, použije sa aplikácia Nokturna — potom stačí služba nokturno.trakt_auth a zadať kód na webe Traktu. Ide to aj s free účtom. Vlastnú aplikáciu vyplň, len ak ju máš.",
-              "stats_enabled": "Anonymné údaje o používaní — náhodné id, verzia a prehrané tituly. Bez účtov, adries a obsahu. Vypnuté odosiela len id a verziu."
+              "trakt_client_id": "Nechaj prázdne, použije sa aplikácia Nokturna – potom stačí služba nokturno.trakt_auth a zadať kód na webe Traktu. Ide to aj s free účtom. Vlastnú aplikáciu vyplň, len ak ju máš.",
+              "stats_enabled": "Anonymné údaje o používaní – náhodné id, verzia a prehrané tituly. Bez účtov, adries a obsahu. Vypnuté odosiela len id a verziu."
             }
           }
         }
@@ -177,10 +177,10 @@
     "error": {
       "ws_auth": "Nesprávny e-mail alebo heslo.",
       "ws_network": "WebShare neodpovedal, skús to o chvíľu.",
-      "cz_pending": "PIN zatiaľ nie je potvrdený — zadaj ho na cztor.com/activate a klikni znova na Odoslať.",
-      "cz_failed": "PIN vypršal alebo sa spárovanie nepodarilo — zobrazuje sa nový PIN, skús to znova.",
+      "cz_pending": "PIN zatiaľ nie je potvrdený – zadaj ho na cztor.com/activate a klikni znova na Odoslať.",
+      "cz_failed": "PIN vypršal alebo sa spárovanie nepodarilo – zobrazuje sa nový PIN, skús to znova.",
       "cz_network": "Server CZtor neodpovedal. Skús to neskôr.",
-      "sync_code": "Kód skupiny nemá správny tvar — opíš ho z Kodi, vzor NKT-XXXX-XXXX-XXXX-XXXX.",
+      "sync_code": "Kód skupiny nemá správny tvar – opíš ho z Kodi, vzor NKT-XXXX-XXXX-XXXX-XXXX.",
       "terms_required": "Bez potvrdenia nemožno inštaláciu dokončiť."
     },
     "abort": {
@@ -219,23 +219,23 @@
             "name": "Zdroje a účty",
             "description": "Prihlásenie k jednotlivým zdrojom. Prázdne pole = zdroj sa nepoužíva. Heslá sa ukladajú do HA a von idú len tomu zdroju, ktorému patria.",
             "data": {
-              "ws_username": "WebShare — e-mail",
-              "ws_password": "WebShare — heslo (alebo uložený hash)",
-              "streamuj_username": "Streamuj.tv — používateľ (pre Sosáč)",
-              "streamuj_password": "Streamuj.tv — heslo",
-              "st_email": "Sledujteto — e-mail",
-              "st_password": "Sledujteto — heslo (prehrávanie len s Premium)",
-              "fs_username": "FastShare / Sdilej.cz — používateľ",
-              "fs_password": "FastShare / Sdilej.cz — heslo (prehratie z kreditu alebo neobmedzeného paušálu)",
-              "fs_provider": "FastShare — účet z",
-              "luna_url": "Luna — adresa servera",
-              "luna_token": "Luna — token (alebo celá inštalačná URL)",
+              "ws_username": "WebShare – e-mail",
+              "ws_password": "WebShare – heslo (alebo uložený hash)",
+              "streamuj_username": "Streamuj.tv – používateľ (pre Sosáč)",
+              "streamuj_password": "Streamuj.tv – heslo",
+              "st_email": "Sledujteto – e-mail",
+              "st_password": "Sledujteto – heslo (prehrávanie len s Premium)",
+              "fs_username": "FastShare / Sdilej.cz – používateľ",
+              "fs_password": "FastShare / Sdilej.cz – heslo (prehratie z kreditu alebo neobmedzeného paušálu)",
+              "fs_provider": "FastShare – účet z",
+              "luna_url": "Luna – adresa servera",
+              "luna_token": "Luna – token (alebo celá inštalačná URL)",
               "hs_enabled": "Používať HellSpy",
               "sub_warn_days": "Upozorniť N dní pred koncom predplatného WebShare (0 = vypnuté)",
               "cz_enabled": "Používať CZtor",
               "pt_enabled": "Používať Přehraj.to",
-              "pt_email": "Přehraj.to — e-mail (nepovinné)",
-              "pt_password": "Přehraj.to — heslo (nepovinné)"
+              "pt_email": "Přehraj.to – e-mail (nepovinné)",
+              "pt_password": "Přehraj.to – heslo (nepovinné)"
             },
             "data_description": {
               "ws_password": "Ukladá sa ako hash, nie ako heslo. Koniec predplatného integrácia rozpozná sama a hlási ho v senzore stavu zdrojov.",
@@ -243,7 +243,7 @@
               "st_email": "Účet Sledujteto.cz. Hľadanie funguje aj bez Premium, prehrávanie iba s ním.",
               "fs_username": "Účet FastShare.cz alebo Sdilej.cz podľa voľby „účet z“. Prehrávanie sa účtuje z kreditu alebo z neobmedzeného tarifu.",
               "fs_provider": "Sdilej.cz má rovnaké súbory ako FastShare, len účet je samostatný. Vyber web, kde máš účet a kredit.",
-              "luna_url": "Adresa zariadenia, kde Luna beží, s portom 7126 — pri doplnku v Home Assistante jeho meno, pri Lune na TV boxe, počítači alebo NAS ich IP adresa. Vložiť sa dá aj celá inštalačná adresa zo stránky /setup, token sa z nej načíta.",
+              "luna_url": "Adresa zariadenia, kde Luna beží, s portom 7126 – pri doplnku v Home Assistante jeho meno, pri Lune na TV boxe, počítači alebo NAS ich IP adresa. Vložiť sa dá aj celá inštalačná adresa zo stránky /setup, token sa z nej načíta.",
               "hs_enabled": "HellSpy je verejný a účet nevyžaduje. Odmietnutie dotazov (HTTP 429) zvyčajne znamená, že HellSpy blokuje tvoju sieť (VPN, mobilné dáta); integrácia ho potom na desať minút vynechá a hľadá bez neho.",
               "sub_warn_days": "Počet dní pred koncom predplatného WebShare, kedy príde upozornenie. 0 = neupozorňovať.",
               "cz_enabled": "Platený katalóg cztor.com. Zapnutie otvorí krok s PINom; heslo k účtu integrácia nezískava.",
@@ -255,18 +255,18 @@
             "name": "Vlastné úložisko (WebDAV)",
             "description": "Až tri vlastné priečinky cez WebDAV (NAS, Nextcloud). Prehľadávajú sa spolu so zdrojmi a nájdené súbory sa ponúknu ako ďalšie streamy.",
             "data": {
-              "dav1_url": "Úložisko 1 — adresa priečinka (WebDAV)",
-              "dav1_username": "Úložisko 1 — používateľ",
-              "dav1_password": "Úložisko 1 — heslo",
-              "dav1_name": "Úložisko 1 — názov pri streamoch",
-              "dav2_url": "Úložisko 2 — adresa priečinka (WebDAV)",
-              "dav2_username": "Úložisko 2 — používateľ",
-              "dav2_password": "Úložisko 2 — heslo",
-              "dav2_name": "Úložisko 2 — názov pri streamoch",
-              "dav3_url": "Úložisko 3 — adresa priečinka (WebDAV)",
-              "dav3_username": "Úložisko 3 — používateľ",
-              "dav3_password": "Úložisko 3 — heslo",
-              "dav3_name": "Úložisko 3 — názov pri streamoch"
+              "dav1_url": "Úložisko 1 – adresa priečinka (WebDAV)",
+              "dav1_username": "Úložisko 1 – používateľ",
+              "dav1_password": "Úložisko 1 – heslo",
+              "dav1_name": "Úložisko 1 – názov pri streamoch",
+              "dav2_url": "Úložisko 2 – adresa priečinka (WebDAV)",
+              "dav2_username": "Úložisko 2 – používateľ",
+              "dav2_password": "Úložisko 2 – heslo",
+              "dav2_name": "Úložisko 2 – názov pri streamoch",
+              "dav3_url": "Úložisko 3 – adresa priečinka (WebDAV)",
+              "dav3_username": "Úložisko 3 – používateľ",
+              "dav3_password": "Úložisko 3 – heslo",
+              "dav3_name": "Úložisko 3 – názov pri streamoch"
             },
             "data_description": {
               "dav1_url": "Adresa priečinka s filmami a seriálmi na NAS alebo v Nextcloude. Musí byť dosiahnuteľná z Home Assistantu.",
@@ -275,13 +275,13 @@
           },
           "torrenty": {
             "name": "Torrenty",
-            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent — bez nich sa torrenty neponúkajú.",
+            "description": "Nepovinné. Hľadanie zariadi Prowlarr, sťahovanie qBittorrent – bez nich sa torrenty neponúkajú.",
             "data": {
-              "prowlarr_url": "Prowlarr — adresa (hľadanie torrentov)",
-              "prowlarr_key": "Prowlarr — API kľúč",
-              "qbit_url": "qBittorrent — adresa",
-              "qbit_username": "qBittorrent — meno (len keď web UI vyžaduje prihlásenie)",
-              "qbit_password": "qBittorrent — heslo"
+              "prowlarr_url": "Prowlarr – adresa (hľadanie torrentov)",
+              "prowlarr_key": "Prowlarr – API kľúč",
+              "qbit_url": "qBittorrent – adresa",
+              "qbit_username": "qBittorrent – meno (len keď web UI vyžaduje prihlásenie)",
+              "qbit_password": "qBittorrent – heslo"
             },
             "data_description": {
               "prowlarr_url": "Prowlarr združuje torrentové indexery. Bez neho sa torrenty nevyhľadávajú.",
@@ -293,7 +293,7 @@
             "description": "Kam sa stiahnuté súbory ukladajú a kadiaľ chodia oznámenia a odkazy do mobilu.",
             "data": {
               "download_dir": "Priečinok na sťahovanie",
-              "external_host": "Adresa mimo domácej siete (Tailscale/VPN) — pre odkazy do mobilu",
+              "external_host": "Adresa mimo domácej siete (Tailscale/VPN) – pre odkazy do mobilu",
               "notify_target": "Upozornenia na stiahnutie a nové diely (napr. notify.mobile_app_telefon; prázdne = upozornenie v HA)"
             },
             "data_description": {
@@ -326,21 +326,21 @@
             "name": "Ostatné",
             "description": "TMDB, Trakt.tv a anonymné štatistiky.",
             "data": {
-              "tmdb_api_key": "TMDB — API kľúč (nepovinné, ale má prednosť aj pred Lunou — pre české názvy a popisy)",
-              "trakt_client_id": "Trakt.tv — vlastné Client ID (nepovinné)",
-              "trakt_client_secret": "Trakt.tv — vlastný Client Secret (nepovinné)",
+              "tmdb_api_key": "TMDB – API kľúč (nepovinné, ale má prednosť aj pred Lunou – pre české názvy a popisy)",
+              "trakt_client_id": "Trakt.tv – vlastné Client ID (nepovinné)",
+              "trakt_client_secret": "Trakt.tv – vlastný Client Secret (nepovinné)",
               "stats_enabled": "Posielať anonymné štatistiky (aj vypnuté pošlú len náhodné id a verziu)"
             },
             "data_description": {
               "tmdb_api_key": "Vlastný kľúč z themoviedb.org. Zrýchľuje načítanie názvov a popisov a nevyžaduje k nim Lunu.",
-              "trakt_client_id": "Nechaj prázdne, použije sa aplikácia Nokturna — potom stačí služba nokturno.trakt_auth a zadať kód na webe Traktu. Ide to aj s free účtom. Vlastnú aplikáciu vyplň, len ak ju máš.",
-              "stats_enabled": "Anonymné údaje o používaní — náhodné id, verzia a prehrané tituly. Bez účtov, adries a obsahu. Vypnuté odosiela len id a verziu."
+              "trakt_client_id": "Nechaj prázdne, použije sa aplikácia Nokturna – potom stačí služba nokturno.trakt_auth a zadať kód na webe Traktu. Ide to aj s free účtom. Vlastnú aplikáciu vyplň, len ak ju máš.",
+              "stats_enabled": "Anonymné údaje o používaní – náhodné id, verzia a prehrané tituly. Bez účtov, adries a obsahu. Vypnuté odosiela len id a verziu."
             }
           }
         }
       },
       "cztor": {
-        "title": "CZtor — spárovanie",
+        "title": "CZtor – spárovanie",
         "description": "Na telefóne alebo počítači otvor **{url}**, prihlás sa a zadaj PIN **{pin}**. Potom tu klikni na Odoslať. Heslo k účtu sa do Home Assistantu nezadáva.",
         "data": {
           "pair": "Spárovať CZtor (odškrtnutím CZtor vypneš)"
@@ -348,24 +348,24 @@
       },
       "terms_update": {
         "title": "Aktualizované podmienky použitia",
-        "description": "Nokturno je predovšetkým prehrávač a správca tvojho vlastného úložiska — obsah, ktorý si nahráš a sprístupníš (napr. cez WebDAV), prehráva priamo. Ako doplnkovú službu si môžeš voliteľne napojiť aj niektoré verejne dostupné vyhľadávače tretích strán (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) — v tom prípade je Nokturno len technické rozhranie, samo žiadny obsah nehostuje, neukladá ani neposkytuje.\n\nNokturno smieš používať len na obsah, ku ktorému máš zákonné oprávnenie, licenciu alebo iný právny titul. Vyhľadávanie, sprístupňovanie alebo prehrávanie autorsky chráneného obsahu bez súhlasu nositeľov práv je zakázané.\n\nNokturno sa poskytuje „tak, ako je“, bez záruky funkčnosti, dostupnosti ani legálnosti zdrojov tretích strán. Za spôsob použitia zodpovedáš výhradne ty. Prevádzkovateľ si vyhradzuje právo kedykoľvek obmedziť alebo ukončiť prístup.\n\nKam nahlásiť nelegálny obsah: za obsah zodpovedá jeho poskytovateľ, nahlás ho priamo jemu. WebShare — abuse@webshare.cz; Sosáč/Streamuj.tv — streamuj.tv/advertise (DMCA); HellSpy — hellspy.to/contact; Sledujteto — sledujteto.cz/nahlasit-nelegalni-soubor; FastShare — fastshare.cz/abuse; Přehraj.to — prehrajto.cz/nahlasit-nelegalni-soubor; CZtor — kontakt na cztor.com/kontakt; OpenSubtitles — copyright@opensubtitles.org (DMCA).",
+        "description": "Nokturno je predovšetkým prehrávač a správca tvojho vlastného úložiska – obsah, ktorý si nahráš a sprístupníš (napr. cez WebDAV), prehráva priamo. Ako doplnkovú službu si môžeš voliteľne napojiť aj niektoré verejne dostupné vyhľadávače tretích strán (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna, OpenSubtitles) – v tom prípade je Nokturno len technické rozhranie, samo žiadny obsah nehostuje, neukladá ani neposkytuje.\n\nNokturno smieš používať len na obsah, ku ktorému máš zákonné oprávnenie, licenciu alebo iný právny titul. Vyhľadávanie, sprístupňovanie alebo prehrávanie autorsky chráneného obsahu bez súhlasu nositeľov práv je zakázané.\n\nNokturno sa poskytuje „tak, ako je“, bez záruky funkčnosti, dostupnosti ani legálnosti zdrojov tretích strán. Za spôsob použitia zodpovedáš výhradne ty. Prevádzkovateľ si vyhradzuje právo kedykoľvek obmedziť alebo ukončiť prístup.\n\nKam nahlásiť nelegálny obsah: za obsah zodpovedá jeho poskytovateľ, nahlás ho priamo jemu. WebShare – abuse@webshare.cz; Sosáč/Streamuj.tv – streamuj.tv/advertise (DMCA); HellSpy – hellspy.to/contact; Sledujteto – sledujteto.cz/nahlasit-nelegalni-soubor; FastShare – fastshare.cz/abuse; Přehraj.to – prehrajto.cz/nahlasit-nelegalni-soubor; CZtor – kontakt na cztor.com/kontakt; OpenSubtitles – copyright@opensubtitles.org (DMCA).",
         "data": {
           "terms_accepted": "Potvrdzujem, že budem Nokturno používať iba na obsah, ku ktorému mám právo prístupu, a súhlasím s podmienkami použitia."
         }
       }
     },
     "error": {
-      "cz_pending": "PIN zatiaľ nie je potvrdený — zadaj ho na cztor.com/activate a klikni znova na Odoslať.",
-      "cz_failed": "PIN vypršal alebo sa spárovanie nepodarilo — zobrazuje sa nový PIN, skús to znova.",
+      "cz_pending": "PIN zatiaľ nie je potvrdený – zadaj ho na cztor.com/activate a klikni znova na Odoslať.",
+      "cz_failed": "PIN vypršal alebo sa spárovanie nepodarilo – zobrazuje sa nový PIN, skús to znova.",
       "cz_network": "Server CZtor neodpovedal. Skús to neskôr.",
       "terms_required": "Bez potvrdenia nemožno inštaláciu dokončiť.",
-      "sync_code": "Kód skupiny nemá správny tvar — opíš ho z Kodi, vzor NKT-XXXX-XXXX-XXXX-XXXX."
+      "sync_code": "Kód skupiny nemá správny tvar – opíš ho z Kodi, vzor NKT-XXXX-XXXX-XXXX-XXXX."
     }
   },
   "services": {
     "search": {
       "name": "Hľadať",
-      "description": "Vyhľadá film alebo seriál v zdrojoch (Luna, Sosáč), priamo na WebShare, alebo v databáze filmov (`catalog` / `catalog_series` — nájde aj tituly, ktoré zatiaľ nikde nie sú). Výsledky vracia ako odpoveď.",
+      "description": "Vyhľadá film alebo seriál v zdrojoch (Luna, Sosáč), priamo na WebShare, alebo v databáze filmov (`catalog` / `catalog_series` – nájde aj tituly, ktoré zatiaľ nikde nie sú). Výsledky vracia ako odpoveď.",
       "fields": {
         "query": {
           "name": "Dotaz"
@@ -404,7 +404,7 @@
     },
     "play": {
       "name": "Prehrať",
-      "description": "Pustí titul v Kodi (cez doplnok Nokturno) alebo v inom prehrávači (priamy odkaz). Namiesto ID sa dá zadať dotaz — pustí sa prvý nájdený titul.",
+      "description": "Pustí titul v Kodi (cez doplnok Nokturno) alebo v inom prehrávači (priamy odkaz). Namiesto ID sa dá zadať dotaz – pustí sa prvý nájdený titul.",
       "fields": {
         "id": {
           "name": "ID titulu"
@@ -447,7 +447,7 @@
     },
     "resolve": {
       "name": "Získať odkaz",
-      "description": "Vráti priamu HTTP URL streamu — pre externý prehrávač (VLC, mobil) alebo Cast.",
+      "description": "Vráti priamu HTTP URL streamu – pre externý prehrávač (VLC, mobil) alebo Cast.",
       "fields": {
         "id": {
           "name": "ID titulu"
@@ -477,7 +477,7 @@
     },
     "download": {
       "name": "Stiahnuť",
-      "description": "Stiahne stream do priečinka HA (predvolene /media/nokturno) — potom je dostupný aj v Media Browseri.",
+      "description": "Stiahne stream do priečinka HA (predvolene /media/nokturno) – potom je dostupný aj v Media Browseri.",
       "fields": {
         "id": {
           "name": "ID titulu"
@@ -611,7 +611,7 @@
     },
     "remove_progress": {
       "name": "Odobrať z Pokračovať v sledovaní",
-      "description": "Vynuluje rozpozeranosť titulu na danom Kodi — bez pýtania zmizne zo zoznamu Pokračovať v sledovaní, pozretie to neovplyvní.",
+      "description": "Vynuluje rozpozeranosť titulu na danom Kodi – bez pýtania zmizne zo zoznamu Pokračovať v sledovaní, pozretie to neovplyvní.",
       "fields": {
         "entity_id": {
           "name": "Kodi",
@@ -619,7 +619,7 @@
         },
         "file": {
           "name": "Súbor",
-          "description": "Pole `file` položky z odpovede `continue_watching` — nesie id titulu, ktoré sa má odobrať."
+          "description": "Pole `file` položky z odpovede `continue_watching` – nesie id titulu, ktoré sa má odobrať."
         }
       }
     },
@@ -654,7 +654,7 @@
     },
     "clear_cache": {
       "name": "Vymazať cache API",
-      "description": "Vymaže cache hľadania, streamov a katalógov (nie históriu ani Môj zoznam) — vynúti čerstvé dáta."
+      "description": "Vymaže cache hľadania, streamov a katalógov (nie históriu ani Môj zoznam) – vynúti čerstvé dáta."
     },
     "mark_seen": {
       "name": "Označiť nový diel ako videný",
@@ -670,7 +670,7 @@
       "description": "Pošle prihlasovací kód do oznámení; po zadaní na trakt.tv/activate sa účet prepojí."
     },
     "trakt_watched": {
-      "name": "Trakt — označiť ako pozreté",
+      "name": "Trakt – označiť ako pozreté",
       "description": "Zapíše film alebo diel do histórie Trakt.tv (s `remove` ho odoberie).",
       "fields": {
         "id": {
@@ -688,12 +688,12 @@
       }
     },
     "trakt_watchlist": {
-      "name": "Trakt — zoznam na pozretie",
+      "name": "Trakt – zoznam na pozretie",
       "description": "Načíta zoznam na pozretie z Trakt.tv a zistí, ktoré tituly už majú stream (inak beží raz denne)."
     },
     "trakt_flag": {
-      "name": "Trakt — označiť na kontrolu",
-      "description": "Prepne ručný príznak pri položke zoznamu, ktorá už má streamy, ale nie v požadovanej kvalite/zvuku (napr. 5.1) — v karte sa potom odlišuje od titulov, ktoré sa dajú rovno pustiť.",
+      "name": "Trakt – označiť na kontrolu",
+      "description": "Prepne ručný príznak pri položke zoznamu, ktorá už má streamy, ale nie v požadovanej kvalite/zvuku (napr. 5.1) – v karte sa potom odlišuje od titulov, ktoré sa dajú rovno pustiť.",
       "fields": {
         "id": {
           "name": "ID titulu",
@@ -719,7 +719,7 @@
     },
     "want_to_watch": {
       "name": "Sledovať, kým bude dostupné",
-      "description": "Pridá titul do Sledovaných (denne sa kontroluje, či už má stream). Bez ID stačí názov — sleduje sa, kým sa titul niekde neobjaví. S `remove` položku odoberie.",
+      "description": "Pridá titul do Sledovaných (denne sa kontroluje, či už má stream). Bez ID stačí názov – sleduje sa, kým sa titul niekde neobjaví. S `remove` položku odoberie.",
       "fields": {
         "id": {
           "name": "ID titulu",
@@ -731,7 +731,7 @@
         },
         "series": {
           "name": "ID seriálu",
-          "description": "Pri uloženom diele (ID v tvare `tt123:1:3`) — metadáta sa berú z neho."
+          "description": "Pri uloženom diele (ID v tvare `tt123:1:3`) – metadáta sa berú z neho."
         },
         "type": {
           "name": "Typ"
@@ -768,7 +768,7 @@
     },
     "favourite_toggle": {
       "name": "Pridať/odobrať v Mojom zozname",
-      "description": "Pridá titul do Môjho zoznamu, alebo ho odoberie, ak je tam už uložený — nezávisle od Sledovaných.",
+      "description": "Pridá titul do Môjho zoznamu, alebo ho odoberie, ak je tam už uložený – nezávisle od Sledovaných.",
       "fields": {
         "id": {
           "name": "ID titulu"
@@ -806,7 +806,7 @@
     },
     "torrents": {
       "name": "Torrenty titulu",
-      "description": "Vyhľadá titul na torrentových trackeroch cez Prowlarr. Oddelené od streamov zámerne — trackery odpovedajú v sekundách, hľadá sa až na vyžiadanie.",
+      "description": "Vyhľadá titul na torrentových trackeroch cez Prowlarr. Oddelené od streamov zámerne – trackery odpovedajú v sekundách, hľadá sa až na vyžiadanie.",
       "fields": {
         "id": {
           "name": "ID titulu"
@@ -828,13 +828,13 @@
         },
         "offset": {
           "name": "Posun číslovania",
-          "description": "Koľko streamov už je v zozname — torrenty na ne nadviažu."
+          "description": "Koľko streamov už je v zozname – torrenty na ne nadviažu."
         }
       }
     },
     "fulltext_search": {
       "name": "Ručné fulltextové hľadanie",
-      "description": "Hľadá na WebShare, HellSpy, Sledujteto a FastShare s uvoľneným filtrom — nájde aj to, čo bežné hľadanie zahodí ako podobný, ale iný titul. Výsledok sa berie ako neoverený, posúdenie necháva na používateľovi.",
+      "description": "Hľadá na WebShare, HellSpy, Sledujteto a FastShare s uvoľneným filtrom – nájde aj to, čo bežné hľadanie zahodí ako podobný, ale iný titul. Výsledok sa berie ako neoverený, posúdenie necháva na používateľovi.",
       "fields": {
         "id": {
           "name": "ID titulu"
@@ -856,7 +856,7 @@
         },
         "source": {
           "name": "Zdroj",
-          "description": "Kde hľadať — bez vyplnenia vo všetkých zapnutých."
+          "description": "Kde hľadať – bez vyplnenia vo všetkých zapnutých."
         }
       }
     }
@@ -909,8 +909,8 @@
         "movie": "Film",
         "series": "Seriál",
         "webshare": "Fulltext na WebShare",
-        "catalog": "Databáza filmov — film",
-        "catalog_series": "Databáza filmov — seriál"
+        "catalog": "Databáza filmov – film",
+        "catalog_series": "Databáza filmov – seriál"
       }
     },
     "fulltext_source": {

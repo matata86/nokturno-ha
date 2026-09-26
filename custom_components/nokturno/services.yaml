@@ -1,4 +1,4 @@
-# Texty (name/description) jsou v strings.json a translations/*.json — tady jen selektory.
+# Texty (name/description) jsou v strings.json a translations/*.json – tady jen selektory.
 search:
   fields:
     query:

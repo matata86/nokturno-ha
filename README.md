@@ -34,7 +34,7 @@ Přehrávač **vlastního úložiště** (WebDAV – NAS, Nextcloud, server) př
 
 - **Vlastní úložiště** – až tři WebDAV složky (NAS, Nextcloud, server), soubory jsou v kartě mezi streamy vždy první
 - **Volitelně osm vyhledávačů třetích stran** (WebShare, Sosáč, HellSpy, Sledujteto, FastShare, Přehraj.to, CZtor, Luna) v jednom hledání; stejný titul i soubor se sloučí do jednoho řádku
-- **Karta na dashboard** se záložkami Domů, Knihovna a Stažené – hledání, výběr streamu, detail titulu, Pokračovat ve sledování, Hlídané, Můj seznam, sledované seriály, stažené soubory
+- **Karta na dashboard** se záložkami Domů, Knihovna a Stažené – hledání, výběr streamu, detail titulu, Pokračovat ve sledování, Hlídané, Můj seznam, hlídané seriály, stažené soubory
 - **Přehrání v Kodi** přes doplněk Nokturno (Kodi si drží „Pokračovat ve sledování"), stažení do HA nebo odkaz do mobilu
 - **Hlídané** – nový díl sledovaného seriálu se ohlásí, až když se dá pustit; hlídat jde i titul, který zatím žádný zdroj nemá (chystaný film), a s příznakem *kontrolovat dál* i díl, u kterého čekáš na vhodnější stream
 - **Synchronizace s Kodi** – zhlédnuté, rozkoukané, Můj seznam, historie hledání a Hlídané pro Kodi v domácí síti i mimo ni (kód skupiny)
@@ -55,7 +55,7 @@ Přehrávač **vlastního úložiště** (WebDAV – NAS, Nextcloud, server) př
 - **Odkazy použitelné mimo domácí síť** (ikona 🌐) – přímo z CDN WebShare nebo ze Sosáče; ostatní se přepíšou na adresu z Tailscale/VPN, když ji vyplníš a addon Tailscale běží.
 - **Pokračovat ve sledování** ze všech Kodi v domácnosti; klepnutí otevře streamy titulu, takže si vybereš, kde a jak pokračovat. Když zrovna neodpoví ani jedno Kodi (vypnutá), ukáže se naposledy známý stav místo prázdné sekce – přehrání samotné logicky počká, až Kodi zapneš.
 - **Synchronizace s Kodi** – zhlédnuté, rozkoukané (i pozice), Můj seznam, historie hledání a Hlídané se sdílí mezi Home Assistantem a všemi Kodi s doplňkem Nokturno. Kodi v domácí síti se připojí **klíčem** z nastavení integrace (v Kodi *Nastavení → Synchronizace → Home Assistant*). Kodi mimo domácí síť (chata, telefon) chodí přes **kód skupiny** `NKT-XXXX-XXXX-XXXX-XXXX`: založí ho první Kodi (*Synchronizace → Založit skupinu / otevřít připojení*) a opíšeš ho i do nastavení integrace. Co se sdílí, zapneš v sekci *Synchronizace s Kodi*. Film rozkoukaný v obýváku pak pokračuje v pracovně na stejném místě.
-- **Sledované seriály** – nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB. Když stream není a máš nastavený Prowlarr, kontrola sáhne i na trackery. Kontrolu stačí udělat na jednom zařízení, výsledek se synchronizuje.
+- **Hlídané seriály** – nový díl se hlásí, až když se dá pustit, ne když ho jen eviduje TMDB. Když stream není a máš nastavený Prowlarr, kontrola sáhne i na trackery. Kontrolu stačí udělat na jednom zařízení, výsledek se synchronizuje.
 - **Hlídané tituly** – u titulu klepneš na zvonek a integrace jednou denně kontroluje, jestli už má stream; jakmile se objeví, přijde oznámení. Přidat jde i titul, který **zatím žádný zdroj nemá** (chystaný film) – hledá se v databázi filmů (IMDb/TMDB přes Cinemetu). Funguje samostatně, **Trakt k tomu není potřeba**.
 - **Trakt.tv** (volitelně) – propojení účtu, hlášení přehrávání, zápis do historie a načtení seznamu k zhlédnutí z Traktu. Vlastní aplikaci na Traktu nepotřebuješ: spusť službu `nokturno.trakt_auth` a kód zadej na webu Traktu. Jde to i s free účtem (ten má nejvýš dvě připojené aplikace naráz).
 - **Rok v dotazu je filtr** – „Pět švestek 2026" najde jen film z roku 2026, ne stejnojmenný o čtyřicet let starší. Číslo, které je součástí názvu („2012", „Blade Runner 2049"), se jako rok nebere. Rok se hlídá i u souborů z fulltextu WebShare, takže se k titulu nepřimíchá stejnojmenný film z jiného roku.
@@ -140,7 +140,7 @@ Streamy samotné (úložiště, WebShare, Sosáč, HellSpy, Sledujteto, FastShar
 | qBittorrent – adresa, jméno, heslo | `http://IP:9091` | – | kam se předávají nalezené torrenty. Jméno a heslo nech prázdné, když má web UI povolenou místní síť bez přihlášení. Stažené video skončí ve složce pro stahování. |
 | Klíč pro Kodi v domácí síti | text | vygeneruje se | opiš ho do Kodi doplňku (*Nastavení → Synchronizace → Home Assistant*) – Kodi v domácí síti se pak synchronizuje přímo přes tuhle integraci (`POST /api/nokturno/sync`). Klíč jde kdykoli změnit, pak ho přepiš i v Kodi. |
 | Kód skupiny | `NKT-XXXX-XXXX-XXXX-XXXX` | prázdné | kód skupiny, kterou založilo první Kodi (*Synchronizace → Založit skupinu / otevřít připojení*). Home Assistant se tím stane členem skupiny a synchronizuje se i s Kodi mimo domácí síť. Prázdné = jen Kodi v domácí síti. |
-| Synchronizovat … | ano / ne | ano | co se sdílí: zhlédnuto a rozkoukanost, Můj seznam, historie hledání, Hlídané (sledované seriály a hlídané tituly i s příznakem *kontrolovat dál*). |
+| Synchronizovat … | ano / ne | ano | co se sdílí: zhlédnuté a rozkoukané, Můj seznam, historie hledání, Hlídané (seriály a tituly i s příznakem *kontrolovat dál*). |
 | Upozornit na konec předplatného (dny) | 0–14, 0 = vypnuto | 5 | kolik dní předem hlásit blížící se konec VIP na WebShare. Kontroluje se dvanáctkrát denně, upozornění (přes stejnou `notify` službu jako stahování) chodí nejvýš jednou za den – po vypršení dál, dokud předplatné neprodloužíš. Stejná logika běží i v Kodi doplňku. |
 | Anonymní statistiky | ano / ne | ano | posílá jednou za šest hodin náhodný identifikátor, verzi, platformu, jazyk, zapnuté zdroje (jen přepínače) a počet zobrazení streamů podle titulu. Přihlašovací údaje, adresy ani obsah hledání neodcházejí. Po vypnutí se dál posílá jen náhodný identifikátor a verze integrace, aby bylo vidět, že instalace žije. |
 
@@ -186,8 +186,8 @@ Nahoře **pole pro hledání**, pod ním záložky **Domů**, **Knihovna** a **S
 - **Pole pro hledání** a tlačítko **Hledat** (během dotazu se v něm točí kolečko). Přepínač **Filmy / Seriály** se ukáže až u výsledků, a jen když dotaz našel obojí. Rok napsaný do dotazu se použije jako filtr – „Duna 2021" vrátí jen film z roku 2021.
 - **Štítky** s posledními dotazy (nejvýš 10, sdíleno s doplňkem pro Kodi) – klepnutím se hledání zopakuje, křížek historii smaže.
 - **Pokračovat ve sledování** (záložka *Domů*) – rozkoukané tituly a další díly ze všech Kodi. U víc zařízení je na dlaždici jméno toho, kde je titul rozkoukaný. Klepnutí otevře **streamy titulu** (id se přečte z odkazu, který Kodi posílá), takže se dá pokračovat na libovolném přehrávači, stáhnout nebo poslat do mobilu.
-- **Hlídané** (záložka *Domů*) – tituly, které sis uložil zvonkem (a případně seznam z Traktu). Zvonek v detailu **dílu** uloží ten díl, ne celý seriál; v seznamu je pak i s číslem („Okresní přebor · 1x01“) a klepnutí otevře rovnou jeho streamy. Zelené „lze pustit“ u těch, které už mají stream, „jen torrent“ u těch, které leží jen na trackerech, „hlídám“ u těch, které zatím nikde nejsou. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.
-- **Můj seznam** a **sledované seriály** (záložka *Knihovna*) – zelený štítek „nový díl“ znamená, že další epizoda už má stream. Díl, který je zatím jen na trackeru, je označený „(jen torrent)“ – pustit ho znamená napřed ho stáhnout.
+- **Hlídané** (záložka *Domů*) – tituly, které sis uložil zvonkem (a případně seznam z Traktu). Zvonek v detailu **dílu** uloží ten díl, ne celý seriál; v seznamu je pak i s číslem („Okresní přebor · 1x01“) a klepnutí otevře rovnou jeho streamy. Zelené „lze pustit“ u těch, které už mají stream, „jen torrent“ u těch, které leží jen na trackerech, „hlídá se“ u těch, které zatím nikde nejsou. Titul, který teprve vyjde, přidáš přes **Hledat v databázi filmů** u výsledků hledání.
+- **Můj seznam** a **hlídané seriály** (záložka *Knihovna*) – zelený štítek „nový díl“ znamená, že další epizoda už má stream. Díl, který je zatím jen na trackeru, je označený „(jen torrent)“ – pustit ho znamená napřed ho stáhnout.
 - Záložka **Stažené** – u běžícího souboru procenta, rychlost, odhad zbývajícího času, kolik už je staženo z celku a křížek, kterým se stahování zruší. Pod tím hotové soubory – u každého počet stažených titulků, velikost a tři akce: ▶ přehrát na vybraném přehrávači, 📱 poslat odkaz do mobilu, 🗑 smazat (i s titulky). V nadpisu je volné místo na disku.
 
 ### Výsledky hledání
@@ -218,11 +218,11 @@ Tlačítko **Hledat v databázi filmů** se ptá Cinemety (IMDb/TMDB), takže na
 
 Názvy jsou v databázi vedené mezinárodním přepisem („Sunday League - Pepik Hnatek's Final Match"). Podle IMDb id se k nim dohledá český název z TMDB a pod ním se pak hledají streamy – jinak by u českých filmů z databáze žádné nebyly. U úplně čerstvých titulů, které TMDB ještě nezná, zůstane přepis.
 
-### Seriál a epizody
+### Seriál a díly
 
-<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-epizody.jpg" alt="Epizody seriálu" width="352">
+<img src="https://raw.githubusercontent.com/matata86/nokturno-ha/main/docs/03-epizody.jpg" alt="Díly seriálu" width="352">
 
-Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, šipka zpět, **záložka** (přidá do seznamu k zhlédnutí) a u seriálu **oko** pro sledování nových dílů. Výběr sezóny je pod názvem, epizody se pak vypíšou jako seznam.
+Nahoře fanart a popis (klepnutím se rozbalí celý), pod ním název s rokem, šipka zpět, **zvonek** (přidá titul do Hlídaných), u seriálu **oko** (hlídat nové díly) a **záložka** (Můj seznam). Výběr série je pod názvem, díly se pak vypíšou jako seznam.
 
 ### Streamy
 
@@ -243,7 +243,7 @@ Nad seznamem je štítek **Hledat torrenty**. Objeví se, jen když je nastaven�
 
 Interpunkci z názvu titulu dotaz na tracker neunese („Okresní přebor **–** Poslední zápas…" nenajde nic), takže se před odesláním odstraní. Když ani pak tracker nic nevrátí, zkusí se ještě kratší dotaz z prvních slov názvu a roku, a nakonec původní název titulu – české trackery pojmenovávají soubory obojím.
 
-U seriálu jde do dotazu **jen název**: značka „S02E01" fulltext trackerů spolehlivě vynuluje. Sezóna a díl se proto vybírají až z výsledků – nabídne se konkrétní díl, a když není, balík celé sezóny. Torrent jiné sezóny se zahodí, takže na díl 2×01 nevyskočí první série.
+U seriálu jde do dotazu **jen název**: značka „S02E01" fulltext trackerů spolehlivě vynuluje. Série a díl se proto vybírají až z výsledků – nabídne se konkrétní díl, a když není, balík celé sezóny. Torrent jiné sezóny se zahodí, takže na díl 2×01 nevyskočí první série.
 
 Rozdělané torrenty jsou vidět v **Stahování** spolu s vlastním stahováním, včetně procent, rychlosti a odhadu času; křížkem se torrent zruší i s rozdělanými daty. Dokud se stahuje, mezi staženými soubory se neukáže, i když už jeho soubor ve složce leží. Smazání staženého filmu odebere i jeho torrent z qBittorrentu – jinak by dál seedoval a hlásil chybějící data.
 
@@ -276,7 +276,7 @@ Vrací `streams`: `index`, `label`, `source`, `quality`, `size_gb`, `bitrate`, `
 Detail titulu z databáze filmů podle IMDb id (`id`, `type` = `movie` / `series`): název, rok, plakát, pozadí, popis, hodnocení, žánry, režie a obsazení. Popis se bere z TMDB (česky) a z Cinemety; když ho nemá ani jedna, složí se věta ze žánru, země, režie a hlavních rolí.
 
 ### `nokturno.episodes` ↩
-Sezóny a epizody seriálu. `id` (povinné), volitelně `season`.
+Série a díly seriálu. `id` (povinné), volitelně `season`.
 
 ### `nokturno.resolve` ↩
 Přímé HTTP URL streamu pro cizí přehrávač. Stejné parametry jako `streams` + `stream` (index) nebo `url`.
@@ -309,7 +309,7 @@ Sledování seriálů: přidat (`id`, `title`, `alt`, `poster`) nebo odebrat (`r
 Přidá titul do seznamu k zhlédnutí (`id` z hledání nebo z databáze filmů, `type`, `title`, `year`, `alt`, `poster`) nebo ho odebere (`remove: true`). Místo `id` stačí `query` – pak se hlídá název, dokud se titul někde neobjeví. Seznam se kontroluje jednou denně a hned po přidání.
 
 ### `nokturno.trakt_auth` ↩ / `nokturno.trakt_watched` ↩ / `nokturno.trakt_watchlist` ↩
-Propojení účtu kódem, zápis filmu nebo epizody do historie (`id`, `season`, `episode`, `remove`), načtení seznamu „k zhlédnutí" s kontrolou dostupnosti.
+Propojení účtu kódem, zápis filmu nebo epizody do historie (`id`, `season`, `episode`, `remove`), načtení seznamu ke zhlédnutí z Traktu s kontrolou dostupnosti.
 
 ### `nokturno.clear_history`
 Smaže historii hledání zobrazenou v kartě.
@@ -382,7 +382,7 @@ actions:
 - **Hlášky WebShare** se překládají do srozumitelné podoby: „File temporarily unavailable" se ukáže jako doporučení zkusit jiný stream.
 - **Náhledy Sosáče** jsou od září 2026 mrtvé (404), plakáty se dotahují z TMDB – podle IMDb id, a když chybí, podle názvu a roku.
 - **Přerušené stahování**: fronta se ukládá do `.storage/nokturno/downloads.json`, rozstahovaný soubor zůstává jako `.part`. Po startu se úloha zařadí zpátky, vyžádá se nový odkaz (ty z WebShare vyprší) a pokračuje se hlavičkou `Range` od posledního bajtu. Když server rozsah neumí, stahuje se znovu od začátku. Zrušení uživatelem `.part` smaže.
-- **Nový díl seriálu** se hlásí až podle dostupnosti streamu; při zařazení se najde nejnovější sezóna se streamy, dál se sleduje jen posun dopředu.
+- **Nový díl seriálu** se hlásí až podle dostupnosti streamu; při zařazení se najde nejnovější série se streamy, dál se hlídá jen posun dopředu.
 - **Jedno hledání pro oba typy**: karta se ptá na filmy i seriály naráz a drží si obojí; přepínač se ukáže, jen když obojí něco našlo, a přepnutí pak jen prohodí už načtený seznam.
 - **Rok jako filtr**: z dotazu se odřízne čtyřciferný rok a použije se na výsledky i na názvy souborů z fulltextu WebShare (tolerance ±1, soubor bez roku projde). Rok v budoucnosti se bere jako součást názvu.
 - **Detail z databáze filmů**: Cinemeta `meta` + TMDB přes Lunu, výsledek se drží den v cache. Karta si ho vyžádá u každého titulu s IMDb id, kterému chybí popis nebo plakát.

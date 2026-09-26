@@ -28,6 +28,7 @@ Přehrávač **vlastního úložiště** (WebDAV — NAS, Nextcloud, server) př
 - [Příklady automatizací](#příklady-automatizací)
 - [Jak to funguje uvnitř](#jak-to-funguje-uvnitř)
 - [Řešení potíží](#řešení-potíží)
+- [Pomoc](#pomoc)
 
 ## Co to umí
 
@@ -409,6 +410,12 @@ actions:
 | [plugin.video.nokturno](https://github.com/matata86/plugin.video.nokturno) | klient pro Kodi — stejné zdroje, přes něj se pouští na TV |
 | [ha-addons](https://github.com/matata86/ha-addons) | addony pro HA: server Luna a proxy Sosáče pro Nuvio |
 | [fns-ha-tweaks](https://github.com/matata86/fns-ha-tweaks) | sdílený vzhled a karty pro Home Assistant |
+
+## Pomoc
+
+- **Dotazy, rady a novinky:** [facebooková skupina Nokturno](https://www.facebook.com/groups/nokturno). Odpovídáme tam my i ostatní uživatelé.
+- **Návody a řešení potíží:** [wiki](https://github.com/matata86/nokturno-ha/wiki).
+- **Chyba v kódu** (pád nebo chování, které jde zopakovat): [GitHub Issues](https://github.com/matata86/nokturno-ha/issues). Napiš verzi integrace a Home Assistantu a přilož diagnostiku (u integrace *Stáhnout diagnostiku*).
 
 ## Právní upozornění
 

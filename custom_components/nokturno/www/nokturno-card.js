@@ -61,7 +61,7 @@ const SK = {
   "Pokračovat ve sledování": "Pokračovať v sledovaní",
   "Hlídané": "Sledované",
   "Otevřít streamy – {0} k dispozici": "Otvoriť streamy – {0} k dispozícii",
-  "Zatím žádný stream; hlídám a dám vědět": "Zatiaľ žiadny stream; sledujem a dám vedieť",
+  "Zatím žádný stream – až se objeví, přijde oznámení": "Zatiaľ žiadny stream – keď sa objaví, príde oznámenie",
   "jen torrent": "len torrent",
   "lze pustit": "dá sa pustiť",
   "hlídá se": "sleduje sa",
@@ -69,7 +69,7 @@ const SK = {
   "kontrolovat dál": "kontrolovať ďalej",
   "Přestat kontrolovat díl {0}": "Prestať kontrolovať diel {0}",
   "Díl {0} má streamy, ale ne takové, jaké chceš (např. bez CZ titulků) – kontrolovat dál": "Diel {0} má streamy, ale nie také, aké chceš (napr. bez CZ titulkov) – kontrolovať ďalej",
-  "Přidáno – dám vědět, až streamů přibude": "Pridané – dám vedieť, keď streamov pribudne",
+  "Přidáno – až streamů přibude, přijde oznámení": "Pridané – keď streamov pribudne, príde oznámenie",
   "Streamy jsou, ale ne v požadované kvalitě/zvuku – kliknutím přestaneš kontrolovat dál": "Streamy sú, ale nie v požadovanej kvalite/zvuku – kliknutím prestaneš kontrolovať ďalej",
   "Streamy jsou, ale ne v požadované kvalitě/zvuku (např. 5.1) – označit, ať se to dál sleduje": "Streamy sú, ale nie v požadovanej kvalite/zvuku (napr. 5.1) – označiť, nech sa to ďalej sleduje",
   "Můj seznam": "Môj zoznam",
@@ -89,12 +89,12 @@ const SK = {
   "Seriál se už nehlídá": "Seriál sa už nesleduje",
   "Nové díly se budou hlásit": "Nové diely sa budú hlásiť",
   "Odebráno ze seznamu": "Odobraté zo zoznamu",
-  "Přidáno – dám vědět, až bude ke sledování": "Pridané – dám vedieť, keď bude na sledovanie",
+  "Přidáno do Hlídaných – až bude ke sledování, přijde oznámení": "Pridané medzi Sledované – keď sa bude dať pozrieť, príde oznámenie",
   "Odebráno z Pokračovat ve sledování": "Odobraté z Pokračovať v sledovaní",
-  "Napiš název – hledat budu rovnou v databázi filmů.": "Napíš názov – hľadať budem rovno v databáze filmov.",
+  "Napiš název – hledá se rovnou v databázi filmů.": "Napíš názov – hľadá sa rovno v databáze filmov.",
   "V databázi filmů nic takového není.": "V databáze filmov nič také nie je.",
   "Napiš nejdřív název do pole pro hledání.": "Najprv napíš názov do poľa na hľadanie.",
-  "Hlídám „{0}“ – dám vědět, až bude ke sledování": "Sledujem „{0}“ – dám vedieť, keď sa bude dať pozrieť",
+  "„{0}“ je v Hlídaných – až bude ke sledování, přijde oznámení": "„{0}“ je medzi Sledovanými – keď sa bude dať pozrieť, príde oznámenie",
   "Zpět na úvodní obrazovku": "Späť na úvodnú obrazovku",
   "Zpět k výsledkům ze zdrojů": "Späť k výsledkom zo zdrojov",
   "Hledat v databázi filmů (IMDb/TMDB) – najde i tituly, které zdroje nemají": "Hľadať v databáze filmov (IMDb/TMDB) – nájde aj tituly, ktoré zdroje nemajú",
@@ -116,7 +116,7 @@ const SK = {
   "Hledám…": "Hľadám…",
   "Zkusit fulltext na {0}": "Skúsiť fulltext na {0}",
   "Pro tento titul se nenašel žádný stream.": "Pre tento titul sa nenašiel žiadny stream.",
-  "Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví.": "Ulož si ho záložkou hore a dám vedieť, hneď ako sa objaví.",
+  "Ulož si ho záložkou nahoře – jakmile se stream objeví, přijde oznámení.": "Ulož si ho záložkou hore – hneď ako sa stream objaví, príde oznámenie.",
   "hraje i mimo domácí síť": "hrá aj mimo domácej siete",
   "Hraje i mimo domácí síť": "Hrá aj mimo domácej siete",
   "Neověřeno – z ručního fulltextového hledání, může to být i jiný titul": "Neoverené – z ručného fulltextového hľadania, môže to byť aj iný titul",
@@ -146,7 +146,7 @@ const SK = {
   "zbývá {0} s": "zostáva {0} s",
   "zbývá {0} min": "zostáva {0} min",
   "zbývá {0} h {1} min": "zostáva {0} h {1} min",
-  "Titul zatím žádný zdroj nemá – hlídám ho.": "Titul zatiaľ nemá žiadny zdroj – sledujem ho.",
+  "Titul zatím žádný zdroj nemá – je v Hlídaných.": "Titul zatiaľ nemá žiadny zdroj – je medzi Sledovanými.",
   "{0} sdílí, {1} stahuje": "{0} zdieľa, {1} sťahuje",
   "stáhne se přes qBittorrent, přehrát půjde až potom": "stiahne sa cez qBittorrent, prehrať pôjde až potom",
   "Zobrazit nadpis a ikonu": "Zobraziť nadpis a ikonu",
@@ -1124,7 +1124,7 @@ class NokturnoCard extends HTMLElement {
           // k dalšímu hlídání kvality/zvuku – ten se má dál kontrolovat, ne odložit
           const canMove = t.streams && !t.flagged;
           return `
-          <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? this._t("Otevřít streamy – {0} k dispozici", t.streams) : this._t("Zatím žádný stream; hlídám a dám vědět")}">
+          <div class="stream stacked" data-trakt="${i}" style="cursor:pointer" title="${t.streams ? this._t("Otevřít streamy – {0} k dispozici", t.streams) : this._t("Zatím žádný stream – až se objeví, přijde oznámení")}">
             <span class="tag" style="background:${t.streams ? (t.flagged ? "var(--warning-color, #b8860b)" : "var(--success-color, #2e8b57)") : "var(--disabled-text-color, #777)"}">
               <ha-icon icon="${opening ? "mdi:loading" : (t.streams ? (t.flagged ? "mdi:flag-outline" : "mdi:play-circle-outline") : (t.pending ? "mdi:radar" : "mdi:clock-outline"))}" class="ext${opening ? " spin" : ""}"></ha-icon>
               ${this._t(t.streams ? (t.flagged ? "kontrolovat dál" : (t.torrent ? "jen torrent" : "lze pustit")) : (t.pending ? "hlídá se" : "zatím ne"))}</span>
@@ -1273,7 +1273,7 @@ class NokturnoCard extends HTMLElement {
         : { id: ep.id, type: "series", series: w.id, flag: true, alt: w.alt || undefined,
             poster: w.poster || undefined,
             title: `${w.title} · ${ep.season}x${String(ep.episode).padStart(2, "0")}` }, false);
-      this._toast(on ? this._t("Odebráno ze seznamu") : this._t("Přidáno – dám vědět, až streamů přibude"));
+      this._toast(on ? this._t("Odebráno ze seznamu") : this._t("Přidáno – až streamů přibude, přijde oznámení"));
     });
   }
 
@@ -1313,7 +1313,7 @@ class NokturnoCard extends HTMLElement {
         ? { id: target.id, remove: true }
         : { id: target.id, type: target.type, title: target.title, series: target.series || undefined,
             year: target.year || undefined, alt: target.alt || undefined, poster: target.poster || undefined }, false);
-      this._toast(wanted ? this._t("Odebráno ze seznamu") : this._t("Přidáno – dám vědět, až bude ke sledování"));
+      this._toast(wanted ? this._t("Odebráno ze seznamu") : this._t("Přidáno do Hlídaných – až bude ke sledování, přijde oznámení"));
     });
   }
 
@@ -1363,7 +1363,7 @@ class NokturnoCard extends HTMLElement {
     if (!query) {
       // „+“ u prázdných Hlídaných: rovnou nachystat hledání v databázi
       this._state.pendingCatalog = true;
-      this._toast(this._t("Napiš název – hledat budu rovnou v databázi filmů."));
+      this._toast(this._t("Napiš název – hledá se rovnou v databázi filmů."));
       if (this._input && this._input.focus) this._input.focus();
       return;
     }
@@ -1388,7 +1388,7 @@ class NokturnoCard extends HTMLElement {
     this._state.searching = true;
     await this._guard(async () => {
       await this._call("want_to_watch", { query, type: this._state.type === "series" ? "series" : "movie" }, false);
-      this._toast(this._t("Hlídám „{0}“ – dám vědět, až bude ke sledování", query));
+      this._toast(this._t("„{0}“ je v Hlídaných – až bude ke sledování, přijde oznámení", query));
       this._state.view = "search";
     });
   }
@@ -1526,7 +1526,7 @@ class NokturnoCard extends HTMLElement {
         <ha-icon class="${st.findingFulltext ? "spin" : ""}" icon="${st.findingFulltext ? "mdi:loading" : "mdi:text-search"}" style="--mdc-icon-size:14px"></ha-icon> ${st.findingFulltext ? this._t("Hledám…") : this._t("Zkusit fulltext na {0}", fLabel)}
       </button></div>`;
     if (!st.streams.length) return head + torrentBtn + fulltextBtn + `<div class="muted empty">${this._t("Pro tento titul se nenašel žádný stream.")}${
-      st.item && st.item.source === "katalog" ? " " + this._t("Ulož si ho záložkou nahoře a dám vědět, jakmile se objeví.") : ""}</div>`;
+      st.item && st.item.source === "katalog" ? " " + this._t("Ulož si ho záložkou nahoře – jakmile se stream objeví, přijde oznámení.") : ""}</div>`;
     const legend = st.streams.some((s) => s.direct)
       ? `<div class="legend"><ha-icon icon="mdi:earth"></ha-icon> = ${this._t("hraje i mimo domácí síť")}</div>` : "";
     return head + torrentBtn + legend + `<div>${st.streams.map((s, i) => `
@@ -1854,7 +1854,7 @@ class NokturnoCard extends HTMLElement {
     if (data.trakt !== undefined) {
       const t = this._traktList()[+data.trakt];
       if (!t) return undefined;
-      if (t.pending) { this._toast(this._t("Titul zatím žádný zdroj nemá – hlídám ho.")); return undefined; }
+      if (t.pending) { this._toast(this._t("Titul zatím žádný zdroj nemá – je v Hlídaných.")); return undefined; }
       st.loading = `trakt:${data.trakt}`;
       const parts = String(t.id).split(":");
       if (parts.length === 3) {

@@ -1,0 +1,21 @@
+{
+  "domain": "nokturno",
+  "name": "Nokturno",
+  "after_dependencies": [
+    "lovelace"
+  ],
+  "codeowners": [
+    "@nokturno-app"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http"
+  ],
+  "documentation": "https://github.com/nokturno-app/nokturno-ha",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/nokturno-app/nokturno-ha/issues",
+  "requirements": [],
+  "version": "9.0.2"
+}

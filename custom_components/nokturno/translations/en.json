@@ -1,0 +1,18 @@
+{
+  "config": {
+    "abort": {
+      "prestehovano": "The integration is now released from a new repository and this version does nothing. In HACS remove the old Nokturno repository and add {url} (category Integration), then download Nokturno and restart Home Assistant. Your settings stay."
+    },
+    "step": {
+      "user": {
+        "title": "Nokturno"
+      }
+    }
+  },
+  "issues": {
+    "prestehovano": {
+      "title": "Nokturno has moved",
+      "description": "The integration is now released from a new repository and this version does nothing. In HACS remove the old Nokturno repository and add {url} (category Integration), then download Nokturno and restart Home Assistant. Your settings stay."
+    }
+  }
+}

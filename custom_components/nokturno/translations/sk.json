@@ -1,0 +1,18 @@
+{
+  "config": {
+    "abort": {
+      "prestehovano": "Integrácia sa teraz vydáva z nového repozitára a táto verzia už nič nerobí. V HACS odober starý repozitár Nokturna a pridaj {url} (kategória Integrácia), potom Nokturno stiahni a reštartuj Home Assistant. Nastavenia zostanú."
+    },
+    "step": {
+      "user": {
+        "title": "Nokturno"
+      }
+    }
+  },
+  "issues": {
+    "prestehovano": {
+      "title": "Nokturno sa presťahovalo",
+      "description": "Integrácia sa teraz vydáva z nového repozitára a táto verzia už nič nerobí. V HACS odober starý repozitár Nokturna a pridaj {url} (kategória Integrácia), potom Nokturno stiahni a reštartuj Home Assistant. Nastavenia zostanú."
+    }
+  }
+}
